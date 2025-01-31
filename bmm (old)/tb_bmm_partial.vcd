@@ -1,0 +1,367 @@
+$date
+	Wed Jan 22 15:28:52 2025
+$end
+$version
+	Icarus Verilog
+$end
+$timescale
+	1ps
+$end
+$scope module tb_bmm_partial $end
+$var wire 1 ! valid_out $end
+$var wire 16 " AB_partial [15:0] $end
+$var reg 32 # A_rows [31:0] $end
+$var reg 32 $ B_cols [31:0] $end
+$var reg 1 % clk $end
+$var reg 1 & rst $end
+$var reg 1 ' valid_in $end
+$scope module uut $end
+$var wire 32 ( A_rows [31:0] $end
+$var wire 32 ) B_cols [31:0] $end
+$var wire 1 % clk $end
+$var wire 1 & rst $end
+$var wire 1 ' valid_in $end
+$var wire 4 * mult_out [3:0] $end
+$var reg 16 + AB_partial [15:0] $end
+$var reg 8 , mult_result [7:0] $end
+$var reg 4 - operand1 [3:0] $end
+$var reg 4 . operand2 [3:0] $end
+$var reg 1 ! valid_out $end
+$var integer 32 / i [31:0] $end
+$var integer 32 0 j [31:0] $end
+$var integer 32 1 k [31:0] $end
+$scope module mult_inst $end
+$var wire 4 2 Operand_1 [3:0] $end
+$var wire 4 3 Operand_2 [3:0] $end
+$var wire 8 4 temp_op2 [7:0] $end
+$var wire 8 5 temp_op1 [7:0] $end
+$var wire 16 6 temp [15:0] $end
+$var wire 4 7 result [3:0] $end
+$upscope $end
+$upscope $end
+$upscope $end
+$enddefinitions $end
+#0
+$dumpvars
+bx 7
+bx 6
+bx 5
+bx 4
+bx 3
+bx 2
+bx 1
+b10 0
+b10 /
+bx .
+bx -
+bx ,
+bx +
+bx *
+b0 )
+b0 (
+0'
+1&
+0%
+b0 $
+b0 #
+bx "
+0!
+$end
+#5000
+b10 0
+b10 /
+1%
+#10000
+0%
+0&
+#15000
+1%
+#20000
+0%
+1'
+b10000000100010001000000010000 $
+b10000000100010001000000010000 )
+b10001000100010000000100000001 #
+b10001000100010000000100000001 (
+#25000
+1!
+b0 "
+b0 +
+b0xxxx ,
+b100 1
+b10 0
+b10 /
+1%
+#30000
+0%
+#35000
+b0 *
+b0 7
+b1 6
+bx "
+bx +
+b1 4
+b1 .
+b1 3
+b1 5
+b1 -
+b1 2
+b100 1
+b10 0
+b10 /
+1%
+#40000
+0%
+#45000
+b1 5
+b1 -
+b1 2
+b0 ,
+b1 6
+b1 4
+b1 .
+b1 3
+b100 1
+b10 0
+b10 /
+1%
+#50000
+0%
+#55000
+b1 5
+b1 -
+b1 2
+b1 6
+b1 4
+b1 .
+b1 3
+b100 1
+b10 0
+b10 /
+1%
+#60000
+0%
+#65000
+b1 5
+b1 -
+b1 2
+b1 6
+b1 4
+b1 .
+b1 3
+b100 1
+b10 0
+b10 /
+1%
+#70000
+0%
+#75000
+b1 5
+b1 -
+b1 2
+b1 6
+b1 4
+b1 .
+b1 3
+b100 1
+b10 0
+b10 /
+1%
+#80000
+0%
+#85000
+b1 5
+b1 -
+b1 2
+b1 6
+b1 4
+b1 .
+b1 3
+b100 1
+b10 0
+b10 /
+1%
+#90000
+0%
+#95000
+b1 5
+b1 -
+b1 2
+b1 6
+b1 4
+b1 .
+b1 3
+b100 1
+b10 0
+b10 /
+1%
+#100000
+0%
+#105000
+b1 5
+b1 -
+b1 2
+b1 6
+b1 4
+b1 .
+b1 3
+b100 1
+b10 0
+b10 /
+1%
+#110000
+0%
+#115000
+b1 5
+b1 -
+b1 2
+b1 6
+b1 4
+b1 .
+b1 3
+b100 1
+b10 0
+b10 /
+1%
+#120000
+0%
+#125000
+b1 5
+b1 -
+b1 2
+b1 6
+b1 4
+b1 .
+b1 3
+b100 1
+b10 0
+b10 /
+1%
+#130000
+0%
+#135000
+b1 5
+b1 -
+b1 2
+b1 6
+b1 4
+b1 .
+b1 3
+b100 1
+b10 0
+b10 /
+1%
+#140000
+0%
+#145000
+b1 5
+b1 -
+b1 2
+b1 6
+b1 4
+b1 .
+b1 3
+b100 1
+b10 0
+b10 /
+1%
+#150000
+0%
+#155000
+b1 5
+b1 -
+b1 2
+b1 6
+b1 4
+b1 .
+b1 3
+b100 1
+b10 0
+b10 /
+1%
+#160000
+0%
+#165000
+b1 5
+b1 -
+b1 2
+b1 6
+b1 4
+b1 .
+b1 3
+b100 1
+b10 0
+b10 /
+1%
+#170000
+0%
+#175000
+b1 5
+b1 -
+b1 2
+b1 6
+b1 4
+b1 .
+b1 3
+b100 1
+b10 0
+b10 /
+1%
+#180000
+0%
+#185000
+b1 5
+b1 -
+b1 2
+b1 6
+b1 4
+b1 .
+b1 3
+b100 1
+b10 0
+b10 /
+1%
+#190000
+0%
+#195000
+b1 5
+b1 -
+b1 2
+b1 6
+b1 4
+b1 .
+b1 3
+b100 1
+b10 0
+b10 /
+1%
+#200000
+0%
+#205000
+b1 5
+b1 -
+b1 2
+b1 6
+b1 4
+b1 .
+b1 3
+b100 1
+b10 0
+b10 /
+1%
+#210000
+0%
+#215000
+b1 5
+b1 -
+b1 2
+b1 6
+b1 4
+b1 .
+b1 3
+b100 1
+b10 0
+b10 /
+1%
+#220000
+0%

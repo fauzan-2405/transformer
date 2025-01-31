@@ -67,10 +67,10 @@ module tb_bmm_partial;
         #10;
 
         // Deactivate valid input
-        valid_in = 0;
+        //valid_in = 0;
 
         // Wait for a few clock cycles to observe output
-        #50;
+        #;
 
         // Finish simulation
         $finish;
