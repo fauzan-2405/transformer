@@ -9,12 +9,12 @@ module pe #(
 ) (
     input clk, rst_n,
     input [WIDTH-1:0] in_north, in_west,
-    output reg [WIDTH-1:0] out_south, out_east
+    output reg [WIDTH-1:0] out_south, out_east,
     output reg [WIDTH-1:0] result
 );
     wire [2*WIDTH-1:0] mult_result;
     wire [2*WIDTH-1:0] add_result;
-    wire [WIDTH-1:0] temp_acc
+    wire [WIDTH-1:0] temp_acc;
 
     always @(posedge clk) begin
         if (!rst_n) begin
