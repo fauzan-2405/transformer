@@ -1,73 +1,47 @@
-module tb_saturate;
+`timescale 1ns/1ps
 
-    // Testbench signals
-    reg clk;
-    reg rst_n;
-    reg [31:0] in;  // 2*WIDTH = 32 bits for the input
-    wire [15:0] out;  // 16-bit output
+module tb_saturate ();
 
-    // Instantiate the saturate module
-    saturate #(
-        .WIDTH(16),
-        .FRAC_WIDTH(8)
-    ) saturate_inst (
-        .clk(clk),
-        .rst_n(rst_n),
-        .in(in),
-        .out(out)
-    );
+    /****************************************************************************
+    * Parameter
+    ***************************************************************************/
+	parameter BIT_WIDTH = 16;
+	parameter FRAC_WIDTH = 8;
 
-    // Clock generation
-    always begin
-        #5 clk = ~clk;  // 10ns clock period
-    end
+   /****************************************************************************
+    * Signals
+    ***************************************************************************/
 
-    // Initial block to initialize signals and apply test cases
-    initial begin
-        // Initialize signals
-        clk = 0;
-        rst_n = 0;
-        in = 32'b0;
+   reg signed [BIT_WIDTH*2 - 1:0] in;
+   wire signed[BIT_WIDTH-1:0] out;
 
-        // Set up VCD dump file
-        $dumpfile("tb_saturate.vcd");  // VCD output file
-        $dumpvars(0, tb_saturate);      // Dump all variables in the testbench
+   /****************************************************************************
+    * Generate Clock Signals
+    ***************************************************************************/
 
-        // Apply reset
-        #10 rst_n = 1;
-        
-        // Test Case 1: Positive value within range (16.75)
-        in = 16'b00010000_11000000;  // 16.75
-        #10;
-        $display("Test Case 1: in = %b, out = %b", in, out);
-        
-        // Test Case 2: Negative value within range (-128)
-        in = 16'b10000000_00000000;  // -128
-        #10;
-        $display("Test Case 2: in = %b, out = %b", in, out);
+   /****************************************************************************
+    * Instantiate Modules
+    ***************************************************************************/
 
-        // Test Case 3: Overflow positive (127.99609375)
-        in = 16'b01111111_11111111;  // 127.99609375 (max positive value for Q8.8)
-        #10;
-        $display("Test Case 3: in = %b, out = %b", in, out);
+   saturate #(.BIT_WIDTH(BIT_WIDTH), .FRAC_WIDTH(FRAC_WIDTH)) sat_block (.in(in), .out(out));
 
-        // Test Case 4: Overflow negative (-128.0)
-        in = 16'b10000001_00000000;  // -128.0 (underflow, should clip to -128)
-        #10;
-        $display("Test Case 4: in = %b, out = %b", in, out);
+   /****************************************************************************
+    * Apply Stimulus
+    ***************************************************************************/
 
-        // Test Case 5: Negative value out of range (-129)
-        in = 16'b10000010_00000000;  // -129 (should clip to -128)
-        #10;
-        $display("Test Case 5: in = %b, out = %b", in, out);
-        
-        // Test Case 6: Positive value just below overflow (126.5)
-        in = 16'b01111111_11000000;  // 126.5
-        #10;
-        $display("Test Case 6: in = %b, out = %b", in, out);
+   initial begin
+		$dumpfile("tb_saturate.vcd");
+		$dumpvars(0,saturate_tb);		
 
-        // End simulation
-        $finish;
-    end
+		#1 in = 32'h001fff23;
+		$monitor ("In: 0x%0h out: 0x%0h", in,out);
+		#1 in = 32'h051fff23;
+		#1 in = 32'h851fff23;
+		#1;
+
+		$finish;
+
+   end
+
 
 endmodule
