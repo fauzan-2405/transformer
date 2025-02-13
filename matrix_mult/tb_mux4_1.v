@@ -13,7 +13,7 @@ reg [3:0] select;
 // Output for mux module
 wire [WIDTH-1:0] out;
 
-mux4_1 #(.WIDTH(WIDTH)) mux_inst (.clk(clk), .rst_n(rst_n), .input_0(input_0), .input_1(input_1), .input_3(input_3), .out(out));
+mux4_1 #(.WIDTH(WIDTH)) mux_inst (.clk(clk), .rst_n(rst_n), .input_0(input_0), .input_1(input_1), .input_2(input_2), .input_3(input_3), .out(out));
 
 // Clock generation
 initial begin
@@ -21,30 +21,23 @@ initial begin
 		#5 clk <= ~clk;
 end
 
+// Initial block to apply test cases
+initial begin
+    // Initialize signals
+    clk = 0;
+    rst_n = 0;
+
+end
+
 // Behavior
 initial begin
-    rst_n <= 0;
-    clk <= 0;
-    #1;
-    input_0 <= 16'h0300;
-    input_1 <= 16'h0200;
-    input_2 <= 16'h0100;
-    input_3 <= 16'h0000;
-    rst_n <= 1;
-    #10;
-    input_0 <= 16'h0300;
-    input_1 <= 16'h0200;
-    input_2 <= 16'h0100;
-    input_3 <= 16'h0000;
-    rst_n <= 1;
-    #10;
-    input_0 <= 16'h0300;
-    input_1 <= 16'h0200;
-    input_2 <= 16'h0100;
-    input_3 <= 16'h0000;
-    rst_n <= 1;
-    #10;
+	#10 rst_n = 1;
+		input_0 = 16'h0400;
+		input_1 = 16'h0300;
+		input_2 = 16'h0200;
+		input_3 = 16'h0100;
 end
+
 
 // Dumping to see the waveform file
 initial begin
