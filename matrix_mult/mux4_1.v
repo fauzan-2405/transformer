@@ -9,6 +9,11 @@ module mux4_1 #(
     output reg [WIDTH-1:0] out
 );
     reg [1:0] select;
+	//wire [2:0] dummy = 3'b110;
+	
+	//initial begin
+	//	select = dummy[2:1];
+	//end
     
     always @(posedge clk) begin
         if (!rst_n) begin
@@ -22,7 +27,7 @@ module mux4_1 #(
             2'b10 : out <= input_2;
             2'b11 : out <= input_3;
             endcase
-            select <= select+1;
+			select <= select+1;
         end
     end
 
