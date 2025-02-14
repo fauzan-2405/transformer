@@ -17,10 +17,11 @@ module control_unit (
             counter <= (counter >> 1)|(counter << 7);
         end
         else begin // Not Active
-			// counter <= 8'b1000_1111 <= This is not used because there's a bug when first
+			 counter <= 8'b1000_0111; 
+			// This is not used because there's a bug when first
 			// mux is not defined. It is because the reset is already 1 so the variable "select" on mux
 			// (see mux.v) is not yet defined
-            counter <= 8'b0000_1111; 
+            //counter <= 8'b0000_1111; 
         end
     end
 

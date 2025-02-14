@@ -9,11 +9,11 @@ module mux4_1 #(
     output reg [WIDTH-1:0] out
 );
     reg [1:0] select;
-	//wire [2:0] dummy = 3'b110;
+	wire [2:0] dummy = 3'b110;
 	
-	//initial begin
-	//	select = dummy[2:1];
-	//end
+	initial begin
+		select = dummy[2:1];
+	end
     
     always @(posedge clk) begin
         if (!rst_n) begin
