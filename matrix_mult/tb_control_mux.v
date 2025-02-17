@@ -1,5 +1,5 @@
 `timescale 1ns / 1ps
-`include "control_unit.v"
+`include "control_mux.v"
 `include "mux4_1.v"
 
 /*
@@ -10,7 +10,7 @@ We're gonna test this matrix
   1 1 1 0 ]				  
 */
 
-module tb_control_unit;
+module tb_control_mux;
 parameter WIDTH = 16;
 
 // Input for mux & controller module
@@ -77,8 +77,8 @@ end
 // Dumping to see the waveform file
 initial begin
     // Set up VCD dump file
-    $dumpfile("tb_control_unit.vcd");  // VCD output file
-    $dumpvars(0, tb_control_unit);      // Dump all variables in the testbench
+    $dumpfile("tb_control_mux.vcd");  // VCD output file
+    $dumpvars(0, tb_control_mux);      // Dump all variables in the testbench
 end
 
 

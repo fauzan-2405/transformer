@@ -1,7 +1,7 @@
-// control_unit.v
+// control_mux.v
 // Used to control mux to stream input
 
-module control_unit (
+module control_mux (
     input clk, rst_n,
     output wire [3:0] mux_reset
 );
