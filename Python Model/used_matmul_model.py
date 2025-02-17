@@ -7,9 +7,8 @@ def systolic_multiply(A_1_chunk, B_1_chunk):
 
 # Initialize Matrix A and B with integers
 M, N, T = 2754, 256, 64
-A = np.random.randint(1, 3, size=(M, N), dtype=np.int32)  
-B = np.random.randint(1, 3, size=(N, T), dtype=np.int32)  
-
+A = np.random.randint(0, 256, size=(M, N), dtype=np.int32)  # Integer values between 0 and 255
+B = np.random.randint(0, 256, size=(N, T), dtype=np.int32)  # Integer values between 0 and 255
 
 # Create A_1 and B_1 by reshaping the original matrices into 16x16 chunks
 A_1 = A.reshape(M * 16, 16)  # Size 44064 x 16
@@ -42,6 +41,9 @@ relative_error_percentage = (absolute_error / np.abs(C_normal)) * 100
 # Calculate the mean error percentage
 mean_error_percentage = np.mean(relative_error_percentage)
 
+# Print the error percentage for each element
+print("\nError percentage for each element:")
+print(relative_error_percentage[:5])
 
 # Print the mean error percentage across the matrix
 print("\nMean error percentage across all elements in C:")
