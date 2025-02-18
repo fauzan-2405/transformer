@@ -24,7 +24,7 @@ wire done;
 wire [WIDTH*WIDTH-1:0] out;
 
 // Instantiate the systolic array (Device Under Test)
-systolic_array #(
+systolic_array_4x4 #(
     .WIDTH(WIDTH),
     .FRAC_WIDTH(FRAC_WIDTH)
 ) uut (
