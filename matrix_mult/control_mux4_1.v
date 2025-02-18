@@ -1,7 +1,7 @@
 // control_mux.v
 // Used to control mux to stream input
 
-module control_mux (
+module control_mux4_1 (
     input clk, rst_n,
     output wire [3:0] mux_reset
 );

@@ -3,7 +3,7 @@
 
 `include "pe.v"
 
-module systolic_array #(
+module systolic_array_4x4 #(
     parameter WIDTH = 16,
     parameter FRAC_WIDTH = 8
 ) (

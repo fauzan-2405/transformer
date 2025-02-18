@@ -7,7 +7,7 @@ We're gonna do multiplication for this simple matrix:
   1 2 0 1				  1 4 1 2						 9  1  8  3
   1 1 1 0 ]				  3 0 2 0 ]						 4  5  6  5 ]
 */
-module tb_systolic_array;
+module tb_systolic_array_4x4;
 
 // Parameters for the systolic array
 parameter WIDTH = 16;
@@ -144,8 +144,8 @@ end
 // Dumping to see the waveform file
 initial begin
     // Set up VCD dump file
-    $dumpfile("tb_systolic_array.vcd");  // VCD output file
-    $dumpvars(0, tb_systolic_array);      // Dump all variables in the testbench
+    $dumpfile("tb_systolic_array_4x4.vcd");  // VCD output file
+    $dumpvars(0, tb_systolic_array_4x4);      // Dump all variables in the testbench
 end
 
 endmodule
