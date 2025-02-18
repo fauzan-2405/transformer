@@ -4,11 +4,12 @@
 
 /*
 We're gonna test this matrix
-[ 2 1 2 1 
-  0 1 0 1           
-  1 2 0 1				
-  1 1 1 0 ]				  
+[ 8 10 13 10
+  6  0  3  1
+  9  1  8  3
+  4  5  6  5 ]	  
 */
+
 
 module tb_control_mux4_1;
 parameter WIDTH = 16;
