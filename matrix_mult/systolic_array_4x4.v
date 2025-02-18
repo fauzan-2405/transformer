@@ -1,4 +1,4 @@
-// systolic_array.v
+// systolic_array_4x4.v
 // Used as a multiplier
 
 `include "pe.v"
