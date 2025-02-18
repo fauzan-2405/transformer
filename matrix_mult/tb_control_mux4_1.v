@@ -35,9 +35,24 @@ mux4_1 #(.WIDTH(WIDTH)) mux_inst3 (.clk(clk), .rst_n(rst_n), .input_0(input_30),
 initial begin
     rst_n <= 0;
     clk <= 0;
+	input_00 = 0;
+	input_01 = 0;
+	input_02 = 0;
+	input_03 = 0;
+	input_10 = 0;
+	input_11 = 0;
+	input_12 = 0;
+	input_13 = 0;
+	input_20 = 0;
+	input_21 = 0;
+	input_22 = 0;
+	input_23 = 0;
+	input_30 = 0;
+	input_31 = 0;
+	input_32 = 0;
+	input_33 = 0;
     #10;
     rst_n <=1;
-    #50;
 end
 
 
@@ -49,28 +64,26 @@ end
 
 // Behavior
 initial begin
-	#10 input_00 = 16'h0200;
-		input_01 = 16'h0100;
-		input_02 = 16'h0200;
-		input_03 = 16'h0100;
-end
+	#10 input_00 = 16'h0800;
+		input_01 = 16'h0A00;
+		input_02 = 16'h0C00;
+		input_03 = 16'h0A00;
+		
+		input_10 = 16'h0600;
+		input_11 = 16'h0000;
+		input_12 = 16'h0300;
+		input_13 = 16'h0100;
+		
+		input_20 = 16'h0900;
+		input_21 = 16'h0100;
+		input_22 = 16'h0800;
+		input_23 = 16'h0300;
+		
+		input_30 = 16'h0400;
+		input_31 = 16'h0500;
+		input_32 = 16'h0600;
+		input_33 = 16'h0500;
 
-initial begin
-    #10 in_north0 = 16'h0300;  
-        in_west0 = 16'h0100;
-    #10 in_north0 = 16'h0100;  
-        in_west0 = 16'h0200;
-    #10 in_north0 = 16'h0300;  
-        in_west0 = 16'h0100;
-    #10 in_north0 = 16'h0000;  
-        in_west0 = 16'h0200;
-	//
-	#10 in_north0 = 16'h0000;  
-        in_west0 = 16'h0000;
-	#10 in_north0 = 16'h0000;  
-        in_west0 = 16'h0000;
-	#10 in_north0 = 16'h0000;  
-        in_west0 = 16'h0000;
 end
 
 
