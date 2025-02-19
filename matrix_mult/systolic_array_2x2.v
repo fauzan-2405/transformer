@@ -5,13 +5,14 @@
 
 module systolic_array_2x2 #(
     parameter WIDTH = 16,
-    parameter FRAC_WIDTH = 8
+    parameter FRAC_WIDTH = 8,
+    parameter CHUNK_SIZE = 4,
 ) (
     input clk, rst_n,
     input [WIDTH-1:0] in_north0, in_north1,
     input [WIDTH-1:0] in_west0, in_west2,
     output reg done,
-    output [WIDTH*4-1:0] out
+    output [WIDTH*CHUNK_SIZE-1:0] out
 );
     // For counting 
     reg [2:0] count;
