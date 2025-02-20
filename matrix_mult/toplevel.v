@@ -13,11 +13,14 @@ module toplevel #(
 ) (
     input clk, rst_n, reset_acc,
     input [(WIDTH*CHUNK_SIZE)-1:0] input_w,
-    input [(WIDTH*CHUNK_SIZE)-1:0] input_n
+    input [(WIDTH*CHUNK_SIZE)-1:0] input_n,
+	
+	output accumulator_done, systolic_finish,
+	output [(WIDTH*CHUNK_SIZE)-1:0] out
 );
     // Wire for mux output
-    wire [WIDTH-1:0] out_mux0_n, out_mux1_n
-    wire [WIDTH-1:0] out_mux0_w, out_mux2_w,
+    wire [WIDTH-1:0] out_mux0_n, out_mux1_n;
+    wire [WIDTH-1:0] out_mux0_w, out_mux2_w;
 
     // Wire for control_mux output
     wire [BLOCK_SIZE-1:0] mux_reset_west;
