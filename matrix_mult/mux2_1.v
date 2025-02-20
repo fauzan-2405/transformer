@@ -8,12 +8,7 @@ module mux2_1 #(
     input [WIDTH-1:0] input_0, input_1, 
     output reg [WIDTH-1:0] out
 );
-    reg select;
-	wire dummy = 1'b1;
-	
-	initial begin
-		select = dummy;
-	end
+    reg select = 1'b1;
     
     always @(posedge clk) begin
         if (!rst_n) begin
