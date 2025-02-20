@@ -23,24 +23,27 @@ mac #(.WIDTH(WIDTH), .FRAC_WIDTH(FRAC_WIDTH), .BLOCK_SIZE(BLOCK_SIZE), .INNER_DI
 
 // Behavior
 initial begin
+	// First input
     #10 in_north0 = 16'h0200;  
         in_west0 = 16'h0200;
     #10 in_north0 = 16'h0400;  
         in_west0 = 16'h0100;
-
-	//
-	#10 in_north0 = 16'h0000;  
+	#10 in_north0 = 16'h0000; // Zero  
         in_west0 = 16'h0000;
 end
 
 initial begin
-    #10 in_north1 = 16'h0000;  
+	// First input
+    #10 in_north1 = 16'h0000; // Zero
         in_west2 = 16'h0000;
-	//
     #10 in_north1 = 16'h0300;  
         in_west2 = 16'h0400;
     #10 in_north1 = 16'h0100;  
         in_west2 = 16'h0300;
+		
+	// Zero
+	#10 in_north1 = 16'h0000;  
+        in_west2 = 16'h0000;
 end
 
 always @(posedge systolic_finish) begin
