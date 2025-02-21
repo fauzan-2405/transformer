@@ -6,7 +6,6 @@ module RAM2_input #(
     parameter CHUNK_SIZE = 4,
     parameter INNER_DIMENSION = 4, // The same number of rows in one matrix and same number of columns in the other matrix
     parameter OUTER_DIMENSION = 6 // The size of rows/cols of the matrix outside of inner dimension
-     
 ) (
     input clk,
     input [WIDTH-1:0] counter_A,
