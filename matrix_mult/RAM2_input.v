@@ -10,8 +10,8 @@ module RAM2_input #(
     input clk,
     input [WIDTH-1:0] counter_A,
     input [WIDTH-1:0] counter_B,
-    output reg [WIDTH-1:0] output1,
-    output reg [WIDTH-1:0] output2
+    output reg [(WIDTH*CHUNK_SIZE)-1:0] output1,
+    output reg [(WIDTH*CHUNK_SIZE)-1:0] output2
 );
     // (INNER DIMENSION / CHUNK SIZE) x OUTER DIMENSION
     // For 6x4 by 4x6 -> (4/4)x6=6
