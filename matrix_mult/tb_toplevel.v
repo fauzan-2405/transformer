@@ -1,3 +1,4 @@
+`timescale 1ns / 1ps
 `include "toplevel.v"
 `include "RAM2_input.v"
 
@@ -5,7 +6,7 @@ module tb_toplevel;
 parameter WIDTH = 16;
 parameter FRAC_WIDTH = 8;
 parameter BLOCK_SIZE = 2; // The size of systolic array dimension (N x N)
-parameter CHUNK_SIZE = 4,;
+parameter CHUNK_SIZE = 4;
 parameter INNER_DIMENSION = 4 ;// The same number of rows in one matrix and same number of columns in the other matrix
 // If the matrices are symmetrical
 parameter OUTER_DIMENSION = 6; // The size of rows/cols of the matrix outside of inner dimension
@@ -57,6 +58,7 @@ toplevel #(.WIDTH(WIDTH), .FRAC_WIDTH(FRAC_WIDTH), .BLOCK_SIZE(BLOCK_SIZE), .INN
 
 initial begin
     rst_n <= 0;
+	clk <= 0;
     reset_acc <= 0;
     counter_A <= 0;
     counter_B <= 0;
@@ -65,15 +67,15 @@ initial begin
     counter_col <= 0;
     flag <= 0;
     #10
-    rst_n <= done_systolic;
-    reset_accum <= 0;
+    rst_n <= systolic_finish;
+    reset_acc <= 0;
 end
 
 always @(posedge clk) begin
     if (systolic_finish == 1) begin
-        rst_n <= 0;
-    end else begin
         rst_n <= 1;
+    end else begin
+        rst_n <= 0;
     end
 end
 
