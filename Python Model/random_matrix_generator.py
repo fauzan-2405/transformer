@@ -7,9 +7,14 @@ size_coloumn = 4
 # Systolic array size (e.g., 2x2, 4x4, etc.)
 size_sys_array = 2 
 
-# Generate random matrices
-array_A = np.random.uniform(0, 1, size=(size_row, size_coloumn))  # 6x4 matrix A
-array_B = np.random.uniform(0, 1, size=(size_coloumn, size_row))  # 4x6 matrix B
+# Generate random matrices for floating point
+#array_A = np.random.uniform(0, 1, size=(size_row, size_coloumn))  # 6x4 matrix A
+#array_B = np.random.uniform(0, 1, size=(size_coloumn, size_row))  # 4x6 matrix B
+
+# Generate random integer matrices with values from 1 to 2
+array_A = np.random.randint(1, 3, size=(size_row, size_coloumn))  # 6x4 matrix A, values from 1 to 2
+array_B = np.random.randint(1, 3, size=(size_coloumn, size_row))  # 4x6 matrix B, values from 1 to 2
+
 
 # Initialize hex arrays for converting values to Q8.8 format
 hex_A = [["" for _ in range(size_coloumn)] for _ in range(size_row)]
