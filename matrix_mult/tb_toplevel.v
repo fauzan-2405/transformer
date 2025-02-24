@@ -66,16 +66,16 @@ initial begin
     counter_row <= 0;
     counter_col <= 0;
     flag <= 0;
-    #10
+    #3
     rst_n <= systolic_finish;
     reset_acc <= 0;
 end
 
 always @(posedge clk) begin
     if (systolic_finish == 1) begin
-        rst_n <= 1;
-    end else begin
         rst_n <= 0;
+    end else begin
+        rst_n <= 1;
     end
 end
 
