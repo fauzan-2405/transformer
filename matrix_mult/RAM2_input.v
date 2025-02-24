@@ -15,8 +15,9 @@ module RAM2_input #(
 );
     // (INNER DIMENSION / CHUNK SIZE) x OUTER DIMENSION
     // For 6x4 by 4x6 -> (4/4)x6=6
-    reg [WIDTH-1:0] mem_array_A [((INNER_DIMENSION/CHUNK_SIZE)*OUTER_DIMENSION)-1:0];
-    reg [WIDTH-1:0] mem_array_B [((INNER_DIMENSION/CHUNK_SIZE)*OUTER_DIMENSION)-1:0];
+	// reg [Number of bits per row] mem_array [(INNER DIMENSION / CHUNK SIZE) x OUTER DIMENSION]
+    reg [(WIDTH*CHUNK_SIZE)-1:0] mem_array_A [((INNER_DIMENSION/CHUNK_SIZE)*OUTER_DIMENSION)-1:0];
+    reg [(WIDTH*CHUNK_SIZE)-1:0] mem_array_B [((INNER_DIMENSION/CHUNK_SIZE)*OUTER_DIMENSION)-1:0];
     
     initial begin
         $readmemh("A.txt", mem_array_A);
