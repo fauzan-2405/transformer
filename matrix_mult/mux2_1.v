@@ -9,7 +9,7 @@ module mux2_1 #(
     output reg [WIDTH-1:0] out
 );
     reg select = 1'b0;
-    //reg select;
+    // reg select;
 	
     always @(posedge clk) begin
         if (!rst_n) begin

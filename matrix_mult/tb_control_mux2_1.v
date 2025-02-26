@@ -38,6 +38,11 @@ initial begin
 	rst_n <=1;
 end
 
+initial begin
+	#40 rst_n <= 0;
+	#10 rst_n <= 1;
+end
+
 
 // Clock generation
 initial begin
@@ -47,7 +52,7 @@ end
 
 // Behavior
 initial begin
-	#10 input_00 = 16'h0400;
+	#5 input_00 = 16'h0400;
 		input_01 = 16'h0100;
 		
 		input_10 = 16'h0200;
