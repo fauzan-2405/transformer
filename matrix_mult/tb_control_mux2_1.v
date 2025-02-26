@@ -30,13 +30,12 @@ mux2_1 #(.WIDTH(WIDTH)) mux_inst1 (.clk(clk), .rst_n(mux_reset[0]), .input_0(inp
 initial begin
     rst_n <= 0;
     clk <= 0;
-	#1
+	#5
 	input_00 = 0;
 	input_01 = 0;
     input_10 = 0;
     input_11 = 0;
 	rst_n <=1;
-    #9;
 end
 
 

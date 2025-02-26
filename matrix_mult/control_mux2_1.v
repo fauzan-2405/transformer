@@ -5,7 +5,7 @@ module control_mux2_1 (
     input clk, rst_n,
     output wire [1:0] mux_reset
 );
-    reg [3:0] counter = 4'b00_11; // For controlling reset
+    reg [3:0] counter = 4'b10_01; // For controlling reset
 
     assign mux_reset = counter[3:2];
 
