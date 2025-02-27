@@ -16,8 +16,8 @@ module accumulator #(
     output reg [WIDTH*CHUNK_SIZE-1:0] out
 );
     reg [WIDTH-1:0] update_value[CHUNK_SIZE-1:0]; // The number of element we want to update the value
-    reg [6:0] counter; // To count the iteration to produce one block of output based on the dimension of systolic output
-	
+	// Dont initialize these parameters if you want to do accumulator or mac simulation on testbench
+    reg [6:0] counter = 7'b1111_111; // To count the iteration to produce one block of output based on the dimension of systolic output
 	
     always @(posedge systolic_done) begin
         if (!rst_n) begin
@@ -30,7 +30,8 @@ module accumulator #(
             out <= {WIDTH*CHUNK_SIZE{1'b0}}; // Reset all to 0
         end
         else begin
-            if (counter == (INNER_DIMENSION / BLOCK_SIZE)) begin
+			//if (counter == 1) begin
+            if (counter == (BLOCK_SIZE)) begin
                 accumulator_done <= 1;
 				// Concatenate all update_value registers for the output
                 out[(WIDTH*1)-1:WIDTH*0] <= update_value[3];
