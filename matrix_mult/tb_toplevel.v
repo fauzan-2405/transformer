@@ -37,7 +37,6 @@ reg [15:0] counter_row;
 reg [15:0] counter_col;
 reg [WIDTH-1:0] flag; // Used to track the sys array index in the resulting matrix 
 
-
 wire accumulator_done, systolic_finish;
 wire [(WIDTH*CHUNK_SIZE)-1:0] out;
 wire [(WIDTH*CHUNK_SIZE)-1:0] output1, output2;
@@ -66,20 +65,21 @@ initial begin
     counter_row <= 0;
     counter_col <= 0;
     flag <= 0;
-    #3
-    rst_n <= systolic_finish;
-    reset_acc <= 0;
+    #5
+	rst_n <= ~systolic_finish;
+	reset_acc <= 0;
 end
 
 always @(posedge clk) begin
     if (systolic_finish == 1) begin
         rst_n <= 0;
-    end else begin
-        rst_n <= 1;
+    end else begin // kalau 0
+		rst_n <= 1;
     end
 end
 
-always @(posedge clk) begin
+
+always @(posedge systolic_finish) begin
     if (accumulator_done == 1) begin
         reset_acc <= 0;
     end else begin
@@ -96,6 +96,15 @@ end
 always @(posedge systolic_finish) begin
     counter_A <= counter + CHUNK_SIZE*counter_row;
     counter_B <= counter + CHUNK_SIZE*counter_col;
+end
+
+always @(posedge systolic_finish) begin
+	if (counter == CHUNK_SIZE) begin
+		counter <=0;
+	end
+	else begin
+		counter <= counter + 1;
+	end
 end
 
 // Check if we already at the end of the MAT C column
@@ -136,12 +145,6 @@ initial begin
 	$dumpfile("tb_toplevel.vcd");
 	$dumpvars(0, tb_toplevel);
 end
-
-
-
-
-
-
 
 endmodule
 
