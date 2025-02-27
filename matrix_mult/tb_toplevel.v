@@ -87,19 +87,21 @@ always @(posedge systolic_finish) begin
     end
 end
 
+
 initial begin
     forever begin
         #5 clk <= ~clk;
     end
 end
 
+// We decided to be input stationary (input A)
 always @(posedge systolic_finish) begin
     counter_A <= counter + CHUNK_SIZE*counter_row;
-    counter_B <= counter + CHUNK_SIZE*counter_col;
+    counter_B <= counter + BLOCK_SIZE*counter_col;
 end
 
 always @(posedge systolic_finish) begin
-	if (counter == CHUNK_SIZE) begin
+	if (counter == ((INNER_DIMENSION/BLOCK_SIZE) - 1)) begin
 		counter <=0;
 	end
 	else begin
@@ -145,6 +147,12 @@ initial begin
 	$dumpfile("tb_toplevel.vcd");
 	$dumpvars(0, tb_toplevel);
 end
+
+
+
+
+
+
 
 endmodule
 
