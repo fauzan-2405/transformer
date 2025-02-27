@@ -1,7 +1,7 @@
 // reg.v
 // Used as a register module
 
-module reg #(
+module register #(
     parameter WIDTH = 16
 ) (
     input clk, rst_n,

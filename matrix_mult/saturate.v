@@ -1,5 +1,5 @@
 // saturate.v
-// Used to check wether the output is saturate or not
+// Used to check whether the output is saturated or not
 `include "reg.v"
 
 module saturate #(
@@ -12,13 +12,16 @@ module saturate #(
 );
     wire [1:0] selector, temp_selector;
 
-    assign selector[0] = |in[2*WIDTH-2:WIDTH+FRAC_WIDTH];
-    assign selector[1] = in[2*WIDTH-1];
+    // Calculate selector[0] - reduction OR to check if upper bits are non-zero
+    assign selector[0] = |in[2*WIDTH-2:WIDTH+FRAC_WIDTH];  // Check if upper bits are non-zero
+    assign selector[1] = in[2*WIDTH-1];  // The sign bit of the input
 
-    reg #(2) reg_0 (.clk(clk), .rst_n(rst_n), .in(selector), .out(temp_selector));
+    // Register for storing the selector values
+    register #(2) reg_0 (.clk(clk), .rst_n(rst_n), .in(selector), .out(temp_selector));
 
-    assign out = selector[1]?
-        (selector[0]? in[WIDTH+FRAC_WIDTH-1:FRAC_WIDTH] : {1'b1, {WIDTH-1{1'b0}}}) :
-        (selector[0]? {1'b0, {WIDTH-1{1'b1}} : in[WIDTH+FRAC_WIDTH-1:FRAC_WIDTH]});
-
-    endmodule
+    // Assign the output based on saturation logic
+    assign out = selector[1] ?
+        (selector[0] ? in[WIDTH+FRAC_WIDTH-1:FRAC_WIDTH] : {1'b1, {WIDTH-1{1'b0}}}) :
+        (selector[0] ? {1'b0, {WIDTH-1{1'b1}}} : in[WIDTH+FRAC_WIDTH-1:FRAC_WIDTH]);
+        
+endmodule
