@@ -7,12 +7,12 @@ parameter WIDTH = 16;
 parameter FRAC_WIDTH = 8;
 parameter BLOCK_SIZE = 2; // The size of systolic array dimension (N x N)
 parameter CHUNK_SIZE = 4;
-parameter INNER_DIMENSION = 4 ;// The same number of rows in one matrix and same number of columns in the other matrix
+parameter INNER_DIMENSION = 8;// The same number of rows in one matrix and same number of columns in the other matrix
 // If the matrices are symmetrical
-parameter OUTER_DIMENSION = 6; // The size of rows/cols of the matrix outside of inner dimension
+parameter OUTER_DIMENSION = 16; // The size of rows/cols of the matrix outside of inner dimension
 // If not
-parameter ROW_SIZE_MAT_A = 6;
-parameter COL_SIZE_MAT_B = 6;
+parameter ROW_SIZE_MAT_A = 16;
+parameter COL_SIZE_MAT_B = 16;
 // Matrix C parameter
 parameter ROW_SIZE_MAT_C = ROW_SIZE_MAT_A / BLOCK_SIZE;
 parameter COL_SIZE_MAT_C = COL_SIZE_MAT_B / BLOCK_SIZE;
@@ -24,7 +24,7 @@ parameter COL_SIZE_MAT_C = COL_SIZE_MAT_B / BLOCK_SIZE;
 // ROW_SIZE_MAT_C = (ROW_SIZE_MAT_A / BLOCK_SIZE)
 // COL_SIZE_MAT_C = (COL_SIZE_MAT_B / BLOCK_SIZE) 
 // MAX_FLAG = ROW_SIZE_MAT_C * COL_SIZE_MAT_C
-parameter MAX_FLAG = ROW_SIZE_MAT_C * COL_SIZE_MAT_C ;
+parameter MAX_FLAG = ROW_SIZE_MAT_C * COL_SIZE_MAT_C;
 
 reg clk;
 reg rst_n;
