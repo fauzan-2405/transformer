@@ -70,6 +70,7 @@ initial begin
 	reset_acc <= 0;
 end
 
+
 always @(posedge clk) begin
     if (systolic_finish == 1) begin
         rst_n <= 0;
@@ -77,6 +78,7 @@ always @(posedge clk) begin
 		rst_n <= 1;
     end
 end
+
 
 
 always @(posedge systolic_finish) begin
@@ -111,7 +113,7 @@ end
 
 // Check if we already at the end of the MAT C column
 always @(posedge accumulator_done) begin 
-	if (counter_col == COL_SIZE_MAT_C) begin
+	if (counter_col == (COL_SIZE_MAT_C - 1)) begin
 		counter_col <= 0;
 		counter_row <= counter_row + 1;
 	end else begin
