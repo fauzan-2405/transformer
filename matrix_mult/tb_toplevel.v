@@ -98,8 +98,8 @@ end
 
 // We decided to be input stationary (input A)
 always @(posedge systolic_finish) begin
-    counter_A <= counter + BLOCK_SIZE*counter_row;
-    counter_B <= counter + BLOCK_SIZE*counter_col;
+    counter_A <= counter + (INNER_DIMENSION/BLOCK_SIZE)*counter_row;
+    counter_B <= counter + (INNER_DIMENSION/BLOCK_SIZE)*counter_col;
 end
 
 always @(posedge systolic_finish) begin
