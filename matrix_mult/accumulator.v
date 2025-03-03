@@ -31,7 +31,7 @@ module accumulator #(
         end
         else begin
 			//if (counter == 1) begin
-            if (counter == (INNER_DIMENSION/BLOCK_SIZE)) begin
+            if (counter == (INNER_DIMENSION/BLOCK_SIZE) ) begin
                 accumulator_done <= 1;
 				// Concatenate all update_value registers for the output
                 out[(WIDTH*1)-1:WIDTH*0] <= update_value[3];
