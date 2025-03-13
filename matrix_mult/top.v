@@ -21,10 +21,10 @@ module top #(
     output done,
     // Weight port
     // For weight, there is 256x64 data with 16 bits each
-    input wb_en,
-    input [(INNER_DIMENSION/CHUNK_SIZE)*W_OUTER_DIMENSION-1:0] wb_addr, // 256/4 = 64 x 256
-    input [WIDTH*CHUNK_SIZE-1:0] wb_din,
-    input [7:0] wb_we,
+    input wb_ena,
+    input [(INNER_DIMENSION/CHUNK_SIZE)*W_OUTER_DIMENSION-1:0] wb_addra, // 256/4 = 64 x 256
+    input [WIDTH*CHUNK_SIZE-1:0] wb_dina,
+    input [7:0] wb_wea,
     // Data input port
     input in_en,
     input [(INNER_DIMENSION/CHUNK_SIZE)*I_OUTER_DIMENSION-1:0] in_addr,
@@ -35,4 +35,81 @@ module top #(
     input [(W_OUTER_DIMENSION/CHUNK_SIZE)*I_OUTER_DIMENSION],
     output [WIDTH*CHUNK_SIZE-1:0] out_dout
 );
+    // *** Weight BRAM **********************************************************
+    // xpm_memory_tdpram: True Dual Port RAM
+    // Xilinx Parameterized Macro, version 2018.3
+    wire wb_enb;
+    wire [(INNER_DIMENSION/CHUNK_SIZE)*W_OUTER_DIMENSION-1:0] wb_addrb; // 256/4 = 64 x 256
+    wire [WIDTH*CHUNK_SIZE-1:0] wb_doutb;
+
+
+    xpm_memory_tdpram
+    #(
+        // Common module parameters
+        .MEMORY_SIZE(INNER_DIMENSION*W_OUTER_DIMENSION*WIDTH), // DECIMAL, 
+        .MEMORY_PRIMITIVE("auto"),           // String
+        .CLOCKING_MODE("common_clock"),      // String, "common_clock"
+        .MEMORY_INIT_FILE("none"),           // String
+        .MEMORY_INIT_PARAM("0"),             // String      
+        .USE_MEM_INIT(1),                    // DECIMAL
+        .WAKEUP_TIME("disable_sleep"),       // String
+        .MESSAGE_CONTROL(0),                 // DECIMAL
+        .AUTO_SLEEP_TIME(0),                 // DECIMAL          
+        .ECC_MODE("no_ecc"),                 // String
+        .MEMORY_OPTIMIZATION("true"),        // String              
+        .USE_EMBEDDED_CONSTRAINT(0),         // DECIMAL
+        
+        // Port A module parameters
+        .WRITE_DATA_WIDTH_A(WIDTH*CHUNK_SIZE), // DECIMAL, data width: 64-bit
+        .READ_DATA_WIDTH_A(WIDTH*CHUNK_SIZE),  // DECIMAL, data width: 64-bit
+        .BYTE_WRITE_WIDTH_A(8),              // DECIMAL
+        .ADDR_WIDTH_A(12),                   // DECIMAL, clog2(MEMORY_SIZE/WRITE_DATA_WIDTH_A)
+        .READ_RESET_VALUE_A("0"),            // String
+        .READ_LATENCY_A(1),                  // DECIMAL
+        .WRITE_MODE_A("write_first"),        // String
+        .RST_MODE_A("SYNC"),                 // String
+        
+        // Port B module parameters  
+        .WRITE_DATA_WIDTH_B(WIDTH*CHUNK_SIZE), // DECIMAL, data width: 64-bit
+        .READ_DATA_WIDTH_B(WIDTH*CHUNK_SIZE), // DECIMAL, data width: 64-bit
+        .BYTE_WRITE_WIDTH_B(8),              // DECIMAL
+        .ADDR_WIDTH_B(12),                    // DECIMAL, clog2(MEMORY_SIZE/WRITE_DATA_WIDTH_A)
+        .READ_RESET_VALUE_B("0"),            // String
+        .READ_LATENCY_B(1),                  // DECIMAL
+        .WRITE_MODE_B("write_first"),        // String
+        .RST_MODE_B("SYNC")                  // String
+    )
+    xpm_memory_tdpram_wb
+    (
+        .sleep(1'b0),
+        .regcea(1'b1), //do not change
+        .injectsbiterra(1'b0), //do not change
+        .injectdbiterra(1'b0), //do not change   
+        .sbiterra(), //do not change
+        .dbiterra(), //do not change
+        .regceb(1'b1), //do not change
+        .injectsbiterrb(1'b0), //do not change
+        .injectdbiterrb(1'b0), //do not change              
+        .sbiterrb(), //do not change
+        .dbiterrb(), //do not change
+        
+        // Port A module ports
+        .clka(clk),
+        .rsta(~rst_n),
+        .ena(wb_en),
+        .wea(wb_we),
+        .addra(wb_addr),
+        .dina(wb_din),
+        .douta(),
+        
+        // Port B module ports
+        .clkb(clk),
+        .rstb(~rst_n),
+        .enb(wb_enb),
+        .web(0),
+        .addrb(wb_addrb),
+        .dinb(0),
+        .doutb(wb_doutb)
+    );
+
 endmodule
