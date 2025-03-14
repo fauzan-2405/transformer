@@ -135,20 +135,20 @@ module top #(
         .USE_EMBEDDED_CONSTRAINT(0),         // DECIMAL
         
         // Port A module parameters
-        .WRITE_DATA_WIDTH_A(WIDTH*CHUNK_SIZE),             // DECIMAL, data width: 64-bit
-        .READ_DATA_WIDTH_A(WIDTH*CHUNK_SIZE),              // DECIMAL, data width: 64-bit
+        .WRITE_DATA_WIDTH_A(WIDTH*CHUNK_SIZE), // DECIMAL, data width: 64-bit
+        .READ_DATA_WIDTH_A(WIDTH*CHUNK_SIZE),  // DECIMAL, data width: 64-bit
         .BYTE_WRITE_WIDTH_A(8),              // DECIMAL
-        .ADDR_WIDTH_A(2),                    // DECIMAL, clog2(MEMORY_SIZE/WRITE_DATA_WIDTH_A)
+        .ADDR_WIDTH_A(18),                   // DECIMAL, clog2(MEMORY_SIZE/WRITE_DATA_WIDTH_A)
         .READ_RESET_VALUE_A("0"),            // String
         .READ_LATENCY_A(1),                  // DECIMAL
         .WRITE_MODE_A("write_first"),        // String
         .RST_MODE_A("SYNC"),                 // String
         
         // Port B module parameters  
-        .WRITE_DATA_WIDTH_B(64),             // DECIMAL, data width: 64-bit
-        .READ_DATA_WIDTH_B(64),              // DECIMAL, data width: 64-bit
+        .WRITE_DATA_WIDTH_B(WIDTH*CHUNK_SIZE), // DECIMAL, data width: 64-bit
+        .READ_DATA_WIDTH_B(WIDTH*CHUNK_SIZE), // DECIMAL, data width: 64-bit
         .BYTE_WRITE_WIDTH_B(8),              // DECIMAL
-        .ADDR_WIDTH_B(2),                    // DECIMAL, clog2(256/64)=clog2(8)= 2
+        .ADDR_WIDTH_B(18),                   // DECIMAL, clog2(MEMORY_SIZE/WRITE_DATA_WIDTH_A)
         .READ_RESET_VALUE_B("0"),            // String
         .READ_LATENCY_B(1),                  // DECIMAL
         .WRITE_MODE_B("write_first"),        // String
@@ -171,20 +171,20 @@ module top #(
         // Port A module ports
         .clka(clk),
         .rsta(~rst_n),
-        .ena(k_ena),
-        .wea(k_wea),
-        .addra(k_addra),
-        .dina(k_dina),
+        .ena(in_ena),
+        .wea(in_wea),
+        .addra(in_addra),
+        .dina(in_dina),
         .douta(),
         
         // Port B module ports
         .clkb(clk),
         .rstb(~rst_n),
-        .enb(k_enb),
+        .enb(in_enb),
         .web(0),
-        .addrb(k_addrb),
+        .addrb(in_addrb),
         .dinb(0),
-        .doutb(k_doutb)
+        .doutb(in_doutb)
     );
 
 endmodule
