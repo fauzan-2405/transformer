@@ -26,10 +26,10 @@ module top #(
     input [WIDTH*CHUNK_SIZE-1:0] wb_dina,
     input [7:0] wb_wea,
     // Data input port
-    input in_en,
-    input [(INNER_DIMENSION/CHUNK_SIZE)*I_OUTER_DIMENSION-1:0] in_addr,
-    input [WIDTH*CHUNK_SIZE-1:0] in_din,
-    input [7:0] in_we,
+    input in_ena,
+    input [(INNER_DIMENSION/CHUNK_SIZE)*I_OUTER_DIMENSION-1:0] in_addra,
+    input [WIDTH*CHUNK_SIZE-1:0] in_dina,
+    input [7:0] in_wea,
     // Data output port
     input out_en,
     input [(W_OUTER_DIMENSION/CHUNK_SIZE)*I_OUTER_DIMENSION],
@@ -41,7 +41,6 @@ module top #(
     wire wb_enb;
     wire [(INNER_DIMENSION/CHUNK_SIZE)*W_OUTER_DIMENSION-1:0] wb_addrb; // 256/4 = 64 x 256
     wire [WIDTH*CHUNK_SIZE-1:0] wb_doutb;
-
 
     xpm_memory_tdpram
     #(
@@ -96,10 +95,10 @@ module top #(
         // Port A module ports
         .clka(clk),
         .rsta(~rst_n),
-        .ena(wb_en),
-        .wea(wb_we),
-        .addra(wb_addr),
-        .dina(wb_din),
+        .ena(wb_ena),
+        .wea(wb_wea),
+        .addra(wb_addra),
+        .dina(wb_dina),
         .douta(),
         
         // Port B module ports
@@ -110,6 +109,82 @@ module top #(
         .addrb(wb_addrb),
         .dinb(0),
         .doutb(wb_doutb)
+    );
+
+    // *** Input BRAM ***********************************************************  
+    // xpm_memory_tdpram: True Dual Port RAM
+    // Xilinx Parameterized Macro, version 2018.3
+    wire in_enb;
+    wire [(INNER_DIMENSION/CHUNK_SIZE)*I_OUTER_DIMENSION-1:0] in_addrb;
+    wire [7:0] in_web;
+
+    xpm_memory_tdpram
+    #(
+        // Common module parameters
+        .MEMORY_SIZE(INNER_DIMENSION*I_OUTER_DIMENSION*WIDTH), // DECIMAL, 
+        .MEMORY_PRIMITIVE("auto"),           // String
+        .CLOCKING_MODE("common_clock"),      // String, "common_clock"
+        .MEMORY_INIT_FILE("none"),           // String
+        .MEMORY_INIT_PARAM("0"),             // String      
+        .USE_MEM_INIT(1),                    // DECIMAL
+        .WAKEUP_TIME("disable_sleep"),       // String
+        .MESSAGE_CONTROL(0),                 // DECIMAL
+        .AUTO_SLEEP_TIME(0),                 // DECIMAL          
+        .ECC_MODE("no_ecc"),                 // String
+        .MEMORY_OPTIMIZATION("true"),        // String              
+        .USE_EMBEDDED_CONSTRAINT(0),         // DECIMAL
+        
+        // Port A module parameters
+        .WRITE_DATA_WIDTH_A(WIDTH*CHUNK_SIZE),             // DECIMAL, data width: 64-bit
+        .READ_DATA_WIDTH_A(WIDTH*CHUNK_SIZE),              // DECIMAL, data width: 64-bit
+        .BYTE_WRITE_WIDTH_A(8),              // DECIMAL
+        .ADDR_WIDTH_A(2),                    // DECIMAL, clog2(MEMORY_SIZE/WRITE_DATA_WIDTH_A)
+        .READ_RESET_VALUE_A("0"),            // String
+        .READ_LATENCY_A(1),                  // DECIMAL
+        .WRITE_MODE_A("write_first"),        // String
+        .RST_MODE_A("SYNC"),                 // String
+        
+        // Port B module parameters  
+        .WRITE_DATA_WIDTH_B(64),             // DECIMAL, data width: 64-bit
+        .READ_DATA_WIDTH_B(64),              // DECIMAL, data width: 64-bit
+        .BYTE_WRITE_WIDTH_B(8),              // DECIMAL
+        .ADDR_WIDTH_B(2),                    // DECIMAL, clog2(256/64)=clog2(8)= 2
+        .READ_RESET_VALUE_B("0"),            // String
+        .READ_LATENCY_B(1),                  // DECIMAL
+        .WRITE_MODE_B("write_first"),        // String
+        .RST_MODE_B("SYNC")                  // String
+    )
+    xpm_memory_tdpram_k
+    (
+        .sleep(1'b0),
+        .regcea(1'b1), //do not change
+        .injectsbiterra(1'b0), //do not change
+        .injectdbiterra(1'b0), //do not change   
+        .sbiterra(), //do not change
+        .dbiterra(), //do not change
+        .regceb(1'b1), //do not change
+        .injectsbiterrb(1'b0), //do not change
+        .injectdbiterrb(1'b0), //do not change              
+        .sbiterrb(), //do not change
+        .dbiterrb(), //do not change
+        
+        // Port A module ports
+        .clka(clk),
+        .rsta(~rst_n),
+        .ena(k_ena),
+        .wea(k_wea),
+        .addra(k_addra),
+        .dina(k_dina),
+        .douta(),
+        
+        // Port B module ports
+        .clkb(clk),
+        .rstb(~rst_n),
+        .enb(k_enb),
+        .web(0),
+        .addrb(k_addrb),
+        .dinb(0),
+        .doutb(k_doutb)
     );
 
 endmodule
