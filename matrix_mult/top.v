@@ -54,9 +54,11 @@ module top #(
     wire [7:0] in_web;
 
     // Core utilities
-    reg [WIDTH-1:0] counter_A, counter_B;
+    reg reset_acc;
+    wire accumulator_done, systolic_finish;
+    wire [(WIDTH*CHUNK_SIZE)-1:0] out;
 
-    //
+    reg [WIDTH-1:0] counter_A, counter_B;
     reg [WIDTH-1:0] counter;
     reg [15:0] counter_row;
     reg [15:0] counter_col;
