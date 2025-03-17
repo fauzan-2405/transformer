@@ -35,6 +35,24 @@ module top #(
     input [(W_OUTER_DIMENSION/CHUNK_SIZE)*I_OUTER_DIMENSION],
     output [WIDTH*CHUNK_SIZE-1:0] out_dout
 );
+    reg [5:0 ]cnt_main_reg; // Counter for main controller
+
+    // Main Controller
+    always @(posedge clk) begin
+        if (!rst_n || clr) begin
+            cnt_main_reg <= 0;
+        end
+        else if (start) begin
+            cnt_main_reg <= cnt_main_reg + 1;
+        end
+        else if (cnt_main_reg >= 1 && cnt_main_reg <= 32) begin
+            cnt_main_reg <= cnt_main_reg + 1;
+        end
+        else if (cnt_main_reg >= 33) begin
+            cnt_main_reg <= 0;
+        end
+    end
+
     // *** Weight BRAM **********************************************************
     // xpm_memory_tdpram: True Dual Port RAM
     // Xilinx Parameterized Macro, version 2018.3
