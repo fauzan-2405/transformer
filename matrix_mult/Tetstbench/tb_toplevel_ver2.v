@@ -38,7 +38,7 @@ reg [WIDTH-1:0] flag; // Used to track the sys array index in the resulting matr
 
 wire accumulator_done, systolic_finish;
 wire [(WIDTH*CHUNK_SIZE)-1:0] out;
-wire [(WIDTH*CHUNK_SIZE)-1:0] outputA, output2;
+wire [(WIDTH*CHUNK_SIZE)-1:0] outputA, outputB;
 
 RAM1_inputA #(.WIDTH(WIDTH), .INNER_DIMENSION(INNER_DIMENSION), .CHUNK_SIZE(CHUNK_SIZE), .OUTER_DIMENSION(ROW_SIZE_MAT_A)) RAM1_inst_A (
     .clk(clk), .counter_A(counter_A),
@@ -52,7 +52,7 @@ RAM1_inputB #(.WIDTH(WIDTH), .INNER_DIMENSION(INNER_DIMENSION), .CHUNK_SIZE(CHUN
 
 toplevel #(.WIDTH(WIDTH), .FRAC_WIDTH(FRAC_WIDTH), .BLOCK_SIZE(BLOCK_SIZE), .INNER_DIMENSION(INNER_DIMENSION), .CHUNK_SIZE(CHUNK_SIZE)) top_inst (
     .clk(clk), .rst_n(rst_n), .reset_acc(reset_acc), 
-    .input_w(output1), .input_n(output2), 
+    .input_w(outputA), .input_n(outputB), 
     .accumulator_done(accumulator_done), 
     .systolic_finish(systolic_finish),
     .out(out)
