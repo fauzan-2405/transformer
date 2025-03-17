@@ -50,7 +50,63 @@ RAM1_inputB #(.WIDTH(WIDTH), .INNER_DIMENSION(INNER_DIMENSION), .CHUNK_SIZE(CHUN
     .outputB(outputB)
 );
 
-toplevel #(.WIDTH(WIDTH), .FRAC_WIDTH(FRAC_WIDTH), .BLOCK_SIZE(BLOCK_SIZE), .INNER_DIMENSION(INNER_DIMENSION), .CHUNK_SIZE(CHUNK_SIZE)) top_inst (
+toplevel #(.WIDTH(WIDTH), .FRAC_WIDTH(FRAC_WIDTH), .BLOCK_SIZE(BLOCK_SIZE), .INNER_DIMENSION(INNER_DIMENSION), .CHUNK_SIZE(CHUNK_SIZE)) top_0 (
+    .clk(clk), .rst_n(rst_n), .reset_acc(reset_acc), 
+    .input_w(outputA), .input_n(outputB), 
+    .accumulator_done(accumulator_done), 
+    .systolic_finish(systolic_finish),
+    .out(out)
+);
+
+toplevel #(.WIDTH(WIDTH), .FRAC_WIDTH(FRAC_WIDTH), .BLOCK_SIZE(BLOCK_SIZE), .INNER_DIMENSION(INNER_DIMENSION), .CHUNK_SIZE(CHUNK_SIZE)) top_1 (
+    .clk(clk), .rst_n(rst_n), .reset_acc(reset_acc), 
+    .input_w(outputA), .input_n(outputB), 
+    .accumulator_done(accumulator_done), 
+    .systolic_finish(systolic_finish),
+    .out(out)
+);
+
+toplevel #(.WIDTH(WIDTH), .FRAC_WIDTH(FRAC_WIDTH), .BLOCK_SIZE(BLOCK_SIZE), .INNER_DIMENSION(INNER_DIMENSION), .CHUNK_SIZE(CHUNK_SIZE)) top_2 (
+    .clk(clk), .rst_n(rst_n), .reset_acc(reset_acc), 
+    .input_w(outputA), .input_n(outputB), 
+    .accumulator_done(accumulator_done), 
+    .systolic_finish(systolic_finish),
+    .out(out)
+);
+
+toplevel #(.WIDTH(WIDTH), .FRAC_WIDTH(FRAC_WIDTH), .BLOCK_SIZE(BLOCK_SIZE), .INNER_DIMENSION(INNER_DIMENSION), .CHUNK_SIZE(CHUNK_SIZE)) top_3 (
+    .clk(clk), .rst_n(rst_n), .reset_acc(reset_acc), 
+    .input_w(outputA), .input_n(outputB), 
+    .accumulator_done(accumulator_done), 
+    .systolic_finish(systolic_finish),
+    .out(out)
+);
+
+toplevel #(.WIDTH(WIDTH), .FRAC_WIDTH(FRAC_WIDTH), .BLOCK_SIZE(BLOCK_SIZE), .INNER_DIMENSION(INNER_DIMENSION), .CHUNK_SIZE(CHUNK_SIZE)) top_4 (
+    .clk(clk), .rst_n(rst_n), .reset_acc(reset_acc), 
+    .input_w(outputA), .input_n(outputB), 
+    .accumulator_done(accumulator_done), 
+    .systolic_finish(systolic_finish),
+    .out(out)
+);
+
+toplevel #(.WIDTH(WIDTH), .FRAC_WIDTH(FRAC_WIDTH), .BLOCK_SIZE(BLOCK_SIZE), .INNER_DIMENSION(INNER_DIMENSION), .CHUNK_SIZE(CHUNK_SIZE)) top_5 (
+    .clk(clk), .rst_n(rst_n), .reset_acc(reset_acc), 
+    .input_w(outputA), .input_n(outputB), 
+    .accumulator_done(accumulator_done), 
+    .systolic_finish(systolic_finish),
+    .out(out)
+);
+
+toplevel #(.WIDTH(WIDTH), .FRAC_WIDTH(FRAC_WIDTH), .BLOCK_SIZE(BLOCK_SIZE), .INNER_DIMENSION(INNER_DIMENSION), .CHUNK_SIZE(CHUNK_SIZE)) top_6 (
+    .clk(clk), .rst_n(rst_n), .reset_acc(reset_acc), 
+    .input_w(outputA), .input_n(outputB), 
+    .accumulator_done(accumulator_done), 
+    .systolic_finish(systolic_finish),
+    .out(out)
+);
+
+toplevel #(.WIDTH(WIDTH), .FRAC_WIDTH(FRAC_WIDTH), .BLOCK_SIZE(BLOCK_SIZE), .INNER_DIMENSION(INNER_DIMENSION), .CHUNK_SIZE(CHUNK_SIZE)) top_7 (
     .clk(clk), .rst_n(rst_n), .reset_acc(reset_acc), 
     .input_w(outputA), .input_n(outputB), 
     .accumulator_done(accumulator_done), 
