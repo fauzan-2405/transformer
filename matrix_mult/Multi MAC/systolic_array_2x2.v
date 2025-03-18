@@ -7,7 +7,7 @@ module systolic_array_2x2 #(
     parameter WIDTH = 16,
     parameter FRAC_WIDTH = 8
 ) (
-    input clk, rst_n,
+    input clk, en, rst_n,
     input [WIDTH-1:0] in_north0, in_north1,
     input [WIDTH-1:0] in_west0, in_west2,
     output reg done,
@@ -34,7 +34,7 @@ module systolic_array_2x2 #(
     assign out = {result0, result1, result2, result3};
 
     always @(posedge clk) begin
-        if (!rst_n) begin
+        if (!rst_n || en) begin
             done <= 0;
             count <= 0;
         end

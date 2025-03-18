@@ -11,7 +11,7 @@ module mac #(
     parameter CHUNK_SIZE = 4,
     parameter INNER_DIMENSION = 64 // The same number of rows in one matrix and same number of columns in the other matrix
 ) (
-    input clk, rst_n, reset_acc,
+    input clk, en, rst_n, reset_acc,
     input [WIDTH-1:0] in_north0, in_north1,
     input [WIDTH-1:0] in_west0, in_west2,
     output wire accumulator_done, systolic_finish,
@@ -22,7 +22,7 @@ module mac #(
     wire [WIDTH*CHUNK_SIZE-1:0] out_systolic;
 
     systolic_array_2x2 #(.WIDTH(WIDTH), .FRAC_WIDTH(FRAC_WIDTH)) systolic (
-        .clk(clk), .rst_n(rst_n), .in_north0(in_north0), .in_north1(in_north1), .in_west0(in_west0), .in_west2(in_west2), .done(systolic_finish), .out(out_systolic)
+        .clk(clk), .en(en), .rst_n(rst_n), .in_north0(in_north0), .in_north1(in_north1), .in_west0(in_west0), .in_west2(in_west2), .done(systolic_finish), .out(out_systolic)
     );
 
     accumulator #(.WIDTH(WIDTH), .FRAC_WIDTH(FRAC_WIDTH), .BLOCK_SIZE(BLOCK_SIZE), .CHUNK_SIZE(CHUNK_SIZE), .INNER_DIMENSION(INNER_DIMENSION)) acc (

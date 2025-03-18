@@ -11,7 +11,7 @@ module toplevel #(
     parameter CHUNK_SIZE = 4,
     parameter INNER_DIMENSION = 64 // The same number of rows in one matrix and same number of columns in the other matrix
 ) (
-    input clk, rst_n, reset_acc,
+    input clk, en, rst_n, reset_acc,
     input [(WIDTH*CHUNK_SIZE)-1:0] input_w,
     input [(WIDTH*CHUNK_SIZE)-1:0] input_n,
 	
@@ -62,7 +62,7 @@ module toplevel #(
 
     // MAC
     mac #(.WIDTH(WIDTH), .FRAC_WIDTH(FRAC_WIDTH), .BLOCK_SIZE(BLOCK_SIZE), .INNER_DIMENSION(INNER_DIMENSION), .CHUNK_SIZE(CHUNK_SIZE)) mac_0 (
-        .clk(clk), .rst_n(rst_n), .reset_acc(reset_acc), .in_north0(out_mux0_n), .in_north1(out_mux1_n), .in_west0(out_mux0_w), .in_west2(out_mux2_w),
+        .clk(clk), .en(en), .rst_n(rst_n), .reset_acc(reset_acc), .in_north0(out_mux0_n), .in_north1(out_mux1_n), .in_west0(out_mux0_w), .in_west2(out_mux2_w),
         .accumulator_done(accumulator_done), .systolic_finish(systolic_finish), .out(out)
     );
 
