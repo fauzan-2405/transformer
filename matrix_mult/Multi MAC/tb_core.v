@@ -1,9 +1,9 @@
 `timescale 1ns / 1ps
-`include "toplevel.v"
+`include "core.v"
 `include "RAM1_inputA.v"
 `include "RAM1_inputB.v"
 
-module tb_toplevel_ver2;
+module tb_core;
 parameter WIDTH = 16;
 parameter FRAC_WIDTH = 8;
 parameter BLOCK_SIZE = 2; // The size of systolic array dimension (N x N)
@@ -155,8 +155,8 @@ end
 
 
 initial begin
-	$dumpfile("tb_toplevel_ver2.vcd");
-	$dumpvars(0, tb_toplevel_ver2);
+	$dumpfile("tb_core.vcd");
+	$dumpvars(0, tb_core);
 end
 
 

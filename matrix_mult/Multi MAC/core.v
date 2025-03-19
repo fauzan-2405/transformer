@@ -1,10 +1,10 @@
-// toplevel.v
+// core.v
 // Used to combine all
 `include "mac.v"
 `include "mux2_1.v"
 `include "control_mux2_1.v"
 
-module toplevel #(
+module core #(
     parameter WIDTH = 16,
     parameter FRAC_WIDTH = 8,
     parameter BLOCK_SIZE = 2, // The size of systolic array dimension (N x N)
