@@ -27,19 +27,19 @@ module toplevel #(
     wire [BLOCK_SIZE-1:0] mux_reset_north;
 
     // Control mux
-    control_mux2_1 control_mux_west (.clk(clk), .rst_n(rst_n), .mux_reset(mux_reset_west));
-    control_mux2_1 control_mux_north (.clk(clk), .rst_n(rst_n), .mux_reset(mux_reset_north));
+    control_mux2_1 control_mux_west (.clk(clk), .en(en), .rst_n(rst_n), .mux_reset(mux_reset_west));
+    control_mux2_1 control_mux_north (.clk(clk), .en(en), .rst_n(rst_n), .mux_reset(mux_reset_north));
 
     // Mux (West)
     mux2_1 #(.WIDTH(WIDTH)) mux0_W (
-        .clk(clk), .rst_n(mux_reset_west[BLOCK_SIZE-1]),
+        .clk(clk), .en(en), .rst_n(mux_reset_west[BLOCK_SIZE-1]),
         .input_0(input_w[(WIDTH*CHUNK_SIZE-1)-WIDTH*0:(WIDTH*CHUNK_SIZE-1)-WIDTH*(0+1)+1]), //[63:48]
         .input_1(input_w[(WIDTH*CHUNK_SIZE-1)-WIDTH*1:(WIDTH*CHUNK_SIZE-1)-WIDTH*(1+1)+1]), //[47:32]
         .out(out_mux0_w)
     );
 
     mux2_1 #(.WIDTH(WIDTH)) mux1_W (
-        .clk(clk), .rst_n(mux_reset_west[BLOCK_SIZE-2]),
+        .clk(clk), .en(en), .rst_n(mux_reset_west[BLOCK_SIZE-2]),
         .input_0(input_w[(WIDTH*CHUNK_SIZE-1)-WIDTH*2:(WIDTH*CHUNK_SIZE-1)-WIDTH*(2+1)+1]), 
         .input_1(input_w[(WIDTH*CHUNK_SIZE-1)-WIDTH*3:(WIDTH*CHUNK_SIZE-1)-WIDTH*(3+1)+1]), 
         .out(out_mux2_w)
@@ -47,14 +47,14 @@ module toplevel #(
 
     // Mux North
     mux2_1 #(.WIDTH(WIDTH)) mux0_N (
-        .clk(clk), .rst_n(mux_reset_west[BLOCK_SIZE-1]),
+        .clk(clk), .en(en), .rst_n(mux_reset_west[BLOCK_SIZE-1]),
         .input_0(input_n[(WIDTH*CHUNK_SIZE-1)-WIDTH*0:(WIDTH*CHUNK_SIZE-1)-WIDTH*(0+1)+1]), //[63:48]
         .input_1(input_n[(WIDTH*CHUNK_SIZE-1)-WIDTH*1:(WIDTH*CHUNK_SIZE-1)-WIDTH*(1+1)+1]), //[47:32]
         .out(out_mux0_n)
     );
 
     mux2_1 #(.WIDTH(WIDTH)) mux1_N (
-        .clk(clk), .rst_n(mux_reset_west[BLOCK_SIZE-2]),
+        .clk(clk), .en(en), .rst_n(mux_reset_west[BLOCK_SIZE-2]),
         .input_0(input_n[(WIDTH*CHUNK_SIZE-1)-WIDTH*2:(WIDTH*CHUNK_SIZE-1)-WIDTH*(2+1)+1]), 
         .input_1(input_n[(WIDTH*CHUNK_SIZE-1)-WIDTH*3:(WIDTH*CHUNK_SIZE-1)-WIDTH*(3+1)+1]), 
         .out(out_mux1_n)
