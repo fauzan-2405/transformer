@@ -10,8 +10,8 @@ parameter BLOCK_SIZE = 2; // The size of systolic array dimension (N x N)
 parameter CHUNK_SIZE = 4;
 parameter INNER_DIMENSION = 8;// The same number of rows in one matrix and same number of columns in the other matrix
 // If the matrices are NOT symmetrical
-parameter ROW_SIZE_MAT_A = 10;
-parameter COL_SIZE_MAT_B = 6;
+parameter ROW_SIZE_MAT_A = 16;
+parameter COL_SIZE_MAT_B = 10;
 // Matrix C parameter
 parameter ROW_SIZE_MAT_C = ROW_SIZE_MAT_A / BLOCK_SIZE;
 parameter COL_SIZE_MAT_C = COL_SIZE_MAT_B / BLOCK_SIZE;
@@ -26,6 +26,7 @@ parameter COL_SIZE_MAT_C = COL_SIZE_MAT_B / BLOCK_SIZE;
 parameter MAX_FLAG = ROW_SIZE_MAT_C * COL_SIZE_MAT_C;
 
 reg clk;
+reg en;
 reg rst_n;
 reg reset_acc;
 reg [WIDTH-1:0] counter_A, counter_B;
@@ -50,64 +51,8 @@ RAM1_inputB #(.WIDTH(WIDTH), .INNER_DIMENSION(INNER_DIMENSION), .CHUNK_SIZE(CHUN
     .outputB(outputB)
 );
 
-toplevel #(.WIDTH(WIDTH), .FRAC_WIDTH(FRAC_WIDTH), .BLOCK_SIZE(BLOCK_SIZE), .INNER_DIMENSION(INNER_DIMENSION), .CHUNK_SIZE(CHUNK_SIZE)) top_0 (
-    .clk(clk), .rst_n(rst_n), .reset_acc(reset_acc), 
-    .input_w(outputA), .input_n(outputB), 
-    .accumulator_done(accumulator_done), 
-    .systolic_finish(systolic_finish),
-    .out(out)
-);
-
-toplevel #(.WIDTH(WIDTH), .FRAC_WIDTH(FRAC_WIDTH), .BLOCK_SIZE(BLOCK_SIZE), .INNER_DIMENSION(INNER_DIMENSION), .CHUNK_SIZE(CHUNK_SIZE)) top_1 (
-    .clk(clk), .rst_n(rst_n), .reset_acc(reset_acc), 
-    .input_w(outputA), .input_n(outputB), 
-    .accumulator_done(accumulator_done), 
-    .systolic_finish(systolic_finish),
-    .out(out)
-);
-
-toplevel #(.WIDTH(WIDTH), .FRAC_WIDTH(FRAC_WIDTH), .BLOCK_SIZE(BLOCK_SIZE), .INNER_DIMENSION(INNER_DIMENSION), .CHUNK_SIZE(CHUNK_SIZE)) top_2 (
-    .clk(clk), .rst_n(rst_n), .reset_acc(reset_acc), 
-    .input_w(outputA), .input_n(outputB), 
-    .accumulator_done(accumulator_done), 
-    .systolic_finish(systolic_finish),
-    .out(out)
-);
-
-toplevel #(.WIDTH(WIDTH), .FRAC_WIDTH(FRAC_WIDTH), .BLOCK_SIZE(BLOCK_SIZE), .INNER_DIMENSION(INNER_DIMENSION), .CHUNK_SIZE(CHUNK_SIZE)) top_3 (
-    .clk(clk), .rst_n(rst_n), .reset_acc(reset_acc), 
-    .input_w(outputA), .input_n(outputB), 
-    .accumulator_done(accumulator_done), 
-    .systolic_finish(systolic_finish),
-    .out(out)
-);
-
-toplevel #(.WIDTH(WIDTH), .FRAC_WIDTH(FRAC_WIDTH), .BLOCK_SIZE(BLOCK_SIZE), .INNER_DIMENSION(INNER_DIMENSION), .CHUNK_SIZE(CHUNK_SIZE)) top_4 (
-    .clk(clk), .rst_n(rst_n), .reset_acc(reset_acc), 
-    .input_w(outputA), .input_n(outputB), 
-    .accumulator_done(accumulator_done), 
-    .systolic_finish(systolic_finish),
-    .out(out)
-);
-
-toplevel #(.WIDTH(WIDTH), .FRAC_WIDTH(FRAC_WIDTH), .BLOCK_SIZE(BLOCK_SIZE), .INNER_DIMENSION(INNER_DIMENSION), .CHUNK_SIZE(CHUNK_SIZE)) top_5 (
-    .clk(clk), .rst_n(rst_n), .reset_acc(reset_acc), 
-    .input_w(outputA), .input_n(outputB), 
-    .accumulator_done(accumulator_done), 
-    .systolic_finish(systolic_finish),
-    .out(out)
-);
-
-toplevel #(.WIDTH(WIDTH), .FRAC_WIDTH(FRAC_WIDTH), .BLOCK_SIZE(BLOCK_SIZE), .INNER_DIMENSION(INNER_DIMENSION), .CHUNK_SIZE(CHUNK_SIZE)) top_6 (
-    .clk(clk), .rst_n(rst_n), .reset_acc(reset_acc), 
-    .input_w(outputA), .input_n(outputB), 
-    .accumulator_done(accumulator_done), 
-    .systolic_finish(systolic_finish),
-    .out(out)
-);
-
-toplevel #(.WIDTH(WIDTH), .FRAC_WIDTH(FRAC_WIDTH), .BLOCK_SIZE(BLOCK_SIZE), .INNER_DIMENSION(INNER_DIMENSION), .CHUNK_SIZE(CHUNK_SIZE)) top_7 (
-    .clk(clk), .rst_n(rst_n), .reset_acc(reset_acc), 
+toplevel #(.WIDTH(WIDTH), .FRAC_WIDTH(FRAC_WIDTH), .BLOCK_SIZE(BLOCK_SIZE), .INNER_DIMENSION(INNER_DIMENSION), .CHUNK_SIZE(CHUNK_SIZE)) top_inst (
+    .clk(clk), .rst_n(rst_n), .reset_acc(reset_acc), .en(en),
     .input_w(outputA), .input_n(outputB), 
     .accumulator_done(accumulator_done), 
     .systolic_finish(systolic_finish),
@@ -118,6 +63,7 @@ toplevel #(.WIDTH(WIDTH), .FRAC_WIDTH(FRAC_WIDTH), .BLOCK_SIZE(BLOCK_SIZE), .INN
 initial begin
     rst_n <= 0;
 	clk <= 0;
+	en <=0;
     reset_acc <= 0;
     counter_A <= 0;
     counter_B <= 0;
@@ -125,20 +71,23 @@ initial begin
     counter_row <= 0;
     counter_col <= 0;
     flag <= 0;
-    #5
-	rst_n <= ~systolic_finish;
+    #10
+	rst_n <= 1; // This will be overwrote by the next always block
 	reset_acc <= 0;
+	#40
+	en <= 1;
 end
 
 
 always @(posedge clk) begin
-    if (systolic_finish == 1) begin
-        rst_n <= 0;
-    end else begin // kalau 0
-		rst_n <= 1;
-    end
+	if (en) begin
+		if (systolic_finish == 1) begin
+			rst_n <= 0;
+		end else begin // kalau 0
+			rst_n <= 1;
+		end
+	end
 end
-
 
 
 always @(posedge systolic_finish) begin
