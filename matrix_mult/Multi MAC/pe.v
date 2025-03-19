@@ -16,7 +16,7 @@ module pe #(
     wire [2*WIDTH-1:0] add_result;
     wire [WIDTH-1:0] temp_acc;
 	
-	reg count = 1'b0;
+	//reg count = 1'b0;
 	
 	/*
     always @(negedge clk) begin
