@@ -51,7 +51,7 @@ RAM1_inputB #(.WIDTH(WIDTH), .INNER_DIMENSION(INNER_DIMENSION), .CHUNK_SIZE(CHUN
     .outputB(outputB)
 );
 
-toplevel #(.WIDTH(WIDTH), .FRAC_WIDTH(FRAC_WIDTH), .BLOCK_SIZE(BLOCK_SIZE), .INNER_DIMENSION(INNER_DIMENSION), .CHUNK_SIZE(CHUNK_SIZE)) top_inst (
+core #(.WIDTH(WIDTH), .FRAC_WIDTH(FRAC_WIDTH), .BLOCK_SIZE(BLOCK_SIZE), .INNER_DIMENSION(INNER_DIMENSION), .CHUNK_SIZE(CHUNK_SIZE)) top_inst (
     .clk(clk), .rst_n(rst_n), .reset_acc(reset_acc), .en(en),
     .input_w(outputA), .input_n(outputB), 
     .accumulator_done(accumulator_done), 
