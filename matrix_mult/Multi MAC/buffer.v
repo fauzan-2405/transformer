@@ -22,7 +22,7 @@ module buffer #(
 
     always @(posedge clk) begin
         if (en) begin
-            out <= out_n[counter];
+            output_buffer <= out_n[counter];
             counter <= counter+1;
             if (counter == NUM_CORES-1) begin
                 counter <= 0;
