@@ -8,7 +8,7 @@ module buffer #(
 ) (
     input clk, en,
     input [(WIDTH*CHUNK_SIZE*NUM_CORES)-1:0] in,
-    output reg [(WIDTH*CHUNK_SIZE)-1:0] out
+    output reg [(WIDTH*CHUNK_SIZE)-1:0] output_buffer
 );
     wire [(WIDTH*CHUNK_SIZE)-1:0] out_n [0:NUM_CORES-1];
     reg [$clog2(NUM_CORES)-1:0] counter = 0;
