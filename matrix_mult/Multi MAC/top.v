@@ -42,6 +42,13 @@ module top #(
     input [(W_OUTER_DIMENSION/CHUNK_SIZE)*I_OUTER_DIMENSION],
     output [WIDTH*CHUNK_SIZE-1:0] out_dout
 );
+    localparam MEMORY_SIZE_I = INNER_DIMENSION*I_OUTER_DIMENSION*WIDTH;
+    localparam MEMORY_SIZE_W = INNER_DIMENSION*W_OUTER_DIMENSION*WIDTH;
+    localparam integer NUM_CORES = (INNER_DIMENSION == 2754) ? 17 :
+                               (INNER_DIMENSION == 256)  ? 8 :
+                               (INNER_DIMENSION == 200)  ? 5 :
+                               (INNER_DIMENSION == 64)   ? 4 ;
+
     // Counter for main controller
     reg [5:0]cnt_main_reg; 
     // Weight BRAM
@@ -92,7 +99,7 @@ module top #(
     xpm_memory_tdpram
     #(
         // Common module parameters
-        .MEMORY_SIZE(INNER_DIMENSION*I_OUTER_DIMENSION*WIDTH), // DECIMAL, 
+        .MEMORY_SIZE(MEMORY_SIZE_I),           // DECIMAL, 
         .MEMORY_PRIMITIVE("auto"),           // String
         .CLOCKING_MODE("common_clock"),      // String, "common_clock"
         .MEMORY_INIT_FILE("none"),           // String
@@ -106,26 +113,26 @@ module top #(
         .USE_EMBEDDED_CONSTRAINT(0),         // DECIMAL
         
         // Port A module parameters
-        .WRITE_DATA_WIDTH_A(WIDTH*CHUNK_SIZE), // DECIMAL, data width: 64-bit
-        .READ_DATA_WIDTH_A(WIDTH*CHUNK_SIZE),  // DECIMAL, data width: 64-bit
-        .BYTE_WRITE_WIDTH_A(8),              // DECIMAL
-        .ADDR_WIDTH_A(18),                   // DECIMAL, clog2(MEMORY_SIZE/WRITE_DATA_WIDTH_A)
+        .WRITE_DATA_WIDTH_A(WIDTH*CHUNK_SIZE*NUM_CORES), // DECIMAL, varying based on the matrix size
+        .READ_DATA_WIDTH_A(WIDTH*CHUNK_SIZE*NUM_CORES),  // DECIMAL, varying based on the matrix size
+        .BYTE_WRITE_WIDTH_A(8*NUM_CORES),                // DECIMAL, how many bytes in WRITE_DATA_WIDTH_A
+        .ADDR_WIDTH_A(14),                   // DECIMAL, clog2(MEMORY_SIZE/WRITE_DATA_WIDTH_A)
         .READ_RESET_VALUE_A("0"),            // String
         .READ_LATENCY_A(1),                  // DECIMAL
         .WRITE_MODE_A("write_first"),        // String
         .RST_MODE_A("SYNC"),                 // String
         
         // Port B module parameters  
-        .WRITE_DATA_WIDTH_B(WIDTH*CHUNK_SIZE), // DECIMAL, data width: 64-bit
-        .READ_DATA_WIDTH_B(WIDTH*CHUNK_SIZE), // DECIMAL, data width: 64-bit
-        .BYTE_WRITE_WIDTH_B(8),              // DECIMAL
-        .ADDR_WIDTH_B(18),                   // DECIMAL, clog2(MEMORY_SIZE/WRITE_DATA_WIDTH_A)
+        .WRITE_DATA_WIDTH_B(WIDTH*CHUNK_SIZE*NUM_CORES), // DECIMAL, varying based on the matrix size
+        .READ_DATA_WIDTH_B(WIDTH*CHUNK_SIZE*NUM_CORES), // DECIMAL, varying based on the matrix size
+        .BYTE_WRITE_WIDTH_B(8*NUM_CORES),              // DECIMAL, how many bytes in WRITE_DATA_WIDTH_A
+        .ADDR_WIDTH_B(14),                   // DECIMAL, clog2(MEMORY_SIZE/WRITE_DATA_WIDTH_A)
         .READ_RESET_VALUE_B("0"),            // String
         .READ_LATENCY_B(1),                  // DECIMAL
         .WRITE_MODE_B("write_first"),        // String
         .RST_MODE_B("SYNC")                  // String
     )
-    xpm_memory_tdpram_k
+    xpm_memory_tdpram_in
     (
         .sleep(1'b0),
         .regcea(1'b1), //do not change
@@ -167,7 +174,7 @@ module top #(
     xpm_memory_tdpram
     #(
         // Common module parameters
-        .MEMORY_SIZE(INNER_DIMENSION*W_OUTER_DIMENSION*WIDTH), // DECIMAL, 
+        .MEMORY_SIZE(MEMORY_SIZE_W),           // DECIMAL, 
         .MEMORY_PRIMITIVE("auto"),           // String
         .CLOCKING_MODE("common_clock"),      // String, "common_clock"
         .MEMORY_INIT_FILE("none"),           // String
@@ -183,7 +190,7 @@ module top #(
         // Port A module parameters
         .WRITE_DATA_WIDTH_A(WIDTH*CHUNK_SIZE), // DECIMAL, data width: 64-bit
         .READ_DATA_WIDTH_A(WIDTH*CHUNK_SIZE),  // DECIMAL, data width: 64-bit
-        .BYTE_WRITE_WIDTH_A(8),              // DECIMAL
+        .BYTE_WRITE_WIDTH_A(8),              // DECIMAL, how many bytes in WRITE_DATA_WIDTH_A
         .ADDR_WIDTH_A(12),                   // DECIMAL, clog2(MEMORY_SIZE/WRITE_DATA_WIDTH_A)
         .READ_RESET_VALUE_A("0"),            // String
         .READ_LATENCY_A(1),                  // DECIMAL
@@ -194,7 +201,7 @@ module top #(
         .WRITE_DATA_WIDTH_B(WIDTH*CHUNK_SIZE), // DECIMAL, data width: 64-bit
         .READ_DATA_WIDTH_B(WIDTH*CHUNK_SIZE), // DECIMAL, data width: 64-bit
         .BYTE_WRITE_WIDTH_B(8),              // DECIMAL
-        .ADDR_WIDTH_B(12),                    // DECIMAL, clog2(MEMORY_SIZE/WRITE_DATA_WIDTH_A)
+        .ADDR_WIDTH_B(12),                   // DECIMAL, clog2(MEMORY_SIZE/WRITE_DATA_WIDTH_A)
         .READ_RESET_VALUE_B("0"),            // String
         .READ_LATENCY_B(1),                  // DECIMAL
         .WRITE_MODE_B("write_first"),        // String
