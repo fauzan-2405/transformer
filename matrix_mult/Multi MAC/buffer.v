@@ -4,7 +4,7 @@
 module buffer #(
     parameter NUM_CORES = 4,
     parameter CHUNK_SIZE = 4,
-    parameter WIDTH = 16,
+    parameter WIDTH = 16
 ) (
     input clk, en,
     input [(WIDTH*CHUNK_SIZE*NUM_CORES)-1:0] in,
@@ -24,8 +24,8 @@ module buffer #(
         if (en) begin
             out <= out_n[counter];
             counter <= counter+1;
-            if (counter == NUM_CORES -1) begin
-                counter < = 0;
+            if (counter == NUM_CORES-1) begin
+                counter <= 0;
             end
         end
         else begin
