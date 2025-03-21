@@ -6,12 +6,13 @@ module buffer #(
     parameter CHUNK_SIZE = 4,
     parameter WIDTH = 16
 ) (
-    input clk, en,
+    input clk, rst_n, start,
     input [(WIDTH*CHUNK_SIZE*NUM_CORES)-1:0] in,
     output reg [(WIDTH*CHUNK_SIZE)-1:0] output_buffer
 );
     wire [(WIDTH*CHUNK_SIZE)-1:0] out_n [0:NUM_CORES-1];
-    reg [$clog2(NUM_CORES)-1:0] counter = 0;
+    reg [5:0] counter;
+    localparam [4:0] IDLE = 5'b11111;  // Define IDLE state as all 1s
     
     genvar i;
     generate
@@ -21,15 +22,19 @@ module buffer #(
     endgenerate
 
     always @(posedge clk) begin
-        if (en) begin
-            output_buffer <= out_n[counter];
-            counter <= counter+1;
-            if (counter == NUM_CORES-1) begin
-                counter <= 0;
-            end
+        if (!rst_n) begin
+            counter <= IDLE; // Assign all bits to 1
+            output_buffer <= 0;
         end
-        else begin
+        else if (start && counter == IDLE) begin
             counter <= 0;
+            output_buffer <= out_n[0];
+        end
+        else if (counter < NUM_CORES) begin
+            counter <= counter + 1;
+        end
+        else if (counter >= NUM_CORES-1) begin
+            counter <= IDLE; // Assign all bits to 1
         end
     end
     
