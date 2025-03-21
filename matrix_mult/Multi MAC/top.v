@@ -24,7 +24,7 @@ module top #(
     input clk, rst_n, en, clr,
     // Control and status port
     output ready,
-    input  start,
+    input  start, // start to compute
     output done,
     // Weight port
     // For weight, there is 256x64 data with 16 bits each
@@ -42,15 +42,13 @@ module top #(
     input [(W_OUTER_DIMENSION/CHUNK_SIZE)*I_OUTER_DIMENSION],
     output [WIDTH*CHUNK_SIZE-1:0] out_dout
 );
+
     localparam MEMORY_SIZE_I = INNER_DIMENSION*I_OUTER_DIMENSION*WIDTH;
     localparam MEMORY_SIZE_W = INNER_DIMENSION*W_OUTER_DIMENSION*WIDTH;
     localparam integer NUM_CORES = (INNER_DIMENSION == 2754) ? 17 :
                                (INNER_DIMENSION == 256)  ? 8 :
                                (INNER_DIMENSION == 200)  ? 5 :
                                (INNER_DIMENSION == 64)   ? 4 ;
-
-    // Counter for main controller
-    reg [5:0]cnt_main_reg; 
     // Weight BRAM
     wire wb_enb;
     wire [(INNER_DIMENSION/CHUNK_SIZE)*W_OUTER_DIMENSION-1:0] wb_addrb; // 256/4 = 64 x 256
@@ -59,41 +57,36 @@ module top #(
     wire in_enb;
     wire [(INNER_DIMENSION/CHUNK_SIZE)*I_OUTER_DIMENSION-1:0] in_addrb;
     wire [7:0] in_web;
+    // Output
+    wire [(WIDTH*CHUNK_SIZE)-1:0] output;
 
-    // Core utilities
-    reg reset_acc;
-    wire accumulator_done, systolic_finish;
-    wire [(WIDTH*CHUNK_SIZE)-1:0] out;
+    // *** Write Controller **********************************************************
+    always @(posedge clk) begin
+        else if ((wb_wea == 1) && (in_wea == 1)) begin
+            start <= 1;
+        end
+    end
 
-    reg [WIDTH-1:0] counter_A, counter_B;
-    reg [WIDTH-1:0] counter;
-    reg [15:0] counter_row;
-    reg [15:0] counter_col;
-
-
-
-    // *** Main Controller **********************************************************
+    // *** Computing + Read Controller **********************************************************
     // Based on the testbench behavior, one row of output takes 35 clock cycles
+    reg [5:0] cmpt_main_reg; 
+
     always @(posedge clk) begin
         if (!rst_n || clr) begin
-            cnt_main_reg <= 0;
+            cmpt_main_reg <= 0;
         end
         else if (start) begin
-            cnt_main_reg <= cnt_main_reg + 1;
+            cmpt_main_reg <= cmpt_main_reg + 1;
         end
-        else if (cnt_main_reg >= 1 && cnt_main_reg <= 35) begin
-            cnt_main_reg <= cnt_main_reg + 1;
+        else if (cmpt_main_reg >= 1 && cmpt_main_reg <= 35) begin
+            cmpt_main_reg <= cmpt_main_reg + 1;
         end
-        else if (cnt_main_reg > 35) begin
-            cnt_main_reg <= 0;
+        else if (cmpt_main_reg > 35) begin
+            cmpt_main_reg <= 0;
         end
     end
 
     // *** Input BRAM ***********************************************************
-    // Controller
-    assign in_enb = (cnt_main_reg >= 1) ? 1 : 0; 
-    assign in_addrb = (cnt_main_reg == 1) ? 0; // Read the input address
-
     // xpm_memory_tdpram: True Dual Port RAM
     // Xilinx Parameterized Macro, version 2018.3
     xpm_memory_tdpram
@@ -166,9 +159,6 @@ module top #(
     );
 
     // *** Weight BRAM **********************************************************
-    // Weight Control
-    assign wb_enb ((cnt_main_reg ))
-
     // xpm_memory_tdpram: True Dual Port RAM
     // Xilinx Parameterized Macro, version 2018.3
     xpm_memory_tdpram
@@ -238,6 +228,15 @@ module top #(
         .addrb(wb_addrb),
         .dinb(0),
         .doutb(wb_doutb)
+    );
+
+    
+    // *** Toplevel ***********************************************************
+    toplevel #(.WIDTH(WIDTH), .FRAC_WIDTH(FRAC_WIDTH), .BLOCK_SIZE(BLOCK_SIZE), .CHUNK_SIZE(CHUNK_SIZE), .INNER_DIMENSION(INNER_DIMENSION)) toplevel_inst (
+        .clk(clk), .en(start), .rst_n(rst_n), .reset_acc(reset_acc),
+        .input_n(wb_doutb), .input_w(in_doutb),
+        .accumulator_done(), .systolic_finish(),
+        .out_top()
     );
 
 
