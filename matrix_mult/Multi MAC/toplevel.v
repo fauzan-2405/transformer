@@ -80,9 +80,9 @@ module toplevel #(
 
     // Buffer instance and output handling
     buffer #(.NUM_CORES(NUM_CORES), .CHUNK_SIZE(CHUNK_SIZE), .WIDTH(WIDTH)) buffer_inst (
-        .clk(clk), .en(accumulator_done), 
+        .clk(clk), .rst_n(rst_n), .start(accumulator_done), 
         .in(out_core), .output_buffer(out_top)
-    )
+    );
 	
 
 endmodule
