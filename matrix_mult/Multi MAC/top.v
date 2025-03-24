@@ -61,8 +61,9 @@ module top #(
     wire [(WIDTH*CHUNK_SIZE)-1:0] output;
 
     // *** Write Controller **********************************************************
+    reg [5:0] cmpt_main_reg; 
     always @(posedge clk) begin
-        else if ((wb_wea == 1) && (in_wea == 1)) begin
+        if ((wb_wea == 1) && (in_wea == 1)) begin
             start <= 1;
         end
     end
