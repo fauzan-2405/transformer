@@ -60,32 +60,17 @@ module top #(
     // Output
     wire [(WIDTH*CHUNK_SIZE)-1:0] output;
 
-    // *** Write Controller **********************************************************
-    reg [5:0] cmpt_main_reg; 
-    always @(posedge clk) begin
-        if ((wb_wea == 1) && (in_wea == 1)) begin
-            start <= 1;
-        end
-    end
-
-    // *** Computing + Read Controller **********************************************************
+    // *** Main Controller **********************************************************
     // Based on the testbench behavior, one row of output takes 35 clock cycles
     reg [5:0] cmpt_main_reg; 
-
     always @(posedge clk) begin
-        if (!rst_n || clr) begin
-            cmpt_main_reg <= 0;
-        end
-        else if (start) begin
-            cmpt_main_reg <= cmpt_main_reg + 1;
-        end
-        else if (cmpt_main_reg >= 1 && cmpt_main_reg <= 35) begin
-            cmpt_main_reg <= cmpt_main_reg + 1;
-        end
-        else if (cmpt_main_reg > 35) begin
-            cmpt_main_reg <= 0;
+        if ((wb_wea == 8'hFF) && (in_wea == 8'hFF)) begin
+            wb_enb <= 1;
+            in_enb <= 1;
         end
     end
+
+    assign in_addrb = ()
 
     // *** Input BRAM ***********************************************************
     // xpm_memory_tdpram: True Dual Port RAM
