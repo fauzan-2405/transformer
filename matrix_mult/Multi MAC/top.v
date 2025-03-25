@@ -55,8 +55,6 @@ module top #(
     wire in_enb;
     wire [(INNER_DIMENSION/CHUNK_SIZE)*I_OUTER_DIMENSION-1:0] in_addrb;
     wire [7:0] in_web;
-    // Output
-    wire [(WIDTH*CHUNK_SIZE)-1:0] output;
 
     // *** Input BRAM ***********************************************************
     // xpm_memory_tdpram: True Dual Port RAM
@@ -204,6 +202,7 @@ module top #(
 
     
     // *** Toplevel ***********************************************************
+    // ADDD THE RESET ACC LOGICC
     wire systolic_finish_top, accumulator_done_top;
     toplevel #(.WIDTH(WIDTH), .FRAC_WIDTH(FRAC_WIDTH), .BLOCK_SIZE(BLOCK_SIZE), .CHUNK_SIZE(CHUNK_SIZE), .INNER_DIMENSION(INNER_DIMENSION)) toplevel_inst (
         .clk(clk), .en(start), .rst_n(rst_n), .reset_acc(reset_acc),
