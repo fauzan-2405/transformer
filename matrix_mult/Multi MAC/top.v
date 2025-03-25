@@ -202,16 +202,20 @@ module top #(
 
     
     // *** Toplevel ***********************************************************
-    // ADDD THE RESET ACC LOGICC
     wire systolic_finish_top, accumulator_done_top;
+    reg internal_rst_n = 0;
+    reg internal_reset_acc = 0;
+
     toplevel #(.WIDTH(WIDTH), .FRAC_WIDTH(FRAC_WIDTH), .BLOCK_SIZE(BLOCK_SIZE), .CHUNK_SIZE(CHUNK_SIZE), .INNER_DIMENSION(INNER_DIMENSION)) toplevel_inst (
-        .clk(clk), .en(start), .rst_n(rst_n), .reset_acc(reset_acc),
+        .clk(clk), .en(start), .rst_n(internal_rst_n), .reset_acc(internal_reset_acc),
         .input_n(wb_doutb), .input_w(in_doutb),
         .accumulator_done(accumulator_done_top), .systolic_finish(systolic_finish_top),
         .out_top(out_bram)
     );
 
     // *** Main Controller **********************************************************
+    // ADDD THE RESET ACC LOGICC (DONE)
+    // EDIT THE RST_N AND RESET ACC LOGIC (DONE)
     // Based on the testbench behavior, one row of output takes 35 clock cycles
     reg [WIDTH-1:0] counter, counter_row, counter_col;
     
@@ -226,10 +230,18 @@ module top #(
     always @(posedge clk) begin
         if (start) begin
             if (systolic_finish == 1) begin
-                rst_n <= 0;
+                internal_rst_n <= 0;
             end else begin // kalau 0
-                rst_n <= 1;
+                internal_rst_n <= 1;
             end
+        end
+    end
+
+    always @(posedge systolic_finish) begin
+        if (accumulator_done == 1) begin
+            internal_reset_acc <= 0;
+        end else begin
+            internal_reset_acc <= 1;
         end
     end
 
