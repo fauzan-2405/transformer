@@ -38,9 +38,7 @@ module top #(
     input [WIDTH*CHUNK_SIZE-1:0] in_dina,
     input [7:0] in_wea,
     // Data output port
-    input out_en,
-    input [(W_OUTER_DIMENSION/CHUNK_SIZE)*I_OUTER_DIMENSION],
-    output [WIDTH*CHUNK_SIZE-1:0] out_dout
+    output [WIDTH*CHUNK_SIZE-1:0] out_bram
 );
 
     localparam MEMORY_SIZE_I = INNER_DIMENSION*I_OUTER_DIMENSION*WIDTH;
@@ -211,7 +209,7 @@ module top #(
         .clk(clk), .en(start), .rst_n(rst_n), .reset_acc(reset_acc),
         .input_n(wb_doutb), .input_w(in_doutb),
         .accumulator_done(accumulator_done_top), .systolic_finish(systolic_finish_top),
-        .out_top()
+        .out_top(out_bram)
     );
 
     // *** Main Controller **********************************************************
@@ -242,6 +240,7 @@ module top #(
         wb_addrb <= counter + (INNER_DIMENSION/BLOCK_SIZE)*counter_col;
     end
 
+    // EDIT THIS!!!!!!!!!!!!
     always @(posedge systolic_finish) begin
         if (counter == ((INNER_DIMENSION/BLOCK_SIZE) - 1)) begin
             counter <=0;
