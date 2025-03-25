@@ -46,7 +46,7 @@ module top #(
     localparam integer NUM_CORES = (INNER_DIMENSION == 2754) ? 17 :
                                (INNER_DIMENSION == 256)  ? 8 :
                                (INNER_DIMENSION == 200)  ? 5 :
-                               (INNER_DIMENSION == 64)   ? 4 ;
+                               (INNER_DIMENSION == 64)   ? 4 : 2;
     // Weight BRAM
     wire wb_enb;
     wire [(INNER_DIMENSION/CHUNK_SIZE)*W_OUTER_DIMENSION-1:0] wb_addrb; // 256/4 = 64 x 256
@@ -203,8 +203,8 @@ module top #(
     
     // *** Toplevel ***********************************************************
     wire systolic_finish_top, accumulator_done_top;
-    reg internal_rst_n = 0;
-    reg internal_reset_acc = 0;
+    reg internal_rst_n;
+    reg internal_reset_acc;
 
     toplevel #(.WIDTH(WIDTH), .FRAC_WIDTH(FRAC_WIDTH), .BLOCK_SIZE(BLOCK_SIZE), .CHUNK_SIZE(CHUNK_SIZE), .INNER_DIMENSION(INNER_DIMENSION)) toplevel_inst (
         .clk(clk), .en(start), .rst_n(internal_rst_n), .reset_acc(internal_reset_acc),
@@ -216,6 +216,7 @@ module top #(
     // *** Main Controller **********************************************************
     // ADDD THE RESET ACC LOGICC (DONE)
     // EDIT THE RST_N AND RESET ACC LOGIC (DONE)
+    // ADD THE RST_N CONDITION (DONE)
     // Based on the testbench behavior, one row of output takes 35 clock cycles
     reg [WIDTH-1:0] counter, counter_row, counter_col;
     
@@ -227,9 +228,20 @@ module top #(
         end
     end
 
+    // Reset and counter controller
+    always @(posedge clk) begin
+        if (~rst_n) begin
+            counter <= 0;
+            counter_row <=0;
+            counter_col <=0;
+            internal_rst_n <=0;
+            internal_reset_acc <=0;
+        end
+    end
+
     always @(posedge clk) begin
         if (start) begin
-            if (systolic_finish == 1) begin
+            if (systolic_finish_top == 1) begin
                 internal_rst_n <= 0;
             end else begin // kalau 0
                 internal_rst_n <= 1;
@@ -237,8 +249,8 @@ module top #(
         end
     end
 
-    always @(posedge systolic_finish) begin
-        if (accumulator_done == 1) begin
+    always @(posedge systolic_finish_top) begin
+        if (accumulator_done_top == 1) begin
             internal_reset_acc <= 0;
         end else begin
             internal_reset_acc <= 1;
@@ -246,13 +258,13 @@ module top #(
     end
 
     // Counter controller (input matrix will be the stationary input)
-    always @(posedge systolic_finish) begin
+    always @(posedge systolic_finish_top) begin
         in_addrb <= counter + (INNER_DIMENSION/BLOCK_SIZE)*counter_row;
         wb_addrb <= counter + (INNER_DIMENSION/BLOCK_SIZE)*counter_col;
     end
 
     // EDIT THIS!!!!!!!!!!!!
-    always @(posedge systolic_finish) begin
+    always @(posedge systolic_finish_top) begin
         if (counter == ((INNER_DIMENSION/BLOCK_SIZE) - 1)) begin
             counter <=0;
         end
@@ -262,7 +274,7 @@ module top #(
     end
 
     // Check if we already at the end of the MAT C column
-    always @(posedge accumulator_done) begin 
+    always @(posedge accumulator_done_top) begin 
         if (counter_col == (COL_SIZE_MAT_C - 1)) begin
             counter_col <= 0;
             counter_row <= counter_row + 1;
