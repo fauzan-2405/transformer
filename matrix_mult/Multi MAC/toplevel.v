@@ -21,7 +21,7 @@ module toplevel #(
     localparam integer NUM_CORES = (INNER_DIMENSION == 2754) ? 17 :
                                (INNER_DIMENSION == 256)  ? 8 :
                                (INNER_DIMENSION == 200)  ? 5 :
-                               (INNER_DIMENSION == 64)   ? 4 : 0;
+                               (INNER_DIMENSION == 64)   ? 4 : 2;
 
     wire [NUM_CORES-1:0] acc_done_array;
     wire [NUM_CORES-1:0] systolic_finish_array;
@@ -72,6 +72,14 @@ module toplevel #(
                     .out(out_core[(i+1)*(WIDTH*CHUNK_SIZE)-1 -: (WIDTH*CHUNK_SIZE)])					
 				);
 				  end
+            default: for (i = 0; i < 2; i++) begin
+                core #(.WIDTH(WIDTH), .FRAC_WIDTH(FRAC_WIDTH), .BLOCK_SIZE(BLOCK_SIZE), .CHUNK_SIZE(CHUNK_SIZE), .INNER_DIMENSION(INNER_DIMENSION)) core_4 (
+					.clk(clk), .en(en), .rst_n(rst_n), .reset_acc(reset_acc),
+                    .input_w(input_w_array[i]), .input_n(input_n),
+                    .accumulator_done(acc_done_array[i]), .systolic_finish(systolic_finish_array[i]),
+                    .out(out_core[(i+1)*(WIDTH*CHUNK_SIZE)-1 -: (WIDTH*CHUNK_SIZE)])					
+				);
+                  end
 		endcase
 	endgenerate
 
