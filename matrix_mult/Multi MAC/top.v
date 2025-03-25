@@ -60,18 +60,6 @@ module top #(
     // Output
     wire [(WIDTH*CHUNK_SIZE)-1:0] output;
 
-    // *** Main Controller **********************************************************
-    // Based on the testbench behavior, one row of output takes 35 clock cycles
-    reg [5:0] cmpt_main_reg; 
-    always @(posedge clk) begin
-        if ((wb_wea == 8'hFF) && (in_wea == 8'hFF)) begin
-            wb_enb <= 1;
-            in_enb <= 1;
-        end
-    end
-
-    assign in_addrb = ()
-
     // *** Input BRAM ***********************************************************
     // xpm_memory_tdpram: True Dual Port RAM
     // Xilinx Parameterized Macro, version 2018.3
@@ -218,12 +206,59 @@ module top #(
 
     
     // *** Toplevel ***********************************************************
+    wire systolic_finish_top, accumulator_done_top;
     toplevel #(.WIDTH(WIDTH), .FRAC_WIDTH(FRAC_WIDTH), .BLOCK_SIZE(BLOCK_SIZE), .CHUNK_SIZE(CHUNK_SIZE), .INNER_DIMENSION(INNER_DIMENSION)) toplevel_inst (
         .clk(clk), .en(start), .rst_n(rst_n), .reset_acc(reset_acc),
         .input_n(wb_doutb), .input_w(in_doutb),
-        .accumulator_done(), .systolic_finish(),
+        .accumulator_done(accumulator_done_top), .systolic_finish(systolic_finish_top),
         .out_top()
     );
 
+    // *** Main Controller **********************************************************
+    // Based on the testbench behavior, one row of output takes 35 clock cycles
+    reg [WIDTH-1:0] counter, counter_row, counter_col;
+    
+    // Write controller
+    always @(posedge clk) begin
+        if ((wb_wea == 8'hFF) && (in_wea == 8'hFF)) begin
+            wb_enb <= 1;
+            in_enb <= 1;
+        end
+    end
+
+    always @(posedge clk) begin
+        if (start) begin
+            if (systolic_finish == 1) begin
+                rst_n <= 0;
+            end else begin // kalau 0
+                rst_n <= 1;
+            end
+        end
+    end
+
+    // Counter controller (input matrix will be the stationary input)
+    always @(posedge systolic_finish) begin
+        in_addrb <= counter + (INNER_DIMENSION/BLOCK_SIZE)*counter_row;
+        wb_addrb <= counter + (INNER_DIMENSION/BLOCK_SIZE)*counter_col;
+    end
+
+    always @(posedge systolic_finish) begin
+        if (counter == ((INNER_DIMENSION/BLOCK_SIZE) - 1)) begin
+            counter <=0;
+        end
+        else begin
+            counter <= counter + 1;
+        end
+    end
+
+    // Check if we already at the end of the MAT C column
+    always @(posedge accumulator_done) begin 
+        if (counter_col == (COL_SIZE_MAT_C - 1)) begin
+            counter_col <= 0;
+            counter_row <= counter_row + 1;
+        end else begin
+            counter_col <= counter_col + 1;
+        end
+    end
 
 endmodule
