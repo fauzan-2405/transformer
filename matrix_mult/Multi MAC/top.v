@@ -35,7 +35,7 @@ module top #(
     // Data input port
     input in_ena,
     input [(INNER_DIMENSION/CHUNK_SIZE)*I_OUTER_DIMENSION-1:0] in_addra,
-    input [WIDTH*CHUNK_SIZE-1:0] in_dina,
+    input [(WIDTH*CHUNK_SIZE*17)-1:0] in_dina,
     input [7:0] in_wea,
     // Data output port
     output [WIDTH*CHUNK_SIZE-1:0] out_bram
