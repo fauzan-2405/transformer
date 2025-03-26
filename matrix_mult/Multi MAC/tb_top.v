@@ -1,6 +1,23 @@
 `timescale 1ns / 1ps
 
-module nn_tb();
+module tb_top();
+    parameter WIDTH = 16,
+    parameter FRAC_WIDTH = 8,
+    parameter BLOCK_SIZE = 2, // The size of systolic array dimension (N x N)
+    parameter CHUNK_SIZE = 4,
+    parameter INNER_DIMENSION = 4, // The same number of rows in one matrix and same number of columns in the other matrix
+    // W stands for weight
+    parameter W_OUTER_DIMENSION = 6,
+    // I stands for input
+    parameter I_OUTER_DIMENSION = 6,
+    parameter ROW_SIZE_MAT_C = I_OUTER_DIMENSION / BLOCK_SIZE,
+    parameter COL_SIZE_MAT_C = W_OUTER_DIMENSION / BLOCK_SIZE,
+    // To calculate the max_flag, the formula is:
+    // ROW_SIZE_MAT_C = (ROW_SIZE_MAT_A / BLOCK_SIZE)
+    // COL_SIZE_MAT_C = (COL_SIZE_MAT_B / BLOCK_SIZE) 
+    // MAX_FLAG = ROW_SIZE_MAT_C * COL_SIZE_MAT_C
+    parameter MAX_FLAG = ROW_SIZE_MAT_C * COL_SIZE_MAT_C;
+
     localparam T = 10;
     
     reg clk;
@@ -13,20 +30,18 @@ module nn_tb();
     wire done;
 
     reg wb_ena;
-    reg [2:0] wb_addra;
-    reg [63:0] wb_dina;
+    reg [(INNER_DIMENSION/CHUNK_SIZE)*W_OUTER_DIMENSION-1:0] wb_addra;
+    reg [WIDTH*CHUNK_SIZE-1:0] wb_dina;
     reg [7:0] wb_wea;
 
-    reg k_ena;
-    reg [1:0] k_addra;
-    reg [63:0] k_dina;
-    reg [7:0] k_wea;
+    reg in_ena;
+    reg [(INNER_DIMENSION/CHUNK_SIZE)*I_OUTER_DIMENSION-1:0] in_addra;
+    reg [WIDTH*CHUNK_SIZE-1:0] in_dina;
+    reg [7:0] in_wea;
 
-    reg a_enb;
-    reg [1:0] a_addrb;
-    wire [63:0] a_doutb;
+    wire [WIDTH*CHUNK_SIZE-1:0] out_bram;
  
-    nn dut
+    top top_inst
     (
         .clk(clk),
         .rst_n(rst_n),
@@ -39,13 +54,11 @@ module nn_tb();
         .wb_addra(wb_addra),
         .wb_dina(wb_dina),
         .wb_wea(wb_wea),
-        .k_ena(k_ena),
-        .k_addra(k_addra),
-        .k_dina(k_dina),
-        .k_wea(k_wea),
-        .a_enb(a_enb),
-        .a_addrb(a_addrb),
-        .a_doutb(a_doutb)
+        .in_ena(in_ena),
+        .in_addra(in_addra),
+        .in_dina(in_dina),
+        .in_wea(in_wea),
+        .out_bram(out_bram)
     );
 
     always
