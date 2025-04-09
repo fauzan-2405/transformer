@@ -31,7 +31,7 @@ module top #(
     input clk, rst_n,
     // Control and status port
     input  start, // start to compute
-    output done,
+    //output done,
     // Weight port
     // For weight, there is 256x64 data with 16 bits each
     input wb_ena,
