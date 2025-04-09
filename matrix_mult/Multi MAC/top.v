@@ -2,10 +2,10 @@
 // Used to combine toplevel.v with BRAM
 // TODO
 /*
-    1. Clean all unused ports (en, clr, ready on the main module)
+    1. Clean all unused ports (en, clr, ready on the main module) (DONE)
     2. Clean NUM_CORES variable in top.v module and toplevel.v module (NOT NECESSARY BECAUSE toplevel.v will be used in another matmul operations)
     3. Compute again the addra for both BRAMs (DONE)
-
+    4. [Optional but really recommended] Change the buffer algorithm so it will eject the output horizontally and consecutively
 */
 
 `include "toplevel.v"
@@ -28,9 +28,8 @@ module top #(
     // MAX_FLAG = ROW_SIZE_MAT_C * COL_SIZE_MAT_C
     parameter MAX_FLAG = ROW_SIZE_MAT_C * COL_SIZE_MAT_C;
 ) (
-    input clk, rst_n, en, clr,
+    input clk, rst_n,
     // Control and status port
-    output ready,
     input  start, // start to compute
     output done,
     // Weight port
@@ -230,7 +229,7 @@ module top #(
     // Based on the testbench behavior, one row of output takes 35 clock cycles
     reg [WIDTH-1:0] counter, counter_row, counter_col;
     
-    // Write controller
+    // Port B controller
     always @(posedge clk) begin
         if ((wb_wea == 8'hFF) && (in_wea == 8'hFF)) begin
             wb_enb <= 1;
@@ -274,6 +273,7 @@ module top #(
     end
 
     // EDIT THIS!!!!!!!!!!!!
+    // (I think it's already okay)
     always @(posedge systolic_finish_top) begin
         if (counter == ((INNER_DIMENSION/BLOCK_SIZE) - 1)) begin
             counter <=0;
