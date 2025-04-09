@@ -1,5 +1,12 @@
 // top.v
 // Used to combine toplevel.v with BRAM
+// TODO
+/*
+    1. Clean all unused ports (en, clr, ready on the main module)
+    2. Clean NUM_CORES variable in top.v module and toplevel.v module (NOT NECESSARY BECAUSE toplevel.v will be used in another matmul operations)
+    3. Compute again the addra for both BRAMs (DONE)
+    
+*/
 
 `include "toplevel.v"
 
@@ -29,12 +36,13 @@ module top #(
     // Weight port
     // For weight, there is 256x64 data with 16 bits each
     input wb_ena,
-    input [(INNER_DIMENSION/CHUNK_SIZE)*W_OUTER_DIMENSION-1:0] wb_addra, // 256/4 = 64 x 256
+    input [11:0] wb_addra, // The WIDTH is corresponded with ADDR_WIDTH attribute of input BRAMs
     input [WIDTH*CHUNK_SIZE-1:0] wb_dina,
     input [7:0] wb_wea,
     // Data input port
+    // For input, there is 2754x256 data with 16 bits each
     input in_ena,
-    input [(INNER_DIMENSION/CHUNK_SIZE)*I_OUTER_DIMENSION-1:0] in_addra,
+    input [13:0] in_addra, // The WIDTH is corresponded with ADDR_WIDTH attribute of input BRAMs
     input [(WIDTH*CHUNK_SIZE*17)-1:0] in_dina,
     input [7:0] in_wea,
     // Data output port
@@ -53,7 +61,7 @@ module top #(
     wire [WIDTH*CHUNK_SIZE-1:0] wb_doutb;
     // Input BRAM
     wire in_enb;
-    wire [(INNER_DIMENSION/CHUNK_SIZE)*I_OUTER_DIMENSION-1:0] in_addrb;
+    wire [13:0] in_addrb;
     wire [7:0] in_web;
 
     // *** Input BRAM ***********************************************************
