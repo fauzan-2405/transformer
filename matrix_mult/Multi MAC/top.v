@@ -5,7 +5,7 @@
     1. Clean all unused ports (en, clr, ready on the main module)
     2. Clean NUM_CORES variable in top.v module and toplevel.v module (NOT NECESSARY BECAUSE toplevel.v will be used in another matmul operations)
     3. Compute again the addra for both BRAMs (DONE)
-    
+
 */
 
 `include "toplevel.v"
@@ -39,12 +39,14 @@ module top #(
     input [11:0] wb_addra, // The WIDTH is corresponded with ADDR_WIDTH attribute of input BRAMs
     input [WIDTH*CHUNK_SIZE-1:0] wb_dina,
     input [7:0] wb_wea,
+
     // Data input port
     // For input, there is 2754x256 data with 16 bits each
     input in_ena,
     input [13:0] in_addra, // The WIDTH is corresponded with ADDR_WIDTH attribute of input BRAMs
     input [(WIDTH*CHUNK_SIZE*17)-1:0] in_dina,
     input [7:0] in_wea,
+
     // Data output port
     output [WIDTH*CHUNK_SIZE-1:0] out_bram
 );
@@ -55,18 +57,14 @@ module top #(
                                (INNER_DIMENSION == 256)  ? 8 :
                                (INNER_DIMENSION == 200)  ? 5 :
                                (INNER_DIMENSION == 64)   ? 4 : 2;
-    // Weight BRAM
-    wire wb_enb;
-    wire [(INNER_DIMENSION/CHUNK_SIZE)*W_OUTER_DIMENSION-1:0] wb_addrb; // 256/4 = 64 x 256
-    wire [WIDTH*CHUNK_SIZE-1:0] wb_doutb;
-    // Input BRAM
-    wire in_enb;
-    wire [13:0] in_addrb;
-    wire [7:0] in_web;
 
     // *** Input BRAM ***********************************************************
     // xpm_memory_tdpram: True Dual Port RAM
     // Xilinx Parameterized Macro, version 2018.3
+    wire in_enb;
+    wire [13:0] in_addrb; // Same as in_addra
+    wire [WIDTH*CHUNK_SIZE*NUM_CORES-1:0] in_doutb;
+
     xpm_memory_tdpram
     #(
         // Common module parameters
@@ -139,6 +137,10 @@ module top #(
     // *** Weight BRAM **********************************************************
     // xpm_memory_tdpram: True Dual Port RAM
     // Xilinx Parameterized Macro, version 2018.3
+    wire wb_enb;
+    wire [11:0] wb_addrb; // Same as wb_addra
+    wire [WIDTH*CHUNK_SIZE-1:0] wb_doutb;
+
     xpm_memory_tdpram
     #(
         // Common module parameters
