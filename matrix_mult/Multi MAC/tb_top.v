@@ -1,7 +1,7 @@
 `timescale 1ns / 1ps
 `include "top.v"
 
-module tb_top();
+module tb_top;
 parameter WIDTH = 16;
 parameter FRAC_WIDTH = 8;
 parameter BLOCK_SIZE = 2; // The size of systolic array dimension (N x N)
@@ -19,13 +19,10 @@ parameter COL_SIZE_MAT_C = W_OUTER_DIMENSION / BLOCK_SIZE;
 // MAX_FLAG = ROW_SIZE_MAT_C * COL_SIZE_MAT_C
 parameter MAX_FLAG = ROW_SIZE_MAT_C * COL_SIZE_MAT_C;
 
-localparam T = 10;
-
 reg clk;
 reg rst_n;
 
 reg start;
-wire done;
 
 reg wb_ena;
 reg [11:0] wb_addra;
@@ -39,11 +36,14 @@ reg [7:0] in_wea;
 
 wire [WIDTH*CHUNK_SIZE-1:0] out_bram;
 
-top top_inst
-(
+top top_inst #(
+    .WIDTH(WIDTH), .FRAC_WIDTH(FRAC_WIDTH), .BLOCK_SIZE(BLOCK_SIZE), .CHUNK_SIZE(CHUNK_SIZE),
+    .INNER_DIMENSION(INNER_DIMENSION), .W_OUTER_DIMENSION(W_OUTER_DIMENSION), .I_OUTER_DIMENSION(I_OUTER_DIMENSION), 
+    .ROW_SIZE_MAT_C(ROW_SIZE_MAT_C), .COL_SIZE_MAT_C(COL_SIZE_MAT_C),
+) (
     .clk(clk),
     .rst_n(rst_n),
-    .ready(ready),
+    //.ready(ready),
     .start(start),
     //.done(done),
     .wb_ena(wb_ena),
@@ -57,16 +57,15 @@ top top_inst
     .out_bram(out_bram)
 );
 
-always
-begin
-    clk = 0;
-    #(T/2);
-    clk = 1;
-    #(T/2);
+initial begin
+    forever begin
+        #5 clk <= ~clk;
+    end
 end
 
 initial
 begin
+    clk = 0;
     start = 0;
     wb_ena = 1;
     wb_addra = 0;
@@ -78,13 +77,13 @@ begin
     in_wea = 0;
     
     rst_n = 0;
-    #(T*5);
+    #50;
     rst_n = 1;
-    #(T*5);
-  
+    #50;
+
     // Start module
     start = 1;
-    #T;
+    #500;
     
 
 end
