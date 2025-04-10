@@ -26,7 +26,7 @@ module top #(
     // ROW_SIZE_MAT_C = (ROW_SIZE_MAT_A / BLOCK_SIZE)
     // COL_SIZE_MAT_C = (COL_SIZE_MAT_B / BLOCK_SIZE) 
     // MAX_FLAG = ROW_SIZE_MAT_C * COL_SIZE_MAT_C
-    parameter MAX_FLAG = ROW_SIZE_MAT_C * COL_SIZE_MAT_C;
+    parameter MAX_FLAG = ROW_SIZE_MAT_C * COL_SIZE_MAT_C
 ) (
     input clk, rst_n,
     // Control and status port
@@ -60,8 +60,8 @@ module top #(
     // *** Input BRAM ***********************************************************
     // xpm_memory_tdpram: True Dual Port RAM
     // Xilinx Parameterized Macro, version 2018.3
-    wire in_enb;
-    wire [13:0] in_addrb; // Same as in_addra
+    reg in_enb;
+    reg [13:0] in_addrb; // Same as in_addra
     wire [WIDTH*CHUNK_SIZE*NUM_CORES-1:0] in_doutb;
 
     xpm_memory_tdpram
@@ -70,7 +70,7 @@ module top #(
         .MEMORY_SIZE(MEMORY_SIZE_I),           // DECIMAL, 
         .MEMORY_PRIMITIVE("auto"),           // String
         .CLOCKING_MODE("common_clock"),      // String, "common_clock"
-        .MEMORY_INIT_FILE("none"),           // String
+        .MEMORY_INIT_FILE("B.mem"),           // String
         .MEMORY_INIT_PARAM("0"),             // String      
         .USE_MEM_INIT(1),                    // DECIMAL
         .WAKEUP_TIME("disable_sleep"),       // String
@@ -136,8 +136,8 @@ module top #(
     // *** Weight BRAM **********************************************************
     // xpm_memory_tdpram: True Dual Port RAM
     // Xilinx Parameterized Macro, version 2018.3
-    wire wb_enb;
-    wire [11:0] wb_addrb; // Same as wb_addra
+    reg wb_enb;
+    reg [11:0] wb_addrb; // Same as wb_addra
     wire [WIDTH*CHUNK_SIZE-1:0] wb_doutb;
 
     xpm_memory_tdpram
@@ -145,7 +145,7 @@ module top #(
         // Common module parameters
         .MEMORY_SIZE(MEMORY_SIZE_W),           // DECIMAL, 
         .MEMORY_PRIMITIVE("auto"),           // String
-        .CLOCKING_MODE("common_clock"),      // String, "common_clock"
+        .CLOCKING_MODE("A.mem"),      // String, "common_clock"
         .MEMORY_INIT_FILE("none"),           // String
         .MEMORY_INIT_PARAM("0"),             // String      
         .USE_MEM_INIT(1),                    // DECIMAL
@@ -236,6 +236,10 @@ module top #(
             in_enb <= 1;
         end
     end
+    /*
+    assign wb_enb = (wb_wea == 8'hFF) && (in_wea == 8'hFF) ? 1 : 0;
+    assign in_enb = (wb_wea == 8'hFF) && (in_wea == 8'hFF) ? 1 : 0;
+    */
 
     // Reset and counter controller
     always @(posedge clk) begin
