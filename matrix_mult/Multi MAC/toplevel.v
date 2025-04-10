@@ -8,7 +8,7 @@ module toplevel #(
     parameter FRAC_WIDTH = 8,
     parameter BLOCK_SIZE = 2, // The size of systolic array dimension (N x N)
     parameter CHUNK_SIZE = 4,
-    parameter INNER_DIMENSION = 64, // The same number of rows in one matrix and same number of columns in the other matrix
+    parameter INNER_DIMENSION = 64 // The same number of rows in one matrix and same number of columns in the other matrix
 ) (
     input clk, en, rst_n, reset_acc,
     input [(WIDTH*CHUNK_SIZE)-1:0] input_n,
@@ -37,10 +37,9 @@ module toplevel #(
     endgenerate
     
 	// Core generation
-    genvar i;
 	generate
 		case (NUM_CORES)
-			17: for (i = 0; i < 17; i++) begin
+			17: for (i = 0; i < 17; i = i +1) begin
 				core #(.WIDTH(WIDTH), .FRAC_WIDTH(FRAC_WIDTH), .BLOCK_SIZE(BLOCK_SIZE), .CHUNK_SIZE(CHUNK_SIZE), .INNER_DIMENSION(INNER_DIMENSION)) core_17 (
 					.clk(clk), .en(en), .rst_n(rst_n), .reset_acc(reset_acc),
                     .input_w(input_w_array[i]), .input_n(input_n),
@@ -48,7 +47,7 @@ module toplevel #(
                     .out(out_core[(i+1)*(WIDTH*CHUNK_SIZE)-1 -: (WIDTH*CHUNK_SIZE)])
 				);
 				  end
-			8:  for (i = 0; i < 8; i++) begin
+			8:  for (i = 0; i < 8; i = i +1) begin
 				core #(.WIDTH(WIDTH), .FRAC_WIDTH(FRAC_WIDTH), .BLOCK_SIZE(BLOCK_SIZE), .CHUNK_SIZE(CHUNK_SIZE), .INNER_DIMENSION(INNER_DIMENSION)) core_8 (
 					.clk(clk), .en(en), .rst_n(rst_n), .reset_acc(reset_acc),
                     .input_w(input_w_array[i]), .input_n(input_n),
@@ -56,7 +55,7 @@ module toplevel #(
                     .out(out_core[(i+1)*(WIDTH*CHUNK_SIZE)-1 -: (WIDTH*CHUNK_SIZE)])					
 				);
 				  end
-			5:  for (i = 0; i < 5; i++) begin
+			5:  for (i = 0; i < 5; i = i +1) begin
 				core #(.WIDTH(WIDTH), .FRAC_WIDTH(FRAC_WIDTH), .BLOCK_SIZE(BLOCK_SIZE), .CHUNK_SIZE(CHUNK_SIZE), .INNER_DIMENSION(INNER_DIMENSION)) core_5 (
 					.clk(clk), .en(en), .rst_n(rst_n), .reset_acc(reset_acc),
                     .input_w(input_w_array[i]), .input_n(input_n),
@@ -64,7 +63,7 @@ module toplevel #(
                     .out(out_core[(i+1)*(WIDTH*CHUNK_SIZE)-1 -: (WIDTH*CHUNK_SIZE)])					
 				);
 				  end
-			4:   for (i = 0; i < 4; i++) begin
+			4:   for (i = 0; i < 4; i = i +1) begin
 				core #(.WIDTH(WIDTH), .FRAC_WIDTH(FRAC_WIDTH), .BLOCK_SIZE(BLOCK_SIZE), .CHUNK_SIZE(CHUNK_SIZE), .INNER_DIMENSION(INNER_DIMENSION)) core_4 (
 					.clk(clk), .en(en), .rst_n(rst_n), .reset_acc(reset_acc),
                     .input_w(input_w_array[i]), .input_n(input_n),
@@ -72,7 +71,7 @@ module toplevel #(
                     .out(out_core[(i+1)*(WIDTH*CHUNK_SIZE)-1 -: (WIDTH*CHUNK_SIZE)])					
 				);
 				  end
-            default: for (i = 0; i < 2; i++) begin
+            default: for (i = 0; i < 2; i = i +1) begin
                 core #(.WIDTH(WIDTH), .FRAC_WIDTH(FRAC_WIDTH), .BLOCK_SIZE(BLOCK_SIZE), .CHUNK_SIZE(CHUNK_SIZE), .INNER_DIMENSION(INNER_DIMENSION)) core_4 (
 					.clk(clk), .en(en), .rst_n(rst_n), .reset_acc(reset_acc),
                     .input_w(input_w_array[i]), .input_n(input_n),
