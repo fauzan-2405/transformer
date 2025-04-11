@@ -8,7 +8,7 @@
     4. [Optional but really recommended] Change the buffer algorithm so it will eject the output horizontally and consecutively
 */
 
-`include "toplevel.v"
+//`include "toplevel.v"
 
 module top #(
     parameter WIDTH = 16,
