@@ -1,5 +1,5 @@
 `timescale 1ns / 1ps
-`include "top.v"
+//`include "top.v"
 
 module tb_top;
 parameter WIDTH = 16;
@@ -36,11 +36,11 @@ reg [7:0] in_wea;
 
 wire [WIDTH*CHUNK_SIZE-1:0] out_bram;
 
-top top_inst #(
+top #(
     .WIDTH(WIDTH), .FRAC_WIDTH(FRAC_WIDTH), .BLOCK_SIZE(BLOCK_SIZE), .CHUNK_SIZE(CHUNK_SIZE),
     .INNER_DIMENSION(INNER_DIMENSION), .W_OUTER_DIMENSION(W_OUTER_DIMENSION), .I_OUTER_DIMENSION(I_OUTER_DIMENSION), 
-    .ROW_SIZE_MAT_C(ROW_SIZE_MAT_C), .COL_SIZE_MAT_C(COL_SIZE_MAT_C),
-) (
+    .ROW_SIZE_MAT_C(ROW_SIZE_MAT_C), .COL_SIZE_MAT_C(COL_SIZE_MAT_C)
+) top_inst (
     .clk(clk),
     .rst_n(rst_n),
     //.ready(ready),
@@ -57,11 +57,7 @@ top top_inst #(
     .out_bram(out_bram)
 );
 
-initial begin
-    forever begin
-        #5 clk <= ~clk;
-    end
-end
+always #5 clk = ~clk;
 
 initial
 begin
@@ -77,12 +73,14 @@ begin
     in_wea = 0;
     
     rst_n = 0;
-    #50;
+    #50
     rst_n = 1;
-    #50;
-
-    // Start module
+    #5
     start = 1;
+    wb_wea = 8'hFF;
+    in_wea = 8'hFF;
+    #50
+    
     #500;
     
 
