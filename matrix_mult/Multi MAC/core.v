@@ -1,8 +1,8 @@
 // core.v
 // Used to combine all
-`include "mac.v"
-`include "mux2_1.v"
-`include "control_mux2_1.v"
+//`include "mac.v"
+//`include "mux2_1.v"
+//`include "control_mux2_1.v"
 
 module core #(
     parameter WIDTH = 16,

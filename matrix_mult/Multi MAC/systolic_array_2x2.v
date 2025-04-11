@@ -1,7 +1,7 @@
 // systolic_array_2x2.v
 // Used as a multiplier
 
-`include "pe.v"
+//`include "pe.v"
 
 module systolic_array_2x2 #(
     parameter WIDTH = 16,

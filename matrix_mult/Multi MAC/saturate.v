@@ -1,6 +1,6 @@
 // saturate.v
 // Used to check whether the output is saturated or not
-`include "reg.v"
+//`include "reg.v"
 
 module saturate #(
     parameter WIDTH = 16,

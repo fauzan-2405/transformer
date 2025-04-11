@@ -1,7 +1,7 @@
 // core.v
 // Used to combine all
-`include "core.v"
-`include "buffer.v"
+//`include "core.v"
+//`include "buffer.v"
 
 module toplevel #(
     parameter WIDTH = 16,

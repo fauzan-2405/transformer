@@ -1,8 +1,8 @@
 // mac.v
 // basically systolic array + accumulator
 
-`include "systolic_array_2x2.v"
-`include "accumulator.v"
+//`include "systolic_array_2x2.v"
+//`include "accumulator.v"
 
 module mac #(
     parameter WIDTH = 16,
