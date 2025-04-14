@@ -47,13 +47,17 @@ bram_test #(
     .start(start),
     //.done(done),
     .wb_ena(wb_ena),
+    /*
     .wb_addra(wb_addra),
     .wb_dina(wb_dina),
     .wb_wea(wb_wea),
+    */
     .in_ena(in_ena),
+    /*
     .in_addra(in_addra),
     .in_dina(in_dina),
     .in_wea(in_wea),
+    */
     .out_bram(out_bram)
 );
 
