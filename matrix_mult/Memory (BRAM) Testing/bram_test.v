@@ -199,5 +199,27 @@ module bram_test #(
         .doutb(wb_doutb)
     );
 
+    // Port B controller
+    always @(posedge clk) begin
+        if ((wb_wea == 8'hFF) && (in_wea == 8'hFF)) begin
+            wb_enb <= 1;
+            in_enb <= 1;
+        end
+    end
+
+    always @(posedge clk) begin
+        if (~rst_n) begin
+            in_addrb <= 0;
+            wb_addrb <= 0;
+        end
+    end
+
+    always @(posedge clk) begin
+        if ((wb_enb == 8'hFF) && (in_enb == 8'hFF)) begin
+            in_addrb <= in_addrb + 1;
+            wb_addrb <= wb_addrb + 1;
+        end
+    end
+
 
 endmodule
