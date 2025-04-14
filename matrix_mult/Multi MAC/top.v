@@ -70,7 +70,7 @@ module top #(
         .MEMORY_SIZE(MEMORY_SIZE_I),           // DECIMAL, 
         .MEMORY_PRIMITIVE("auto"),           // String
         .CLOCKING_MODE("common_clock"),      // String, "common_clock"
-        .MEMORY_INIT_FILE("B.mem"),           // String
+        .MEMORY_INIT_FILE("A.mem"),           // String
         .MEMORY_INIT_PARAM("0"),             // String      
         .USE_MEM_INIT(1),                    // DECIMAL
         .WAKEUP_TIME("disable_sleep"),       // String
@@ -145,7 +145,7 @@ module top #(
         // Common module parameters
         .MEMORY_SIZE(MEMORY_SIZE_W),           // DECIMAL, 
         .MEMORY_PRIMITIVE("auto"),           // String
-        .CLOCKING_MODE("A.mem"),      // String, "common_clock"
+        .CLOCKING_MODE("B.mem"),      // String, "common_clock"
         .MEMORY_INIT_FILE("none"),           // String
         .MEMORY_INIT_PARAM("0"),             // String      
         .USE_MEM_INIT(1),                    // DECIMAL
