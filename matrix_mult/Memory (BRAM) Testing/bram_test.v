@@ -215,7 +215,7 @@ module bram_test #(
     end
 
     always @(posedge clk) begin
-        if ((wb_enb == 8'hFF) && (in_enb == 8'hFF)) begin
+        if ((wb_enb == 1) && (in_enb == 1)) begin
             in_addrb <= in_addrb + 1;
             wb_addrb <= wb_addrb + 1;
         end

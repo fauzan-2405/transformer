@@ -1,7 +1,7 @@
 `timescale 1ns / 1ps
 //`include "top.v"
 
-module tb_top;
+module tb_bram_test;
 parameter WIDTH = 16;
 parameter FRAC_WIDTH = 8;
 parameter BLOCK_SIZE = 2; // The size of systolic array dimension (N x N)
