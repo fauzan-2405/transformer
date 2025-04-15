@@ -3,39 +3,37 @@ def concatenate_lines(mem_file, output_file, group_size):
     with open(mem_file, 'r') as file:
         lines = file.readlines()
 
-    # Clean up the lines (strip out newlines and remove line numbers if they exist)
+    # Clean lines and remove line numbers if present
     clean_lines = []
     for line in lines:
-        # Remove line numbers and dots if present
         parts = line.strip().split()
         if len(parts) > 1:
             clean_lines.append(parts[1])
         else:
             clean_lines.append(parts[0])
 
-    # Check if the file has the correct number of lines
+    # Check if number of lines is divisible by group size
     if len(clean_lines) % group_size != 0:
-        raise ValueError(f"The number of lines ({len(clean_lines)}) is not a multiple of the group size ({group_size}).")
+        raise ValueError(f"Number of lines ({len(clean_lines)}) is not divisible by group size ({group_size}).")
 
-    # Prepare a list to store the concatenated lines
+    # Group and concatenate with reverse order
     concatenated_lines = []
-
-    # Process the lines in chunks of 'group_size'
     for i in range(0, len(clean_lines), group_size):
-        # Concatenate the lines in the current group
-        concatenated = ''.join(clean_lines[i:i + group_size])
+        group = clean_lines[i:i + group_size]
+        reversed_group = reversed(group)
+        concatenated = ''.join(reversed_group)
         concatenated_lines.append(concatenated)
 
-    # Write the concatenated lines to the output file
+    # Write result to output file
     with open(output_file, 'w') as file:
         for line in concatenated_lines:
             file.write(line + '\n')
 
-    print(f"Concatenated lines have been written to {output_file}")
+    print(f"Done! Output written to {output_file}")
 
-# Example usage
+# === Example usage ===
 mem_file = 'A.mem'
 output_file = 'A_rev.mem'
-group_size = 4  # You can change this to any integer
+group_size = 2  # ← You can set this to any grouping size
 
 concatenate_lines(mem_file, output_file, group_size)
