@@ -1,5 +1,6 @@
 // top.v
 // Used to combine toplevel.v with BRAM
+// This version just use buffer for its output. If you want to use a BRAM for the output, see top_ver2.v
 // TODO
 /*
     1. Clean all unused ports (en, clr, ready on the main module) (DONE)
@@ -280,8 +281,9 @@ module top #(
         wb_addrb <= counter + (INNER_DIMENSION/BLOCK_SIZE)*counter_col;
     end
 
-    // EDIT THIS!!!!!!!!!!!!
-    // (I think it's already okay)
+    // counter indicates the matrix C element iteration
+    // counter_row indicates the i-th input matrix (I) row
+    // counter_col indicates the i-th weight matrix (W) row
     always @(posedge systolic_finish_top) begin
         if (counter == ((INNER_DIMENSION/BLOCK_SIZE) - 1)) begin
             counter <=0;
