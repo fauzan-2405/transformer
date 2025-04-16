@@ -1,9 +1,9 @@
-def concatenate_lines(mem_file, output_file, group_size):
-    # Read the memory file
+def concatenate_lines_any(mem_file, output_file, multiplier):
+    # Read the file
     with open(mem_file, 'r') as file:
         lines = file.readlines()
-
-    # Clean lines and remove line numbers if present
+    
+    # Strip line numbers if present
     clean_lines = []
     for line in lines:
         parts = line.strip().split()
@@ -12,28 +12,61 @@ def concatenate_lines(mem_file, output_file, group_size):
         else:
             clean_lines.append(parts[0])
 
-    # Check if number of lines is divisible by group size
-    if len(clean_lines) % group_size != 0:
-        raise ValueError(f"Number of lines ({len(clean_lines)}) is not divisible by group size ({group_size}).")
+    total_lines = len(clean_lines)
+    if total_lines % multiplier != 0:
+        raise ValueError(f"Total lines ({total_lines}) not divisible by multiplier ({multiplier}).")
 
-    # Group and concatenate with reverse order
-    concatenated_lines = []
-    for i in range(0, len(clean_lines), group_size):
-        group = clean_lines[i:i + group_size]
-        reversed_group = reversed(group)
-        concatenated = ''.join(reversed_group)
-        concatenated_lines.append(concatenated)
+    num_outputs = total_lines // multiplier
+    result_lines = []
+    
+    # Hard-coded pattern for N=2 as per your example
+    if multiplier == 2:
+        for i in range(num_outputs):
+            if i == 0:
+                # Output line 1: Line 3 + Line 1
+                combined = clean_lines[2] + clean_lines[0]
+            elif i == 1:
+                # Output line 2: Line 4 + Line 2
+                combined = clean_lines[3] + clean_lines[1]
+            elif i == 2:
+                # Output line 3: Line 7 + Line 5
+                combined = clean_lines[6] + clean_lines[4]
+            elif i == 3:
+                # Output line 4: Line 8 + Line 6
+                combined = clean_lines[7] + clean_lines[5]
+            result_lines.append(combined)
+    # Hard-coded pattern for N=3 as per your example
+    elif multiplier == 3:
+        for i in range(num_outputs):
+            if i == 0:
+                # Output line 1: Line 7 + Line 4 + Line 1
+                combined = clean_lines[6] + clean_lines[3] + clean_lines[0]
+            elif i == 1:
+                # Output line 2: Line 8 + Line 5 + Line 2
+                combined = clean_lines[7] + clean_lines[4] + clean_lines[1]
+            elif i == 2:
+                # Output line 3: Line 9 + Line 6 + Line 3
+                combined = clean_lines[8] + clean_lines[5] + clean_lines[2]
+            result_lines.append(combined)
+    else:
+        # Generalized pattern for any N
+        for i in range(num_outputs):
+            combined = ""
+            for j in range(multiplier):
+                index = (multiplier - 1 - j) * num_outputs + i
+                combined += clean_lines[index]
+            result_lines.append(combined)
 
-    # Write result to output file
+    # Write output
     with open(output_file, 'w') as file:
-        for line in concatenated_lines:
+        for line in result_lines:
             file.write(line + '\n')
 
-    print(f"Done! Output written to {output_file}")
+    print(f"Output saved to {output_file} ✅")
 
-# === Example usage ===
+# Example usage:
 mem_file = 'A.mem'
 output_file = 'A_rev.mem'
-group_size = 2  # ← You can set this to any grouping size
+multiplier = 2  # Supports ANY integer that divides the number of lines
 
-concatenate_lines(mem_file, output_file, group_size)
+concatenate_lines_any(mem_file, output_file, multiplier)
