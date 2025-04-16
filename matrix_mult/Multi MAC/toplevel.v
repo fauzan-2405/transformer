@@ -1,4 +1,6 @@
-// core.v
+// toplevel.v
+// This toplevel uses buffer for its output
+// For the one who does not use buffer, see toplevel_ver2.v
 // Used to combine all
 //`include "core.v"
 //`include "buffer.v"
