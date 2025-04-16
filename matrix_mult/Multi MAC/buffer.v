@@ -24,7 +24,6 @@ module buffer #(
     always @(posedge clk) begin
         if (!rst_n) begin
             counter <= 0; // Assign all bits to 1
-            output_buffer <= 0;
         end
         else if (start) begin
             output_buffer <= out_n[counter];
