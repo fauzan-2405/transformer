@@ -1,17 +1,13 @@
 // top.v
 // Used to combine toplevel.v with BRAM
-// This version just use buffer for its output. If you want to use a BRAM for the output, see top_ver2.v
-// TODO
-/*
-    1. Clean all unused ports (en, clr, ready on the main module) (DONE)
-    2. Clean NUM_CORES variable in top.v module and toplevel.v module (NOT NECESSARY BECAUSE toplevel.v will be used in another matmul operations)
-    3. Compute again the addra for both BRAMs (DONE)
-    4. [Optional but really recommended] Change the buffer algorithm so it will eject the output horizontally and consecutively
+// This version connected to BRAM for its output
+/* TODO
+    1. Adjust port A and B output BRAM
 */
 
 //`include "toplevel.v"
 
-module top #(
+module top_ver2 #(
     parameter WIDTH = 16,
     parameter FRAC_WIDTH = 8,
     parameter BLOCK_SIZE = 2, // The size of systolic array dimension (N x N)
@@ -32,24 +28,10 @@ module top #(
     input clk, rst_n,
     // Control and status port
     input  start, // start to compute
-    //output done,
-    // Weight port
-    // For weight, there is 256x64 data with 16 bits each
     input wb_ena,
-    /*
-    input [11:0] wb_addra, // The WIDTH is corresponded with ADDR_WIDTH attribute of input BRAMs
-    input [WIDTH*CHUNK_SIZE-1:0] wb_dina,
-    input [7:0] wb_wea,
-    */
 
     // Data input port
-    // For input, there is 2754x256 data with 16 bits each
     input in_ena,
-    /*
-    input [13:0] in_addra, // The WIDTH is corresponded with ADDR_WIDTH attribute of input BRAMs
-    input [(WIDTH*CHUNK_SIZE*17)-1:0] in_dina,
-    input [7:0] in_wea,
-    */
 
     // Data output port
     output [WIDTH*CHUNK_SIZE-1:0] out_bram
@@ -57,6 +39,8 @@ module top #(
 
     localparam MEMORY_SIZE_I = INNER_DIMENSION*I_OUTER_DIMENSION*WIDTH;
     localparam MEMORY_SIZE_W = INNER_DIMENSION*W_OUTER_DIMENSION*WIDTH;
+    localparam MEMORY_SIZE_O = ROW_SIZE_MAT_C*COL_SIZE_MAT_C*WIDTH;
+
     localparam integer NUM_CORES = (INNER_DIMENSION == 2754) ? 17 :
                                (INNER_DIMENSION == 256)  ? 8 :
                                (INNER_DIMENSION == 200)  ? 5 :
@@ -213,7 +197,6 @@ module top #(
         .dinb(0),
         .doutb(wb_doutb)
     );
-
     
     // *** Toplevel ***********************************************************
     wire systolic_finish_top, accumulator_done_top;
@@ -224,13 +207,86 @@ module top #(
         .clk(clk), .en(start), .rst_n(internal_rst_n), .reset_acc(internal_reset_acc),
         .input_n(wb_doutb), .input_w(in_doutb),
         .accumulator_done(accumulator_done_top), .systolic_finish(systolic_finish_top),
-        .out_top(out_bram)
+        .out_top(out_dina)
     );
 
+    // *** Output BRAM **********************************************************
+    // xpm_memory_tdpram: True Dual Port RAM
+    // Xilinx Parameterized Macro, version 2018.3
+    reg out_ena;
+    reg [11:0] out_addra; 
+
+    xpm_memory_tdpram
+    #(
+        // Common module parameters
+        .MEMORY_SIZE(MEMORY_SIZE_O),           // DECIMAL, 
+        .MEMORY_PRIMITIVE("auto"),           // String
+        .CLOCKING_MODE("common_clock"),      // String, "common_clock"
+        .MEMORY_INIT_FILE("none"),           // String
+        .MEMORY_INIT_PARAM("0"),             // String      
+        .USE_MEM_INIT(1),                    // DECIMAL
+        .WAKEUP_TIME("disable_sleep"),       // String
+        .MESSAGE_CONTROL(0),                 // DECIMAL
+        .AUTO_SLEEP_TIME(0),                 // DECIMAL          
+        .ECC_MODE("no_ecc"),                 // String
+        .MEMORY_OPTIMIZATION("true"),        // String              
+        .USE_EMBEDDED_CONSTRAINT(0),         // DECIMAL
+        
+        // Port A module parameters
+        .WRITE_DATA_WIDTH_A(WIDTH*CHUNK_SIZE), // DECIMAL, data width: 64-bit
+        .READ_DATA_WIDTH_A(WIDTH*CHUNK_SIZE),  // DECIMAL, data width: 64-bit
+        .BYTE_WRITE_WIDTH_A(8),              // DECIMAL, EDIT THIS
+        .ADDR_WIDTH_A(12),                   // DECIMAL, EDIT THIS
+        .READ_RESET_VALUE_A("0"),            // String
+        .READ_LATENCY_A(1),                  // DECIMAL
+        .WRITE_MODE_A("write_first"),        // String
+        .RST_MODE_A("SYNC"),                 // String
+        
+        // Port B module parameters  
+        .WRITE_DATA_WIDTH_B(WIDTH*CHUNK_SIZE), // DECIMAL, data width: 64-bit
+        .READ_DATA_WIDTH_B(WIDTH*CHUNK_SIZE), // DECIMAL, data width: 64-bit
+        .BYTE_WRITE_WIDTH_B(8),              // DECIMAL, EDIT THIS
+        .ADDR_WIDTH_B(12),                   // DECIMAL, clog2(MEMORY_SIZE/WRITE_DATA_WIDTH_A)
+        .READ_RESET_VALUE_B("0"),            // String
+        .READ_LATENCY_B(1),                  // DECIMAL
+        .WRITE_MODE_B("write_first"),        // String
+        .RST_MODE_B("SYNC")                  // String
+    )
+    xpm_memory_tdpram_out
+    (
+        .sleep(1'b0),
+        .regcea(1'b1), //do not change
+        .injectsbiterra(1'b0), //do not change
+        .injectdbiterra(1'b0), //do not change   
+        .sbiterra(), //do not change
+        .dbiterra(), //do not change
+        .regceb(1'b1), //do not change
+        .injectsbiterrb(1'b0), //do not change
+        .injectdbiterrb(1'b0), //do not change              
+        .sbiterrb(), //do not change
+        .dbiterrb(), //do not change
+        
+        // Port A module ports
+        .clka(clk),
+        .rsta(~rst_n),
+        .ena(out_ena),
+        .wea(out_wea),
+        .addra(),
+        .dina(out_dina),
+        .douta(),
+        
+        // Port B module ports
+        .clkb(clk),
+        .rstb(~rst_n),
+        .enb(out_enb),
+        .web(0),
+        .addrb(out_addrb),
+        .dinb(),
+        .doutb(out_bram)
+    );
+    
+
     // *** Main Controller **********************************************************
-    // ADDD THE RESET ACC LOGICC (DONE)
-    // EDIT THE RST_N AND RESET ACC LOGIC (DONE)
-    // ADD THE RST_N CONDITION (DONE)
     // Based on the testbench behavior, one row of output takes 35 clock cycles
     reg [WIDTH-1:0] counter, counter_row, counter_col;
     
