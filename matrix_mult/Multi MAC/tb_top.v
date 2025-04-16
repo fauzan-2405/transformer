@@ -6,11 +6,11 @@ parameter WIDTH = 16;
 parameter FRAC_WIDTH = 8;
 parameter BLOCK_SIZE = 2; // The size of systolic array dimension (N x N)
 parameter CHUNK_SIZE = 4;
-parameter INNER_DIMENSION = 8; // The same number of rows in one matrix and same number of columns in the other matrix
+parameter INNER_DIMENSION = 4; // The same number of rows in one matrix and same number of columns in the other matrix
 // W stands for weight
-parameter W_OUTER_DIMENSION = 16;
+parameter W_OUTER_DIMENSION = 6;
 // I stands for input
-parameter I_OUTER_DIMENSION = 16;
+parameter I_OUTER_DIMENSION = 8;
 parameter ROW_SIZE_MAT_C = I_OUTER_DIMENSION / BLOCK_SIZE;
 parameter COL_SIZE_MAT_C = W_OUTER_DIMENSION / BLOCK_SIZE;
 // To calculate the max_flag, the formula is:
@@ -47,13 +47,17 @@ top #(
     .start(start),
     //.done(done),
     .wb_ena(wb_ena),
+    /*
     .wb_addra(wb_addra),
     .wb_dina(wb_dina),
     .wb_wea(wb_wea),
+    */
     .in_ena(in_ena),
+    /*
     .in_addra(in_addra),
     .in_dina(in_dina),
     .in_wea(in_wea),
+    */
     .out_bram(out_bram)
 );
 
