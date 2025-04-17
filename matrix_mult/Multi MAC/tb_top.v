@@ -1,5 +1,6 @@
+// This can be used with top.v and top_v2.v
+// Just dont forget to change its instance
 `timescale 1ns / 1ps
-//`include "top.v"
 
 module tb_top;
 parameter WIDTH = 16;
