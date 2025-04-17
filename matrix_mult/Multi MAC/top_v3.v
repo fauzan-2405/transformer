@@ -1,13 +1,15 @@
-// top.v
+// top_v3.v
+// ********************* UNDER CONSTRUCTION *********************
 // Used to combine toplevel.v with BRAM
 // This version connected to BRAM for its output
 /* TODO
     1. Adjust port A and B output BRAM
+    2. Determine when this module will be used
 */
 
 //`include "toplevel.v"
 
-module top_ver2 #(
+module top_v3 #(
     parameter WIDTH = 16,
     parameter FRAC_WIDTH = 8,
     parameter BLOCK_SIZE = 2, // The size of systolic array dimension (N x N)
@@ -215,6 +217,7 @@ module top_ver2 #(
     // Xilinx Parameterized Macro, version 2018.3
     reg out_ena;
     reg [11:0] out_addra; 
+    wire [(WIDTH*CHUNK_SIZE)-1:0] out_dina;
 
     xpm_memory_tdpram
     #(
