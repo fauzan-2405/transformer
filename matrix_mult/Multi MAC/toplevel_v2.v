@@ -3,7 +3,7 @@
 //`include "core.v"
 //`include "buffer.v"
 
-module toplevel_ver2 #(
+module toplevel_v2 #(
     parameter WIDTH = 16,
     parameter FRAC_WIDTH = 8,
     parameter BLOCK_SIZE = 2, // The size of systolic array dimension (N x N)
