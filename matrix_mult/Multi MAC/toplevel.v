@@ -10,21 +10,17 @@ module toplevel #(
     parameter FRAC_WIDTH = 8,
     parameter BLOCK_SIZE = 2, // The size of systolic array dimension (N x N)
     parameter CHUNK_SIZE = 4,
-    parameter INNER_DIMENSION = 64 // The same number of rows in one matrix and same number of columns in the other matrix
+    parameter INNER_DIMENSION = 64, // The same number of rows in one matrix and same number of columns in the other matrix
+    parameter NUM_CORES = 2
 ) (
     input clk, en, rst_n, reset_acc,
     input [(WIDTH*CHUNK_SIZE)-1:0] input_n,
-    input [(WIDTH*CHUNK_SIZE*17)-1:0] input_w,
+    input [(WIDTH*CHUNK_SIZE*NUM_CORES)-1:0] input_w,
 	
 	output accumulator_done, systolic_finish,
 	output [(WIDTH*CHUNK_SIZE)-1:0] out_top
 );
     // Wire declaration
-    localparam integer NUM_CORES = (INNER_DIMENSION == 2754) ? 17 :
-                               (INNER_DIMENSION == 256)  ? 8 :
-                               (INNER_DIMENSION == 200)  ? 5 :
-                               (INNER_DIMENSION == 64)   ? 4 : 2;
-
     wire [NUM_CORES-1:0] acc_done_array;
     wire [NUM_CORES-1:0] systolic_finish_array;
     wire [(WIDTH*CHUNK_SIZE)-1:0] input_w_array [0:NUM_CORES-1];

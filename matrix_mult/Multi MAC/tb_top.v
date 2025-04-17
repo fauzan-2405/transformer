@@ -19,6 +19,10 @@ parameter COL_SIZE_MAT_C = W_OUTER_DIMENSION / BLOCK_SIZE;
 // COL_SIZE_MAT_C = (COL_SIZE_MAT_B / BLOCK_SIZE) 
 // MAX_FLAG = ROW_SIZE_MAT_C * COL_SIZE_MAT_C
 parameter MAX_FLAG = ROW_SIZE_MAT_C * COL_SIZE_MAT_C;
+parameter NUM_CORES = (INNER_DIMENSION == 2754) ? 17 :
+                               (INNER_DIMENSION == 256)  ? 8 :
+                               (INNER_DIMENSION == 200)  ? 5 :
+                               (INNER_DIMENSION == 64)   ? 4 : 2;
 
 reg clk;
 reg rst_n;
@@ -35,12 +39,12 @@ reg [13:0] in_addra;
 reg [WIDTH*CHUNK_SIZE-1:0] in_dina;
 reg [7:0] in_wea;
 
-wire [WIDTH*CHUNK_SIZE-1:0] out_bram;
+wire [(WIDTH*CHUNK_SIZE*NUM_CORES)-1:0] out_bram;
 
 top #(
     .WIDTH(WIDTH), .FRAC_WIDTH(FRAC_WIDTH), .BLOCK_SIZE(BLOCK_SIZE), .CHUNK_SIZE(CHUNK_SIZE),
     .INNER_DIMENSION(INNER_DIMENSION), .W_OUTER_DIMENSION(W_OUTER_DIMENSION), .I_OUTER_DIMENSION(I_OUTER_DIMENSION), 
-    .ROW_SIZE_MAT_C(ROW_SIZE_MAT_C), .COL_SIZE_MAT_C(COL_SIZE_MAT_C)
+    .ROW_SIZE_MAT_C(ROW_SIZE_MAT_C), .COL_SIZE_MAT_C(COL_SIZE_MAT_C), .NUM_CORES(NUM_CORES)
 ) top_inst (
     .clk(clk),
     .rst_n(rst_n),
