@@ -1,5 +1,5 @@
-// This can be used with top.v and top_v2.v
-// Just dont forget to change its instance
+// Testbench for top.v and top_v2.v
+
 `timescale 1ns / 1ps
 
 module tb_top;
@@ -39,13 +39,16 @@ reg [13:0] in_addra;
 reg [WIDTH*CHUNK_SIZE-1:0] in_dina;
 reg [7:0] in_wea;
 
-wire [(WIDTH*CHUNK_SIZE*NUM_CORES)-1:0] out_bram;
+// DONT FORGET TO CHANGE THIS
+wire [(WIDTH*CHUNK_SIZE)-1:0] out_bram; // For top.v
+wire [(WIDTH*CHUNK_SIZE*NUM_CORES)-1:0] out_bram; // For top_v2.v
+
 
 top #(
     .WIDTH(WIDTH), .FRAC_WIDTH(FRAC_WIDTH), .BLOCK_SIZE(BLOCK_SIZE), .CHUNK_SIZE(CHUNK_SIZE),
     .INNER_DIMENSION(INNER_DIMENSION), .W_OUTER_DIMENSION(W_OUTER_DIMENSION), .I_OUTER_DIMENSION(I_OUTER_DIMENSION), 
     .ROW_SIZE_MAT_C(ROW_SIZE_MAT_C), .COL_SIZE_MAT_C(COL_SIZE_MAT_C), .NUM_CORES(NUM_CORES)
-) top_inst (
+) top_inst ( // DONT FORGET TO CHANGE THIS TOO
     .clk(clk),
     .rst_n(rst_n),
     //.ready(ready),
