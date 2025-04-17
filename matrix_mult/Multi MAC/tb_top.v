@@ -36,7 +36,7 @@ reg [7:0] wb_wea;
 
 reg in_ena;
 reg [13:0] in_addra;
-reg [WIDTH*CHUNK_SIZE-1:0] in_dina;
+reg [WIDTH*CHUNK_SIZE*NUM_CORES-1:0] in_dina;
 reg [7:0] in_wea;
 
 // DONT FORGET TO CHANGE THIS
@@ -55,17 +55,15 @@ top #(
     .start(start),
     //.done(done),
     .wb_ena(wb_ena),
-    /*
     .wb_addra(wb_addra),
     .wb_dina(wb_dina),
     .wb_wea(wb_wea),
-    */
+
     .in_ena(in_ena),
-    /*
     .in_addra(in_addra),
     .in_dina(in_dina),
     .in_wea(in_wea),
-    */
+
     .out_bram(out_bram)
 );
 
@@ -91,8 +89,41 @@ begin
     start = 1;
     wb_wea = 8'hFF;
     in_wea = 8'hFF;
-    #50
+
+    wb_addra = 0;
+    wb_dina = 64'h0200020001000100;
+    in_addra = 0;
+    in_dina = 128'h02000100020002000100020001000100;
+    #10
+
+    wb_addra = 1;
+    wb_dina = 64'h0200010002000100;
+    in_addra = 1;
+    in_dina = 128'h01000100020002000100010001000200;
+    #10
     
+    wb_addra = 2;
+    wb_dina = 64'h0100010001000100;
+    in_addra = 2;
+    in_dina = 128'h00000100020001000100010001000200;
+    #10
+
+    wb_addra = 3;
+    wb_dina = 64'h0200010001000200;
+    in_addra = 3;
+    in_dina = 128'h01000200010001000200010002000100;
+    #10
+
+    wb_addra = 4;
+    wb_dina = 64'h0100010001000100;
+    in_wea = 8'h00;
+    #10
+
+    wb_addra = 5;
+    wb_dina = 64'h0200010002000100;
+    #10
+
+    wb_wea = 8'h00;
     #500;
     
 
