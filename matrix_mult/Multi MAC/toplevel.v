@@ -1,7 +1,7 @@
 // toplevel.v
-// This toplevel uses buffer for its output
-// For the one who does not use buffer, see toplevel_ver2.v
-// Used to combine all
+// This toplevel uses buffer for its output, so the output will be 64-bit
+// For the one who does not use buffer (the output will be 64-bit x NUM_CORES), see toplevel_ver2.v
+
 //`include "core.v"
 //`include "buffer.v"
 
