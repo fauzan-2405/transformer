@@ -1,13 +1,7 @@
 // top.v
 // Used to combine toplevel.v with BRAM
-// This version just use buffer for its output. If you want to use a BRAM for the output, see top_ver2.v
-// TODO
-/*
-    1. Clean all unused ports (en, clr, ready on the main module) (DONE)
-    2. Clean NUM_CORES variable in top.v module and toplevel.v module (NOT NECESSARY BECAUSE toplevel.v will be used in another matmul operations)
-    3. Compute again the addra for both BRAMs (DONE)
-    4. [Optional but really recommended] Change the buffer algorithm so it will eject the output horizontally and consecutively
-*/
+// The output will be 64-bit
+// This version just use buffer for its output. If you want to use a BRAM for the output, see top_v2.v
 
 //`include "toplevel.v"
 
