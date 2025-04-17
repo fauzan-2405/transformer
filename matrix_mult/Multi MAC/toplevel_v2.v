@@ -1,5 +1,8 @@
-// toplevel_ver2.v
-// This toplevel module does not use buffer and will be used in top_v2.v
+// toplevel_v2.v
+// This toplevel module does not use buffer, so the output will be 64-bit x NUM_CORES
+// For the one who uses buffer (the output will be 64-bi), see toplevel.v
+
+
 //`include "core.v"
 //`include "buffer.v"
 
