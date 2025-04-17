@@ -34,20 +34,16 @@ module top #(
     // Weight port
     // For weight, there is 256x64 data with 16 bits each
     input wb_ena,
-    /*
     input [11:0] wb_addra, // The WIDTH is corresponded with ADDR_WIDTH attribute of input BRAMs
     input [WIDTH*CHUNK_SIZE-1:0] wb_dina,
     input [7:0] wb_wea,
-    */
 
     // Data input port
     // For input, there is 2754x256 data with 16 bits each
     input in_ena,
-    /*
     input [13:0] in_addra, // The WIDTH is corresponded with ADDR_WIDTH attribute of input BRAMs
-    input [(WIDTH*CHUNK_SIZE*17)-1:0] in_dina,
+    input [(WIDTH*CHUNK_SIZE*NUM_CORES)-1:0] in_dina,
     input [7:0] in_wea,
-    */
 
     // Data output port
     output [WIDTH*CHUNK_SIZE-1:0] out_bram
@@ -117,9 +113,9 @@ module top #(
         .clka(clk),
         .rsta(~rst_n),
         .ena(in_ena),
-        .wea(0),
-        .addra(),
-        .dina(),
+        .wea(in_wea),
+        .addra(in_addra),
+        .dina(in_dina),
         .douta(),
         
         // Port B module ports
@@ -193,9 +189,9 @@ module top #(
         .clka(clk),
         .rsta(~rst_n),
         .ena(wb_ena),
-        .wea(0),
-        .addra(),
-        .dina(),
+        .wea(wb_wea),
+        .addra(wb_addra),
+        .dina(wb_dina),
         .douta(),
         
         // Port B module ports
@@ -231,7 +227,7 @@ module top #(
     
     // Port B controller
     always @(posedge clk) begin
-        if (start) begin
+        if (start || ((wb_wea == 8'hFF) && (in_wea == 8'hFF))) begin
             wb_enb <= 1;
             in_enb <= 1;
         end
