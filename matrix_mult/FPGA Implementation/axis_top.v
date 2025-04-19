@@ -1,19 +1,29 @@
 // AXI Stream for top_v2.v or top.v(?)
+/* TODO
+    1. Ask about the FIFO DEPTH
+    2. Ask about can you deploy two FIFOs using two DMAs at the same time?
+    3. Ask about s_axis ports
+*/
 `timescale 1ns / 1ps
 
 module axis_top (
-        input wire         aclk,
-        input wire         aresetn,
-        // *** AXIS slave port ***
-        output wire        s_axis_tready,
-        input wire [63:0]  s_axis_tdata,
-        input wire         s_axis_tvalid,
-        input wire         s_axis_tlast,
+        input wire              aclk,
+        input wire              aresetn,
+        // *** AXIS Input slave port ***
+        output wire             s_axis_tready_i,
+        input wire [64*17-1:0]  s_axis_tdata_i, // Data for input
+        input wire              s_axis_tvalid_i,
+        input wire              s_axis_tlast_i,
+        // *** AXIS Weight slave port ***
+        output wire             s_axis_tready_w,
+        input wire [63:0]       s_axis_tdata_w, // Data for weight
+        input wire              s_axis_tvalid_w,
+        input wire              s_axis_tlast_w,
         // *** AXIS master port ***
-        input wire         m_axis_tready,
-        output wire [63:0] m_axis_tdata,
-        output wire        m_axis_tvalid,
-        output wire        m_axis_tlast
+        input wire              m_axis_tready,
+        output wire [64*17-1:0] m_axis_tdata, // If we're using top_v2.v
+        output wire             m_axis_tvalid,
+        output wire             m_axis_tlast
     );
 
     // Parameters
@@ -39,10 +49,11 @@ module axis_top (
     reg [2:0] cnt_word_reg, cnt_word_next;
 
     // MM2S FIFO    
-    wire [8:0] mm2s_data_count;
+    wire [11:0] mm2s_data_count;
     wire start_from_mm2s;
     reg mm2s_ready_reg, mm2s_ready_next;
-    wire [63:0] mm2s_data;
+    wire [CHUNK_SIZE*WIDTH*NUM_CORES-1:0] mm2s_data_i;
+    wire [CHUNK_SIZE*WIDTH-1:0] mm2s_data_w;
     
     // NN
     wire nn_start;
@@ -61,7 +72,7 @@ module axis_top (
 
     // S2MM FIFO
     wire s2mm_ready;
-    wire [63:0] s2mm_data;
+    wire [WIDTH*CHUNK_SIZE*NUM_CORES:0] s2mm_data;
     wire s2mm_valid, s2mm_valid_reg;
     wire s2mm_last, s2mm_last_reg;
 
@@ -104,18 +115,18 @@ module axis_top (
         .m_aclk(aclk), // aclk
         .s_aresetn(aresetn), // aresetn
         
-        .s_axis_tready(s_axis_tready), // ready    
-        .s_axis_tdata(s_axis_tdata), // data, NOTICE THIS!!!
-        .s_axis_tvalid(s_axis_tvalid), // valid
+        .s_axis_tready(s_axis_tready_i), // ready    
+        .s_axis_tdata(s_axis_tdata_i), // data, NOTICE THIS!!!
+        .s_axis_tvalid(s_axis_tvalid_i), // valid
         .s_axis_tdest(1'b0), 
         .s_axis_tid(1'b0), 
         .s_axis_tkeep(8'hff), 
-        .s_axis_tlast(s_axis_tlast),
+        .s_axis_tlast(s_axis_tlast_i),
         .s_axis_tstrb(8'hff), 
         .s_axis_tuser(1'b0), 
         
         .m_axis_tready(mm2s_ready_reg), // ready  
-        .m_axis_tdata(mm2s_data), // data
+        .m_axis_tdata(mm2s_data_i), // data
         .m_axis_tvalid(), // valid
         .m_axis_tdest(), 
         .m_axis_tid(), 
@@ -166,18 +177,18 @@ module axis_top (
         .m_aclk(aclk), // aclk
         .s_aresetn(aresetn), // aresetn
         
-        .s_axis_tready(s_axis_tready), // ready    
-        .s_axis_tdata(s_axis_tdata), // data
-        .s_axis_tvalid(s_axis_tvalid), // valid
+        .s_axis_tready(s_axis_tready_w), // ready    
+        .s_axis_tdata(s_axis_tdata_w), // data
+        .s_axis_tvalid(s_axis_tvalid_w), // valid
         .s_axis_tdest(1'b0), 
         .s_axis_tid(1'b0), 
         .s_axis_tkeep(8'hff), 
-        .s_axis_tlast(s_axis_tlast),
+        .s_axis_tlast(s_axis_tlast_w),
         .s_axis_tstrb(8'hff), 
         .s_axis_tuser(1'b0), 
         
         .m_axis_tready(mm2s_ready_reg), // ready  
-        .m_axis_tdata(mm2s_data), // data
+        .m_axis_tdata(mm2s_data_w), // data
         .m_axis_tvalid(), // valid
         .m_axis_tdest(), 
         .m_axis_tid(), 
@@ -324,7 +335,7 @@ module axis_top (
         .a_doutb(a_doutb)
     );
 
-    // *** S2MM FIFO ************************************************************
+    // *** S2MM FIFO Output ************************************************************
     // xpm_fifo_axis: AXI Stream FIFO
     // Xilinx Parameterized Macro, version 2018.3
     xpm_fifo_axis
@@ -332,7 +343,7 @@ module axis_top (
         .CDC_SYNC_STAGES(2),                 // DECIMAL
         .CLOCKING_MODE("common_clock"),      // String
         .ECC_MODE("no_ecc"),                 // String
-        .FIFO_DEPTH(256),                    // DECIMAL, EDIT THIS IN THE FUTURE
+        .FIFO_DEPTH(INNER_DIMENSION*I_OUTER_DIMENSION), // DECIMAL, EDIT THIS IN THE FUTURE
         .FIFO_MEMORY_TYPE("auto"),           // String
         .PACKET_FIFO("false"),               // String
         .PROG_EMPTY_THRESH(10),              // DECIMAL
@@ -340,14 +351,14 @@ module axis_top (
         .RD_DATA_COUNT_WIDTH(1),             // DECIMAL
         .RELATED_CLOCKS(0),                  // DECIMAL
         .SIM_ASSERT_CHK(0),                  // DECIMAL
-        .TDATA_WIDTH(64),                    // DECIMAL, data width 64 bit
+        .TDATA_WIDTH(WIDTH*CHUNK_SIZE*NUM_CORES), // DECIMAL, data width 64 bit
         .TDEST_WIDTH(1),                     // DECIMAL
         .TID_WIDTH(1),                       // DECIMAL
         .TUSER_WIDTH(1),                     // DECIMAL
         .USE_ADV_FEATURES("0004"),           // String, write data count
-        .WR_DATA_COUNT_WIDTH(9)              // DECIMAL, width log2(256)+1=9 
+        .WR_DATA_COUNT_WIDTH(21)              // DECIMAL, width log2(256)+1=9 
     )
-    xpm_fifo_axis_1
+    xpm_fifo_axis_o
     (
         .almost_empty_axis(), 
         .almost_full_axis(), 
