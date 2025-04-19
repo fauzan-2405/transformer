@@ -1,7 +1,7 @@
+// AXI Stream for top_v2.v or top.v(?)
 `timescale 1ns / 1ps
-// �2024 ????
-module axis_nn
-    (
+
+module axis_top (
         input wire         aclk,
         input wire         aresetn,
         // *** AXIS slave port ***
@@ -15,6 +15,24 @@ module axis_nn
         output wire        m_axis_tvalid,
         output wire        m_axis_tlast
     );
+
+    // Parameters
+    localparam WIDTH = 16,
+    localparam FRAC_WIDTH = 8,
+    localparam BLOCK_SIZE = 2, 
+    localparam CHUNK_SIZE = 4,
+    localparam INNER_DIMENSION = 4, 
+    // W stands for weight
+    localparam W_OUTER_DIMENSION = 6,
+    // I stands for input
+    localparam I_OUTER_DIMENSION = 6,
+    localparam ROW_SIZE_MAT_C = I_OUTER_DIMENSION / BLOCK_SIZE,
+    localparam COL_SIZE_MAT_C = W_OUTER_DIMENSION / BLOCK_SIZE,
+    localparam MAX_FLAG = ROW_SIZE_MAT_C * COL_SIZE_MAT_C,
+    localparam NUM_CORES = (INNER_DIMENSION == 2754) ? 17 :
+                               (INNER_DIMENSION == 256)  ? 8 :
+                               (INNER_DIMENSION == 200)  ? 5 :
+                               (INNER_DIMENSION == 64)   ? 4 : 2
 
     // State machine
     reg [2:0] state_reg, state_next;
@@ -47,7 +65,7 @@ module axis_nn
     wire s2mm_valid, s2mm_valid_reg;
     wire s2mm_last, s2mm_last_reg;
 
-    // *** MM2S FIFO ************************************************************
+    // *** MM2S FIFO: INPUT ************************************************************
     // xpm_fifo_axis: AXI Stream FIFO
     // Xilinx Parameterized Macro, version 2018.3
     xpm_fifo_axis
@@ -55,7 +73,7 @@ module axis_nn
         .CDC_SYNC_STAGES(2),                 // DECIMAL
         .CLOCKING_MODE("common_clock"),      // String
         .ECC_MODE("no_ecc"),                 // String
-        .FIFO_DEPTH(256),                    // DECIMAL, depth 256 elemen 
+        .FIFO_DEPTH(INNER_DIMENSION*I_OUTER_DIMENSION), // DECIMAL, THIS IS IMPORTANT
         .FIFO_MEMORY_TYPE("auto"),           // String
         .PACKET_FIFO("false"),               // String
         .PROG_EMPTY_THRESH(10),              // DECIMAL
@@ -63,14 +81,76 @@ module axis_nn
         .RD_DATA_COUNT_WIDTH(1),             // DECIMAL
         .RELATED_CLOCKS(0),                  // DECIMAL
         .SIM_ASSERT_CHK(0),                  // DECIMAL
-        .TDATA_WIDTH(64),                    // DECIMAL, data width 64 bit
+        .TDATA_WIDTH(WIDTH*CHUNK_SIZE*NUM_CORES), // DECIMAL, 64 x NUM_CORES-bit, THIS IS IMPORTANT
         .TDEST_WIDTH(1),                     // DECIMAL
         .TID_WIDTH(1),                       // DECIMAL
         .TUSER_WIDTH(1),                     // DECIMAL
         .USE_ADV_FEATURES("0004"),           // String, write data count
-        .WR_DATA_COUNT_WIDTH(9)              // DECIMAL, width log2(256)+1=9 
+        .WR_DATA_COUNT_WIDTH(21)              // DECIMAL, width log2(FIFO_DEPTH)+1=20.42, take 21 instead 
     )
-    xpm_fifo_axis_0
+    xpm_fifo_axis_i
+    (
+        .almost_empty_axis(), 
+        .almost_full_axis(), 
+        .dbiterr_axis(), 
+        .prog_empty_axis(), 
+        .prog_full_axis(), 
+        .rd_data_count_axis(), 
+        .sbiterr_axis(), 
+        .injectdbiterr_axis(1'b0), 
+        .injectsbiterr_axis(1'b0), 
+    
+        .s_aclk(aclk), // aclk
+        .m_aclk(aclk), // aclk
+        .s_aresetn(aresetn), // aresetn
+        
+        .s_axis_tready(s_axis_tready), // ready    
+        .s_axis_tdata(s_axis_tdata), // data, NOTICE THIS!!!
+        .s_axis_tvalid(s_axis_tvalid), // valid
+        .s_axis_tdest(1'b0), 
+        .s_axis_tid(1'b0), 
+        .s_axis_tkeep(8'hff), 
+        .s_axis_tlast(s_axis_tlast),
+        .s_axis_tstrb(8'hff), 
+        .s_axis_tuser(1'b0), 
+        
+        .m_axis_tready(mm2s_ready_reg), // ready  
+        .m_axis_tdata(mm2s_data), // data
+        .m_axis_tvalid(), // valid
+        .m_axis_tdest(), 
+        .m_axis_tid(), 
+        .m_axis_tkeep(), 
+        .m_axis_tlast(), 
+        .m_axis_tstrb(), 
+        .m_axis_tuser(),  
+        
+        .wr_data_count_axis(mm2s_data_count) // data count
+    );
+
+    // *** MM2S FIFO: WEIGHT ************************************************************
+    // xpm_fifo_axis: AXI Stream FIFO
+    // Xilinx Parameterized Macro, version 2018.3
+    xpm_fifo_axis
+    #(
+        .CDC_SYNC_STAGES(2),                 // DECIMAL
+        .CLOCKING_MODE("common_clock"),      // String
+        .ECC_MODE("no_ecc"),                 // String
+        .FIFO_DEPTH(INNER_DIMENSION*W_OUTER_DIMENSION), // DECIMAL, THIS IS IMPORTANT
+        .FIFO_MEMORY_TYPE("auto"),           // String
+        .PACKET_FIFO("false"),               // String
+        .PROG_EMPTY_THRESH(10),              // DECIMAL
+        .PROG_FULL_THRESH(10),               // DECIMAL
+        .RD_DATA_COUNT_WIDTH(1),             // DECIMAL
+        .RELATED_CLOCKS(0),                  // DECIMAL
+        .SIM_ASSERT_CHK(0),                  // DECIMAL
+        .TDATA_WIDTH(WIDTH*CHUNK_SIZE),      // DECIMAL, 64-bit THIS IS IMPORTANT
+        .TDEST_WIDTH(1),                     // DECIMAL
+        .TID_WIDTH(1),                       // DECIMAL
+        .TUSER_WIDTH(1),                     // DECIMAL
+        .USE_ADV_FEATURES("0004"),           // String, write data count
+        .WR_DATA_COUNT_WIDTH(15)              // DECIMAL, width log2(FIFO_DEPTH)+1=15.42
+    )
+    xpm_fifo_axis_wb
     (
         .almost_empty_axis(), 
         .almost_full_axis(), 
@@ -252,7 +332,7 @@ module axis_nn
         .CDC_SYNC_STAGES(2),                 // DECIMAL
         .CLOCKING_MODE("common_clock"),      // String
         .ECC_MODE("no_ecc"),                 // String
-        .FIFO_DEPTH(256),                    // DECIMAL, depth 256 elemen 
+        .FIFO_DEPTH(256),                    // DECIMAL, EDIT THIS IN THE FUTURE
         .FIFO_MEMORY_TYPE("auto"),           // String
         .PACKET_FIFO("false"),               // String
         .PROG_EMPTY_THRESH(10),              // DECIMAL
