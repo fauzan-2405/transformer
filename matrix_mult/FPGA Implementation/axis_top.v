@@ -313,26 +313,29 @@ module axis_top (
     register #(1) reg_s2mm_last(aclk, aresetn, 1'b1, 1'b0, s2mm_last, s2mm_last_reg);
 
     // *** NN *******************************************************************
-    nn nn_0
+    top #(
+        .WIDTH(WIDTH), .FRAC_WIDTH(FRAC_WIDTH), .BLOCK_SIZE(BLOCK_SIZE), .CHUNK_SIZE(CHUNK_SIZE),
+        .INNER_DIMENSION(INNER_DIMENSION), .W_OUTER_DIMENSION(W_OUTER_DIMENSION), .I_OUTER_DIMENSION(I_OUTER_DIMENSION), 
+        .ROW_SIZE_MAT_C(ROW_SIZE_MAT_C), .COL_SIZE_MAT_C(COL_SIZE_MAT_C), .NUM_CORES(NUM_CORES)
+    ) 
+    top_inst
     (
-        .clk(aclk),
-        .rst_n(aresetn),
-        .en(1'b1),
-        .clr(1'b0),
-        .ready(nn_ready),
-        .start(nn_start),
-        .done(),
+        .clk(clk),
+        .rst_n(rst_n),
+        //.ready(ready),
+        .start(start),
+        //.done(done),
         .wb_ena(wb_ena),
         .wb_addra(wb_addra),
         .wb_dina(wb_dina),
         .wb_wea(wb_wea),
-        .k_ena(k_ena),
-        .k_addra(k_addra),
-        .k_dina(k_dina),
-        .k_wea(k_wea),
-        .a_enb(a_enb),
-        .a_addrb(a_addrb),
-        .a_doutb(a_doutb)
+
+        .in_ena(in_ena),
+        .in_addra(in_addra),
+        .in_dina(in_dina),
+        .in_wea(in_wea),
+
+        .out_bram(out_bram)
     );
 
     // *** S2MM FIFO Output ************************************************************
