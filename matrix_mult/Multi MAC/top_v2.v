@@ -42,7 +42,7 @@ module top_v2 #(
     input [(WIDTH*CHUNK_SIZE*NUM_CORES)-1:0] in_dina,
 
     // Data output port
-    output [(WIDTH*CHUNK_SIZE*NUM_CORES)-1:0] out_bram // DONT FORGET TO EDIT THIS EVERYTIME YOU USE DIFFERENT 
+    output reg [(WIDTH*CHUNK_SIZE*NUM_CORES)-1:0] out_bram // DONT FORGET TO EDIT THIS EVERYTIME YOU USE DIFFERENT 
 );
 
     localparam MEMORY_SIZE_I = INNER_DIMENSION*I_OUTER_DIMENSION*WIDTH;
@@ -203,6 +203,7 @@ module top_v2 #(
     
     // *** Toplevel ***********************************************************
     wire systolic_finish_top, accumulator_done_top;
+    wire [(WIDTH*CHUNK_SIZE*NUM_CORES)-1:0] out_core;
     reg internal_rst_n;
     reg internal_reset_acc;
 
@@ -211,7 +212,7 @@ module top_v2 #(
         .clk(clk), .en(start), .rst_n(internal_rst_n), .reset_acc(internal_reset_acc),
         .input_n(wb_doutb), .input_w(in_doutb),
         .accumulator_done(accumulator_done_top), .systolic_finish(systolic_finish_top),
-        .out_top(out_bram)
+        .out_top(out_core)
     );
 
     // *** Main Controller **********************************************************
@@ -288,6 +289,11 @@ module top_v2 #(
         end else begin
             counter_col <= counter_col + 1;
         end
+    end
+
+    // Output controller
+    always @(posedge accumulator_done_top) begin
+        out_bram <= out_core;
     end
 
 endmodule
