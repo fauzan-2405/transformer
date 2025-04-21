@@ -41,7 +41,7 @@ module toplevel #(
                 .clk(clk), .en(en), .rst_n(rst_n), .reset_acc(reset_acc),
                 .input_w(input_w_array[i]), .input_n(input_n),
                 .accumulator_done(acc_done_array[i]), .systolic_finish(systolic_finish_array[i]),
-                .out(out_top[(i+1)*(WIDTH*CHUNK_SIZE)-1 -: (WIDTH*CHUNK_SIZE)])				
+                .out(out_core[(i+1)*(WIDTH*CHUNK_SIZE)-1 -: (WIDTH*CHUNK_SIZE)])				
             );
         end
 	endgenerate
