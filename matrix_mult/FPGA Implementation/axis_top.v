@@ -1,8 +1,9 @@
 // AXI Stream for top_v2.v or top.v(?)
 /* TODO
-    1. Ask about the FIFO DEPTH
-    2. Ask about can you deploy two FIFOs using two DMAs at the same time?
-    3. Ask about s_axis ports
+    1. Ask about the FIFO DEPTH (DONE)
+    2. Ask about can you deploy two FIFOs using two DMAs at the same time? (DONE)
+    3. Ask about s_axis ports (DONE)
+    4. Create the state machine process
 */
 `timescale 1ns / 1ps
 
@@ -10,15 +11,15 @@ module axis_top (
         input wire              aclk,
         input wire              aresetn,
         // *** AXIS Input slave port ***
-        output wire             s_axis_tready_i,
-        input wire [64*17-1:0]  s_axis_tdata_i, // Data for input
-        input wire              s_axis_tvalid_i,
-        input wire              s_axis_tlast_i,
+        output wire             s_axis_i_tready,
+        input wire [64*17-1:0]  s_axis_i_tdata, // Data for input
+        input wire              s_axis_i_tvalid,
+        input wire              s_axis_i_tlast,
         // *** AXIS Weight slave port ***
-        output wire             s_axis_tready_w,
-        input wire [63:0]       s_axis_tdata_w, // Data for weight
-        input wire              s_axis_tvalid_w,
-        input wire              s_axis_tlast_w,
+        output wire             s_axis_w_tready,
+        input wire [63:0]       s_axis_w_tdata, // Data for weight
+        input wire              s_axis_w_tvalid,
+        input wire              s_axis_w_tlast,
         // *** AXIS master port ***
         input wire              m_axis_tready,
         output wire [64*17-1:0] m_axis_tdata, // If we're using top_v2.v
@@ -39,7 +40,7 @@ module axis_top (
     localparam ROW_SIZE_MAT_C = I_OUTER_DIMENSION / BLOCK_SIZE,
     localparam COL_SIZE_MAT_C = W_OUTER_DIMENSION / BLOCK_SIZE,
     localparam MAX_FLAG = ROW_SIZE_MAT_C * COL_SIZE_MAT_C,
-    localparam NUM_CORES = (INNER_DIMENSION == 2754) ? 17 :
+    localparam NUM_CORES = (INNER_DIMENSION == 2754) ? 9 :
                                (INNER_DIMENSION == 256)  ? 8 :
                                (INNER_DIMENSION == 200)  ? 5 :
                                (INNER_DIMENSION == 64)   ? 4 : 2
@@ -115,13 +116,13 @@ module axis_top (
         .m_aclk(aclk), // aclk
         .s_aresetn(aresetn), // aresetn
         
-        .s_axis_tready(s_axis_tready_i), // ready    
-        .s_axis_tdata(s_axis_tdata_i), // data, NOTICE THIS!!!
-        .s_axis_tvalid(s_axis_tvalid_i), // valid
+        .s_axis_tready(s_axis_i_tready), // ready    
+        .s_axis_tdata(s_axis_i_tdata), // data, NOTICE THIS!!!
+        .s_axis_tvalid(s_axis_i_tvalid), // valid
         .s_axis_tdest(1'b0), 
         .s_axis_tid(1'b0), 
         .s_axis_tkeep(8'hff), 
-        .s_axis_tlast(s_axis_tlast_i),
+        .s_axis_tlast(s_axis_i_tlast),
         .s_axis_tstrb(8'hff), 
         .s_axis_tuser(1'b0), 
         
@@ -177,13 +178,13 @@ module axis_top (
         .m_aclk(aclk), // aclk
         .s_aresetn(aresetn), // aresetn
         
-        .s_axis_tready(s_axis_tready_w), // ready    
-        .s_axis_tdata(s_axis_tdata_w), // data
-        .s_axis_tvalid(s_axis_tvalid_w), // valid
+        .s_axis_tready(s_axis_w_tready), // ready    
+        .s_axis_tdata(s_axis_w_tdata), // data
+        .s_axis_tvalid(s_axis_w_tvalid), // valid
         .s_axis_tdest(1'b0), 
         .s_axis_tid(1'b0), 
         .s_axis_tkeep(8'hff), 
-        .s_axis_tlast(s_axis_tlast_w),
+        .s_axis_tlast(s_axis_w_tlast),
         .s_axis_tstrb(8'hff), 
         .s_axis_tuser(1'b0), 
         
