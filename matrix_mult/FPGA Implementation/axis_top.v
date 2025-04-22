@@ -28,22 +28,24 @@ module axis_top (
     );
 
     // Parameters
-    localparam WIDTH = 16,
-    localparam FRAC_WIDTH = 8,
-    localparam BLOCK_SIZE = 2, 
-    localparam CHUNK_SIZE = 4,
-    localparam INNER_DIMENSION = 4, 
+    localparam WIDTH = 16;
+    localparam FRAC_WIDTH = 8;
+    localparam BLOCK_SIZE = 2; 
+    localparam CHUNK_SIZE = 4;
+    localparam INNER_DIMENSION = 4; 
     // W stands for weight
-    localparam W_OUTER_DIMENSION = 6,
+    localparam W_OUTER_DIMENSION = 6;
     // I stands for input
-    localparam I_OUTER_DIMENSION = 6,
-    localparam ROW_SIZE_MAT_C = I_OUTER_DIMENSION / BLOCK_SIZE,
-    localparam COL_SIZE_MAT_C = W_OUTER_DIMENSION / BLOCK_SIZE,
-    localparam MAX_FLAG = ROW_SIZE_MAT_C * COL_SIZE_MAT_C,
+    localparam I_OUTER_DIMENSION = 6;
+    localparam ROW_SIZE_MAT_C = I_OUTER_DIMENSION / BLOCK_SIZE;
+    localparam COL_SIZE_MAT_C = W_OUTER_DIMENSION / BLOCK_SIZE;
+    localparam MAX_FLAG = ROW_SIZE_MAT_C * COL_SIZE_MAT_C;
     localparam NUM_CORES = (INNER_DIMENSION == 2754) ? 9 :
                                (INNER_DIMENSION == 256)  ? 8 :
                                (INNER_DIMENSION == 200)  ? 5 :
-                               (INNER_DIMENSION == 64)   ? 4 : 2
+                               (INNER_DIMENSION == 64)   ? 4 : 2;
+    localparam NUM_I_ELEMENTS = ((I_OUTER_DIMENSION/BLOCK_SIZE)*(INNER_DIMENSION/BLOCK_SIZE))/NUM_CORES; // Total elements of Input if we converted the inputs based on the NUM_CORES
+    localparam NUM_W_ELEMENTS = (W_OUTER_DIMENSION/BLOCK_SIZE)*(INNER_DIMENSION/BLOCK_SIZE);
 
     // *** MM2S FIFO: INPUT ************************************************************
     // xpm_fifo_axis: AXI Stream FIFO
@@ -191,7 +193,7 @@ module axis_top (
     wire s2mm_last, s2mm_last_reg;
 
     // Start signal from DMA MM2S
-    assign start_from_mm2s = ((mm2s_data_count_i >= 1) || (mm2s_data_count_w)); // Start the operation after one element had been streamed
+    assign start_from_mm2s = ((mm2s_data_count_i >= NUM_I_ELEMENTS) && (mm2s_data_count_w >= NUM_W_ELEMENTS)); // Start the operation after one element had been streamed
     
     // State machine for AXI-Stream protocol
     always @(posedge aclk)
@@ -222,7 +224,7 @@ module axis_top (
         cnt_word_w_next = cnt_word_w_reg;
         cnt_word_i_next = cnt_word_i_reg;
         case (state_reg)
-            0: // State 0: State when MM2S FIFO will be filled by inputs from DMA
+            0: // State 0: Wait until data from MM2S FIFOs are ready (Total = NUM_I_ELEMENTS + NUM_W_ELEMENTS)
             begin
                 if (start_from_mm2s)
                 begin
@@ -233,35 +235,29 @@ module axis_top (
             end
             1: // State 1: Write the inputs and weights to BRAMs
             begin
-                state_next = 2;
-                cnt_word_w_next = cnt_word_w_reg + 1;
-                cnt_word_i_next = cnt_word_i_reg + 1;
-            end
-            2: // Write data to input BRAM of the NN
-            begin
-                if (cnt_word_reg == 1)
-                begin
-                    state_next = 3;
-                    mm2s_ready_next = 0;
+                if ((cnt_word_i_reg == NUM_I_ELEMENTS-1) && (cnt_word_w_reg == NUM_W_ELEMENTS-1)) begin // If the counter for input and weight elements are equal to their max
+                    state_next = 2;
+                    mm2s_ready_i_next = 0;
+                    mm2s_ready_w_next = 0;
                     cnt_word_next = 0;
                 end
-                else
-                begin
-                    cnt_word_next = cnt_word_reg + 1;
-                end                
+                else begin
+                    cnt_word_w_next = cnt_word_w_reg + 1;
+                    cnt_word_i_next = cnt_word_i_reg + 1;
+                end
             end
-            3: // Start the NN
+            2: // Start the Top module
             begin
-                state_next = 4;
+                state_next = 3;          
             end
-            4: // Wait until NN computation done and S2MM FIFO is ready to accept data
+            3: // Wait until Top computation done and S2MM FIFO is ready to accept data
             begin
-                if (nn_ready && s2mm_ready)
+                if (s2mm_ready)
                 begin
                     state_next = 5;
                 end
             end
-            5: // Read data output from BRAM of the NN
+            4: // Read data output from Top
             begin
                 if (cnt_word_reg == 1)
                 begin
