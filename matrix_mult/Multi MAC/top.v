@@ -21,11 +21,11 @@ module top #(
     // ROW_SIZE_MAT_C = (ROW_SIZE_MAT_A / BLOCK_SIZE)
     // COL_SIZE_MAT_C = (COL_SIZE_MAT_B / BLOCK_SIZE) 
     // MAX_FLAG = ROW_SIZE_MAT_C * COL_SIZE_MAT_C
-    parameter MAX_FLAG = ROW_SIZE_MAT_C * COL_SIZE_MAT_C,
     parameter NUM_CORES = (INNER_DIMENSION == 2754) ? 17 :
                                (INNER_DIMENSION == 256)  ? 8 :
                                (INNER_DIMENSION == 200)  ? 5 :
-                               (INNER_DIMENSION == 64)   ? 4 : 2
+                               (INNER_DIMENSION == 64)   ? 4 : 2,
+    parameter MAX_FLAG = ROW_SIZE_MAT_C * COL_SIZE_MAT_C / NUM_CORES
 ) (
     input clk, rst_n,
     // Control and status port
@@ -209,10 +209,13 @@ module top #(
     wire systolic_finish_top, accumulator_done_top;
     reg internal_rst_n;
     reg internal_reset_acc;
+    // Toggle start based on done variable
+    wire top_start;
+    assign top_start = ((start == 1) && (done == 0)) ? 1:0;
 
     toplevel #(.WIDTH(WIDTH), .FRAC_WIDTH(FRAC_WIDTH), .BLOCK_SIZE(BLOCK_SIZE), .CHUNK_SIZE(CHUNK_SIZE), .INNER_DIMENSION(INNER_DIMENSION), .NUM_CORES(NUM_CORES)) 
     toplevel_inst (
-        .clk(clk), .en(start), .rst_n(internal_rst_n), .reset_acc(internal_reset_acc),
+        .clk(clk), .en(top_start), .rst_n(internal_rst_n), .reset_acc(internal_reset_acc),
         .input_n(wb_doutb), .input_w(in_doutb),
         .accumulator_done(accumulator_done_top), .systolic_finish(systolic_finish_top),
         .out_top(out_bram)
@@ -293,5 +296,16 @@ module top #(
             counter_col <= counter_col + 1;
         end
     end
+
+    // Done assigning
+    always @(posedge accumulator_done_top) begin
+        if (flag == MAX_FLAG) begin
+            flag <= flag;
+        end
+        else begin
+            flag <= flag + 1;
+        end
+    end
+    assign done = (flag == MAX_FLAG) ? 1:0;
 
 endmodule
