@@ -48,6 +48,21 @@ module axis_top (
     localparam NUM_W_ELEMENTS = (W_OUTER_DIMENSION/BLOCK_SIZE)*(INNER_DIMENSION/BLOCK_SIZE);
     localparam NUM_O_ELEMENTS = (ROW_SIZE_MAT_C/NUM_CORES)*COL_SIZE_MAT_C;
 
+    // MM2S FIFO (Inputs and Weights)
+    wire [19:0] mm2s_data_count_i;
+    wire [14:0] mm2s_data_count_w;
+    wire start_from_mm2s;
+    reg mm2s_ready_w_reg, mm2s_ready_i_reg;
+    reg mm2s_ready_w_next, mm2s_ready_i_next;
+    wire [CHUNK_SIZE*WIDTH*NUM_CORES-1:0] mm2s_data_i;
+    wire [CHUNK_SIZE*WIDTH-1:0] mm2s_data_w;
+
+    // S2MM FIFO (Outputs)
+    wire s2mm_ready;
+    wire [WIDTH*CHUNK_SIZE*NUM_CORES:0] s2mm_data;
+    wire s2mm_valid, s2mm_valid_reg;
+    wire s2mm_last, s2mm_last_reg;
+
     // *** MM2S FIFO: INPUT ************************************************************
     // xpm_fifo_axis: AXI Stream FIFO
     // Xilinx Parameterized Macro, version 2018.3
@@ -171,27 +186,55 @@ module axis_top (
         
         .wr_data_count_axis(mm2s_data_count_w) // data count
     );
+
+    // *** Top *******************************************************************
+    wire top_start;
+    wire top_done;
+    wire wb_ena;
+    wire [2:0] wb_addra;
+    wire [63:0] wb_dina;
+    wire [7:0] wb_wea;
+    wire in_ena;
+    wire [1:0] in_addra;
+    wire [63:0] in_dina;
+    wire [7:0] in_wea;
+    wire [(WIDTH*CHUNK_SIZE*NUM_CORES)-1:0] out_core;
+    /*
+    wire a_enb;
+    wire [1:0] a_addrb;
+    wire [63:0] a_doutb;
+    */
+
+    top #(
+        .WIDTH(WIDTH), .FRAC_WIDTH(FRAC_WIDTH), .BLOCK_SIZE(BLOCK_SIZE), .CHUNK_SIZE(CHUNK_SIZE),
+        .INNER_DIMENSION(INNER_DIMENSION), .W_OUTER_DIMENSION(W_OUTER_DIMENSION), .I_OUTER_DIMENSION(I_OUTER_DIMENSION), 
+        .ROW_SIZE_MAT_C(ROW_SIZE_MAT_C), .COL_SIZE_MAT_C(COL_SIZE_MAT_C), .NUM_CORES(NUM_CORES)
+    ) 
+    top_inst
+    (
+        .clk(aclk),
+        .rst_n(aresetn),
+        //.ready(ready),
+        .start(top_start),
+        .done(top_done),
+        .wb_ena(wb_ena),
+        .wb_addra(wb_addra),
+        .wb_dina(wb_dina),
+        .wb_wea(wb_wea),
+
+        .in_ena(in_ena),
+        .in_addra(in_addra),
+        .in_dina(in_dina),
+        .in_wea(in_wea),
+
+        .out_bram(out_core)
+    );
     
     // *** Main control *********************************************************
     // State machine
     reg [2:0] state_reg, state_next;
-    reg [19:0] cnt_word_i_reg; // Used as a counter for weight, input, and output
-    reg [14:0] cnt_word_w_reg; 
-
-    // MM2S FIFO (Inputs and Weights)
-    wire [19:0] mm2s_data_count_i;
-    wire [14:0] mm2s_data_count_w;
-    wire start_from_mm2s;
-    reg mm2s_ready_w_reg, mm2s_ready_i_reg;
-    reg mm2s_ready_w_next, mm2s_ready_i_next;
-    wire [CHUNK_SIZE*WIDTH*NUM_CORES-1:0] mm2s_data_i;
-    wire [CHUNK_SIZE*WIDTH-1:0] mm2s_data_w;
-
-    // S2MM FIFO (Outputs)
-    wire s2mm_ready;
-    wire [WIDTH*CHUNK_SIZE*NUM_CORES:0] s2mm_data;
-    wire s2mm_valid, s2mm_valid_reg;
-    wire s2mm_last, s2mm_last_reg;
+    reg [19:0] cnt_word_i_reg, cnt_word_i_next; // Used as a counter for weight, input, and output
+    reg [14:0] cnt_word_w_reg, cnt_word_w_next; 
 
     // Start signal from DMA MM2S
     assign start_from_mm2s = ((mm2s_data_count_i >= NUM_I_ELEMENTS) && (mm2s_data_count_w >= NUM_W_ELEMENTS)); // Start the operation after one element had been streamed
@@ -240,7 +283,8 @@ module axis_top (
                     state_next = 2;
                     mm2s_ready_i_next = 0;
                     mm2s_ready_w_next = 0;
-                    cnt_word_next = 0;
+                    cnt_word_i_next = 0;
+                    cnt_word_w_next = 0;
                 end
                 else begin
                     cnt_word_w_next = cnt_word_w_reg + 1;
@@ -284,7 +328,7 @@ module axis_top (
     assign in_ena = (state_reg == 1) ? 1 : 0;
     assign in_addra = cnt_word_i_reg;
     assign in_dina = mm2s_data_i;
-    assign k_wea = (state_reg == 1) ? 8'hff : 0;
+    assign in_wea = (state_reg == 1) ? 8'hff : 0;
     
     // Start NN
     assign top_start = (state_reg == 2) ? 1 : 0;
@@ -301,49 +345,6 @@ module axis_top (
     register #(1) reg_s2mm_valid(aclk, aresetn, s2mm_valid, s2mm_valid_reg); 
     assign s2mm_last = ((state_reg == 4) && (cnt_word_i_reg == NUM_O_ELEMENTS-1)) ? 1 : 0;
     register #(1) reg_s2mm_last(aclk, aresetn, s2mm_last, s2mm_last_reg);
-
-    // *** Top *******************************************************************
-    wire top_start;
-    wire top_done;
-    wire wb_ena;
-    wire [2:0] wb_addra;
-    wire [63:0] wb_dina;
-    wire [7:0] wb_wea;
-    wire k_ena;
-    wire [1:0] in_addra;
-    wire [63:0] in_dina;
-    wire [7:0] in_wea;
-    wire [(WIDTH*CHUNK_SIZE*NUM_CORES)-1:0] out_core;
-    /*
-    wire a_enb;
-    wire [1:0] a_addrb;
-    wire [63:0] a_doutb;
-    */
-
-    top #(
-        .WIDTH(WIDTH), .FRAC_WIDTH(FRAC_WIDTH), .BLOCK_SIZE(BLOCK_SIZE), .CHUNK_SIZE(CHUNK_SIZE),
-        .INNER_DIMENSION(INNER_DIMENSION), .W_OUTER_DIMENSION(W_OUTER_DIMENSION), .I_OUTER_DIMENSION(I_OUTER_DIMENSION), 
-        .ROW_SIZE_MAT_C(ROW_SIZE_MAT_C), .COL_SIZE_MAT_C(COL_SIZE_MAT_C), .NUM_CORES(NUM_CORES)
-    ) 
-    top_inst
-    (
-        .clk(clk),
-        .rst_n(rst_n),
-        //.ready(ready),
-        .start(top_start),
-        .done(top_done),
-        .wb_ena(wb_ena),
-        .wb_addra(wb_addra),
-        .wb_dina(wb_dina),
-        .wb_wea(wb_wea),
-
-        .in_ena(in_ena),
-        .in_addra(in_addra),
-        .in_dina(in_dina),
-        .in_wea(in_wea),
-
-        .out_bram(out_core)
-    );
 
     // *** S2MM FIFO Output ************************************************************
     // xpm_fifo_axis: AXI Stream FIFO
