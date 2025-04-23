@@ -36,7 +36,7 @@ module axis_top (
     // W stands for weight
     localparam W_OUTER_DIMENSION = 6;
     // I stands for input
-    localparam I_OUTER_DIMENSION = 6;
+    localparam I_OUTER_DIMENSION = 8;
     localparam ROW_SIZE_MAT_C = I_OUTER_DIMENSION / BLOCK_SIZE;
     localparam COL_SIZE_MAT_C = W_OUTER_DIMENSION / BLOCK_SIZE;
     localparam MAX_FLAG = ROW_SIZE_MAT_C * COL_SIZE_MAT_C;
