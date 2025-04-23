@@ -46,6 +46,7 @@ module axis_top (
                                (INNER_DIMENSION == 64)   ? 4 : 2;
     localparam NUM_I_ELEMENTS = ((I_OUTER_DIMENSION/BLOCK_SIZE)*(INNER_DIMENSION/BLOCK_SIZE))/NUM_CORES; // Total elements of Input if we converted the inputs based on the NUM_CORES
     localparam NUM_W_ELEMENTS = (W_OUTER_DIMENSION/BLOCK_SIZE)*(INNER_DIMENSION/BLOCK_SIZE);
+    localparam NUM_O_ELEMENTS = (ROW_SIZE_MAT_C/NUM_CORES)*COL_SIZE_MAT_C;
 
     // *** MM2S FIFO: INPUT ************************************************************
     // xpm_fifo_axis: AXI Stream FIFO
@@ -174,7 +175,7 @@ module axis_top (
     // *** Main control *********************************************************
     // State machine
     reg [2:0] state_reg, state_next;
-    reg [19:0] cnt_word_i_reg; // Used as a counter for weight and input
+    reg [19:0] cnt_word_i_reg; // Used as a counter for weight, input, and output
     reg [14:0] cnt_word_w_reg; 
 
     // MM2S FIFO (Inputs and Weights)
@@ -252,21 +253,22 @@ module axis_top (
             end
             3: // Wait until Top computation done and S2MM FIFO is ready to accept data
             begin
-                if (s2mm_ready)
+                if (s2mm_ready && top_done)
                 begin
-                    state_next = 5;
+                    state_next = 4;
                 end
             end
             4: // Read data output from Top
             begin
-                if (cnt_word_reg == 1)
+                if (cnt_word_i_reg == NUM_O_ELEMENTS-1) // If the counter for output reached its maximum value, we just reuse the cnt_word_i_reg
                 begin
                     state_next = 0;
-                    cnt_word_next = 0;
+                    cnt_word_i_next = 0;
+                    cnt_word_w_next = 0;
                 end
                 else
                 begin
-                    cnt_word_next = cnt_word_reg + 1;
+                    cnt_word_i_next = cnt_word_i_reg + 1;
                 end
             end
         endcase
@@ -274,32 +276,35 @@ module axis_top (
 
     // Control weight port Top
     assign wb_ena = (state_reg == 1) ? 1 : 0;
-    assign wb_addra = cnt_word_reg;
-    assign wb_dina = mm2s_data;
+    assign wb_addra = cnt_word_w_reg;
+    assign wb_dina = mm2s_data_w;
     assign wb_wea = (state_reg == 1) ? 8'hff : 0;
     
     // Control data input port Top
-    assign k_ena = (state_reg == 2) ? 1 : 0;
-    assign k_addra = cnt_word_reg[1:0];
-    assign k_dina = mm2s_data;
-    assign k_wea = (state_reg == 2) ? 8'hff : 0;
+    assign in_ena = (state_reg == 1) ? 1 : 0;
+    assign in_addra = cnt_word_i_reg;
+    assign in_dina = mm2s_data_i;
+    assign k_wea = (state_reg == 1) ? 8'hff : 0;
     
     // Start NN
-    assign nn_start = (state_reg == 3) ? 1 : 0;
+    assign top_start = (state_reg == 2) ? 1 : 0;
     
     // Control data output port Top
+    /*
     assign a_enb = (state_reg == 5) ? 1 : 0;
     assign a_addrb = cnt_word_reg[1:0];
+    */
 
     // Control S2MM FIFO
-    assign s2mm_data = a_doutb;
-    assign s2mm_valid = a_enb;
-    register #(1) reg_s2mm_valid(aclk, aresetn, 1'b1, 1'b0, s2mm_valid, s2mm_valid_reg); 
-    assign s2mm_last = ((state_reg == 5) && (a_addrb == 2'b01)) ? 1 : 0;
-    register #(1) reg_s2mm_last(aclk, aresetn, 1'b1, 1'b0, s2mm_last, s2mm_last_reg);
+    assign s2mm_data = out_core;
+    assign s2mm_valid = (state_reg == 4) ? 1 : 0;
+    register #(1) reg_s2mm_valid(aclk, aresetn, s2mm_valid, s2mm_valid_reg); 
+    assign s2mm_last = ((state_reg == 4) && (cnt_word_i_reg == NUM_O_ELEMENTS-1)) ? 1 : 0;
+    register #(1) reg_s2mm_last(aclk, aresetn, s2mm_last, s2mm_last_reg);
 
     // *** Top *******************************************************************
     wire top_start;
+    wire top_done;
     wire wb_ena;
     wire [2:0] wb_addra;
     wire [63:0] wb_dina;
@@ -308,6 +313,7 @@ module axis_top (
     wire [1:0] in_addra;
     wire [63:0] in_dina;
     wire [7:0] in_wea;
+    wire [(WIDTH*CHUNK_SIZE*NUM_CORES)-1:0] out_core;
     /*
     wire a_enb;
     wire [1:0] a_addrb;
@@ -325,7 +331,7 @@ module axis_top (
         .rst_n(rst_n),
         //.ready(ready),
         .start(top_start),
-        //.done(done),
+        .done(top_done),
         .wb_ena(wb_ena),
         .wb_addra(wb_addra),
         .wb_dina(wb_dina),
@@ -336,7 +342,7 @@ module axis_top (
         .in_dina(in_dina),
         .in_wea(in_wea),
 
-        .out_bram(out_bram)
+        .out_bram(out_core)
     );
 
     // *** S2MM FIFO Output ************************************************************
