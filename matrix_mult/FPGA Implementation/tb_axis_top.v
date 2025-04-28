@@ -1,6 +1,6 @@
 `timescale 1ns / 1ps
 
-module axis_nn_tb();
+module tb_axis_top();
     
     reg aclk;
     reg aresetn;
@@ -20,7 +20,7 @@ module axis_nn_tb();
     wire m_axis_tvalid;
     wire m_axis_tlast;
     
-    axis_nn dut
+    axis_top dut
     (
         .aclk(aclk),
         .aresetn(aresetn),
@@ -76,16 +76,22 @@ module axis_nn_tb();
 
         s_axis_w_tdata = 64'h0200010001000200;
         s_axis_i_tdata = 128'h01000200010001000200010002000100;
-        #10;
-
-        s_axis_w_tdata = 64'h0100010001000100;
-        s_axis_i_tdata = 128'h01000200010001000200010002000100;
         s_axis_i_tlast = 1;
         #10;
 
-        s_axis_tvalid = 0;
-        s_axis_tdata = 0; 
-        s_axis_tlast = 0;   
+        s_axis_i_tvalid = 0;
+        s_axis_i_tdata = 0; 
+        s_axis_i_tlast = 0;   
+        s_axis_w_tdata = 64'h0100010001000100;
+        #10;
+
+        s_axis_w_tdata = 64'h0200010002000100;
+        s_axis_w_tlast = 1;
+        #10;
+
+        s_axis_w_tvalid = 0;
+        s_axis_w_tdata = 0; 
+        s_axis_w_tlast = 0;   
     end
         
 endmodule
