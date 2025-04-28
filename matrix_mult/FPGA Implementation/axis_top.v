@@ -12,7 +12,7 @@ module axis_top (
         input wire              aresetn,
         // *** AXIS Input slave port ***
         output wire             s_axis_i_tready,
-        input wire [64*17-1:0]  s_axis_i_tdata, // Data for input
+        input wire [64*9-1:0]  s_axis_i_tdata, // Data for input
         input wire              s_axis_i_tvalid,
         input wire              s_axis_i_tlast,
         // *** AXIS Weight slave port ***
@@ -22,7 +22,7 @@ module axis_top (
         input wire              s_axis_w_tlast,
         // *** AXIS master port ***
         input wire              m_axis_tready,
-        output wire [64*17-1:0] m_axis_tdata, // If we're using top_v2.v
+        output wire [64*9-1:0] m_axis_tdata, // If we're using top_v2.v
         output wire             m_axis_tvalid,
         output wire             m_axis_tlast
     );

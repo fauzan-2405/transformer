@@ -6,7 +6,7 @@ module tb_axis_top();
     reg aresetn;
     
     wire s_axis_i_tready;
-    reg [64*17-1:0] s_axis_i_tdata;
+    reg [64*9-1:0] s_axis_i_tdata;
     reg s_axis_i_tvalid;
     reg s_axis_i_tlast;
 
@@ -16,7 +16,7 @@ module tb_axis_top();
     reg s_axis_w_tlast;
     
     reg m_axis_tready;
-    wire [64*17-1:0] m_axis_tdata;
+    wire [64*9-1:0] m_axis_tdata;
     wire m_axis_tvalid;
     wire m_axis_tlast;
     
