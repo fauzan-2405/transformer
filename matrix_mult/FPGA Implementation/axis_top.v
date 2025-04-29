@@ -4,7 +4,9 @@
     1. Ask about the FIFO DEPTH (DONE)
     2. Ask about can you deploy two FIFOs using two DMAs at the same time? (DONE)
     3. Ask about s_axis ports (DONE)
-    4. Create the state machine process (DONR)
+    4. Create the state machine process (DONE)
+    5. Add clog2_value parameter to the top_v2, then change the width of the inputs and output
+    6. Dont forget to update the top_v2 testbench as well (tb_top.v)
 */
 `timescale 1ns / 1ps
 
@@ -218,7 +220,7 @@ module axis_top (
     wire [63:0] a_doutb;
     */
 
-    top #(
+    top_v2 #(
         .WIDTH(WIDTH), .FRAC_WIDTH(FRAC_WIDTH), .BLOCK_SIZE(BLOCK_SIZE), .CHUNK_SIZE(CHUNK_SIZE),
         .INNER_DIMENSION(INNER_DIMENSION), .W_OUTER_DIMENSION(W_OUTER_DIMENSION), .I_OUTER_DIMENSION(I_OUTER_DIMENSION), 
         .ROW_SIZE_MAT_C(ROW_SIZE_MAT_C), .COL_SIZE_MAT_C(COL_SIZE_MAT_C), .NUM_CORES(NUM_CORES)
