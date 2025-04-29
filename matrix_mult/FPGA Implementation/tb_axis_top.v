@@ -1,3 +1,4 @@
+// DONT FORGET TO CHANGE THE INPUTS AND OUTPUT SIZE
 `timescale 1ns / 1ps
 
 module tb_axis_top();
@@ -6,17 +7,17 @@ module tb_axis_top();
     reg aresetn;
     
     wire s_axis_i_tready;
-    reg [64*9-1:0] s_axis_i_tdata;
+    reg [64*2-1:0] s_axis_i_tdata; // CHANGE THIS
     reg s_axis_i_tvalid;
     reg s_axis_i_tlast;
 
     wire s_axis_w_tready;
-    reg [64-1:0] s_axis_w_tdata;
+    reg [64-1:0] s_axis_w_tdata; // CHANGE THIS
     reg s_axis_w_tvalid;
     reg s_axis_w_tlast;
     
     reg m_axis_tready;
-    wire [64*9-1:0] m_axis_tdata;
+    wire [64*2-1:0] m_axis_tdata; // CHANGE THIS
     wire m_axis_tvalid;
     wire m_axis_tlast;
     
