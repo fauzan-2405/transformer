@@ -49,7 +49,7 @@ module axis_top (
     localparam NUM_O_ELEMENTS = (ROW_SIZE_MAT_C/NUM_CORES)*COL_SIZE_MAT_C;
 
     // MM2S FIFO (Inputs and Weights)
-    wire [19:0] mm2s_data_count_i;
+    wire [20:0] mm2s_data_count_i;
     wire [14:0] mm2s_data_count_w;
     wire start_from_mm2s;
     reg mm2s_ready_w_reg, mm2s_ready_i_reg;
@@ -237,7 +237,7 @@ module axis_top (
     reg [14:0] cnt_word_w_reg, cnt_word_w_next; 
 
     // Start signal from DMA MM2S
-    assign start_from_mm2s = ((mm2s_data_count_i >= NUM_I_ELEMENTS) && (mm2s_data_count_w >= NUM_W_ELEMENTS)); // Start the operation after one element had been streamed
+    assign start_from_mm2s = ((mm2s_data_count_i >= NUM_I_ELEMENTS) && (mm2s_data_count_w >= NUM_W_ELEMENTS)); // Start the operation after all elements had been streamed
     
     // State machine for AXI-Stream protocol
     always @(posedge aclk)

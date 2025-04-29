@@ -27,6 +27,16 @@ module axis_top (
         output wire             m_axis_tlast
     );
 
+    // clog2 function
+    function integer clog2;
+        input integer value;
+        begin  
+            value = value-1;
+            for (clog2=0; value>0; clog2=clog2+1)
+            value = value>>1;
+        end
+    endfunction
+
     // Parameters
     localparam WIDTH = 16;
     localparam FRAC_WIDTH = 8;
@@ -47,10 +57,12 @@ module axis_top (
     localparam NUM_I_ELEMENTS = ((I_OUTER_DIMENSION/BLOCK_SIZE)*(INNER_DIMENSION/BLOCK_SIZE))/NUM_CORES; // Total elements of Input if we converted the inputs based on the NUM_CORES
     localparam NUM_W_ELEMENTS = (W_OUTER_DIMENSION/BLOCK_SIZE)*(INNER_DIMENSION/BLOCK_SIZE);
     localparam NUM_O_ELEMENTS = (ROW_SIZE_MAT_C/NUM_CORES)*COL_SIZE_MAT_C;
+    localparam DATA_COUNT_I = clog2(INNER_DIMENSION*I_OUTER_DIMENSION) + 1; // Used for counting the required width for WR_DATA_COUNT_WIDTH parameter in FIFO
+    localparam DATA_COUNT_W = clog2(INNER_DIMENSION*W_OUTER_DIMENSION) + 1;     
 
     // MM2S FIFO (Inputs and Weights)
-    wire [19:0] mm2s_data_count_i;
-    wire [14:0] mm2s_data_count_w;
+    wire [DATA_COUNT_I:0] mm2s_data_count_i;
+    wire [DATA_COUNT_W:0] mm2s_data_count_w;
     wire start_from_mm2s;
     reg mm2s_ready_w_reg, mm2s_ready_i_reg;
     reg mm2s_ready_w_next, mm2s_ready_i_next;
@@ -84,7 +96,7 @@ module axis_top (
         .TID_WIDTH(1),                       // DECIMAL
         .TUSER_WIDTH(1),                     // DECIMAL
         .USE_ADV_FEATURES("0004"),           // String, write data count
-        .WR_DATA_COUNT_WIDTH(6)              // DECIMAL, width log2(FIFO_DEPTH)+1=20.42, take 21 instead 
+        .WR_DATA_COUNT_WIDTH(DATA_COUNT_I)              // DECIMAL, width log2(FIFO_DEPTH)+1=20.42, take 21 instead 
     )
     xpm_fifo_axis_i
     (
@@ -146,7 +158,7 @@ module axis_top (
         .TID_WIDTH(1),                       // DECIMAL
         .TUSER_WIDTH(1),                     // DECIMAL
         .USE_ADV_FEATURES("0004"),           // String, write data count
-        .WR_DATA_COUNT_WIDTH(6)              // DECIMAL, width log2(FIFO_DEPTH)+1=15.42
+        .WR_DATA_COUNT_WIDTH(DATA_COUNT_W)              // DECIMAL, width log2(FIFO_DEPTH)+1=15.42
     )
     xpm_fifo_axis_wb
     (
