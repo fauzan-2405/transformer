@@ -44,6 +44,7 @@ module tb_axis_top();
 
     initial
     begin
+        aclk = 0;
         s_axis_i_tdata = 0;
         s_axis_i_tvalid = 0;
         s_axis_i_tlast = 0;
