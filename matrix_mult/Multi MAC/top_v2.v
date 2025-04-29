@@ -21,7 +21,7 @@ module top_v2 #(
     // ROW_SIZE_MAT_C = (ROW_SIZE_MAT_A / BLOCK_SIZE)
     // COL_SIZE_MAT_C = (COL_SIZE_MAT_B / BLOCK_SIZE) 
     // MAX_FLAG = ROW_SIZE_MAT_C * COL_SIZE_MAT_C
-    parameter NUM_CORES = (INNER_DIMENSION == 2754) ? 17 :
+    parameter NUM_CORES = (INNER_DIMENSION == 2754) ? 9 :
                                (INNER_DIMENSION == 256)  ? 8 :
                                (INNER_DIMENSION == 200)  ? 5 :
                                (INNER_DIMENSION == 64)   ? 4 : 2,
