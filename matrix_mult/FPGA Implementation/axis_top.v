@@ -5,8 +5,10 @@
     2. Ask about can you deploy two FIFOs using two DMAs at the same time? (DONE)
     3. Ask about s_axis ports (DONE)
     4. Create the state machine process (DONE)
-    5. Add clog2_value parameter to the top_v2, then change the width of the inputs and output
-    6. Dont forget to update the top_v2 testbench as well (tb_top.v)
+    5. Add clog2_value parameter to the top_v2, then change the width of the inputs and output (DONE)
+    6. Dont forget to update the top_v2 testbench as well (tb_top.v) (DONE)
+    7. There are problems in state machine 1, it will not move to the next state, fix it (I already tried on the server's code) (DONE)
+    8. Problems in state 3
 */
 `timescale 1ns / 1ps
 
@@ -303,6 +305,16 @@ module axis_top (
                     mm2s_ready_w_next = 0;
                     cnt_word_i_next = 0;
                     cnt_word_w_next = 0;
+                end
+                else if ((cnt_word_i_reg == NUM_I_ELEMENTS-1) || (cnt_word_w_reg == NUM_W_ELEMENTS-1)) begin
+                    if (cnt_word_i_reg == NUM_I_ELEMENTS-1) begin
+                        cnt_word_i_next = NUM_I_ELEMENTS-1;
+                        cnt_word_w_next = cnt_word_w_reg + 1;
+                    end
+                    else begin
+                        cnt_word_w_next = NUM_W_ELEMENTS-1;
+                        cnt_word_i_next = cnt_word_i_reg + 1;
+                    end
                 end
                 else begin
                     cnt_word_w_next = cnt_word_w_reg + 1;
