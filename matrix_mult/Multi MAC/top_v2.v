@@ -25,7 +25,9 @@ module top_v2 #(
                                (INNER_DIMENSION == 256)  ? 8 :
                                (INNER_DIMENSION == 200)  ? 5 :
                                (INNER_DIMENSION == 64)   ? 4 : 2,
-    parameter MAX_FLAG = ROW_SIZE_MAT_C * COL_SIZE_MAT_C / NUM_CORES
+    parameter MAX_FLAG = ROW_SIZE_MAT_C * COL_SIZE_MAT_C / NUM_CORES,
+    parameter ADDR_WIDTH_I = 2, // Used for determining the width of wb and input address and other parameters in BRAMs
+    parameter ADDR_WIDTH_W = 2
 ) (
     input clk, rst_n,
     // Control and status port
@@ -33,12 +35,12 @@ module top_v2 #(
 
     input wb_ena,
     input [7:0] wb_wea,
-    input [11:0] wb_addra, 
+    input [ADDR_WIDTH_W-1:0] wb_addra, 
     input [WIDTH*CHUNK_SIZE-1:0] wb_dina,
 
     input in_ena,
     input [7:0] in_wea,
-    input [13:0] in_addra, 
+    input [ADDR_WIDTH_I-1:0] in_addra, 
     input [(WIDTH*CHUNK_SIZE*NUM_CORES)-1:0] in_dina,
 
     // Data output port
@@ -52,7 +54,7 @@ module top_v2 #(
     // xpm_memory_tdpram: True Dual Port RAM
     // Xilinx Parameterized Macro, version 2018.3
     reg in_enb;
-    reg [13:0] in_addrb; // Same as in_addra
+    reg [ADDR_WIDTH_I-1:0] in_addrb; // Same as in_addra
     wire [WIDTH*CHUNK_SIZE*NUM_CORES-1:0] in_doutb;
 
     xpm_memory_tdpram
@@ -75,7 +77,7 @@ module top_v2 #(
         .WRITE_DATA_WIDTH_A(WIDTH*CHUNK_SIZE*NUM_CORES), // DECIMAL, varying based on the matrix size
         .READ_DATA_WIDTH_A(WIDTH*CHUNK_SIZE*NUM_CORES),  // DECIMAL, varying based on the matrix size
         .BYTE_WRITE_WIDTH_A(8*NUM_CORES),                // DECIMAL, how many bytes in WRITE_DATA_WIDTH_A
-        .ADDR_WIDTH_A(14),                   // DECIMAL, clog2(MEMORY_SIZE/WRITE_DATA_WIDTH_A)
+        .ADDR_WIDTH_A(ADDR_WIDTH_I),                   // DECIMAL, clog2(MEMORY_SIZE/WRITE_DATA_WIDTH_A)
         .READ_RESET_VALUE_A("0"),            // String
         .READ_LATENCY_A(1),                  // DECIMAL
         .WRITE_MODE_A("write_first"),        // String
@@ -85,7 +87,7 @@ module top_v2 #(
         .WRITE_DATA_WIDTH_B(WIDTH*CHUNK_SIZE*NUM_CORES), // DECIMAL, varying based on the matrix size
         .READ_DATA_WIDTH_B(WIDTH*CHUNK_SIZE*NUM_CORES), // DECIMAL, varying based on the matrix size
         .BYTE_WRITE_WIDTH_B(8*NUM_CORES),              // DECIMAL, how many bytes in WRITE_DATA_WIDTH_A
-        .ADDR_WIDTH_B(14),                   // DECIMAL, clog2(MEMORY_SIZE/WRITE_DATA_WIDTH_A)
+        .ADDR_WIDTH_B(ADDR_WIDTH_I),                   // DECIMAL, clog2(MEMORY_SIZE/WRITE_DATA_WIDTH_A)
         .READ_RESET_VALUE_B("0"),            // String
         .READ_LATENCY_B(1),                  // DECIMAL
         .WRITE_MODE_B("write_first"),        // String
@@ -128,7 +130,7 @@ module top_v2 #(
     // xpm_memory_tdpram: True Dual Port RAM
     // Xilinx Parameterized Macro, version 2018.3
     reg wb_enb;
-    reg [11:0] wb_addrb; // Same as wb_addra
+    reg [ADDR_WIDTH_W-1:0] wb_addrb; // Same as wb_addra
     wire [WIDTH*CHUNK_SIZE-1:0] wb_doutb;
 
     xpm_memory_tdpram
@@ -151,7 +153,7 @@ module top_v2 #(
         .WRITE_DATA_WIDTH_A(WIDTH*CHUNK_SIZE), // DECIMAL, data width: 64-bit
         .READ_DATA_WIDTH_A(WIDTH*CHUNK_SIZE),  // DECIMAL, data width: 64-bit
         .BYTE_WRITE_WIDTH_A(8),              // DECIMAL, how many bytes in WRITE_DATA_WIDTH_A
-        .ADDR_WIDTH_A(12),                   // DECIMAL, clog2(MEMORY_SIZE/WRITE_DATA_WIDTH_A)
+        .ADDR_WIDTH_A(ADDR_WIDTH_W),                   // DECIMAL, clog2(MEMORY_SIZE/WRITE_DATA_WIDTH_A)
         .READ_RESET_VALUE_A("0"),            // String
         .READ_LATENCY_A(1),                  // DECIMAL
         .WRITE_MODE_A("write_first"),        // String
@@ -161,7 +163,7 @@ module top_v2 #(
         .WRITE_DATA_WIDTH_B(WIDTH*CHUNK_SIZE), // DECIMAL, data width: 64-bit
         .READ_DATA_WIDTH_B(WIDTH*CHUNK_SIZE), // DECIMAL, data width: 64-bit
         .BYTE_WRITE_WIDTH_B(8),              // DECIMAL
-        .ADDR_WIDTH_B(12),                   // DECIMAL, clog2(MEMORY_SIZE/WRITE_DATA_WIDTH_A)
+        .ADDR_WIDTH_B(ADDR_WIDTH_W),                   // DECIMAL, clog2(MEMORY_SIZE/WRITE_DATA_WIDTH_A)
         .READ_RESET_VALUE_B("0"),            // String
         .READ_LATENCY_B(1),                  // DECIMAL
         .WRITE_MODE_B("write_first"),        // String

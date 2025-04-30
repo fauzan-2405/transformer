@@ -61,7 +61,9 @@ module axis_top (
     localparam NUM_W_ELEMENTS = (W_OUTER_DIMENSION/BLOCK_SIZE)*(INNER_DIMENSION/BLOCK_SIZE);
     localparam NUM_O_ELEMENTS = (ROW_SIZE_MAT_C/NUM_CORES)*COL_SIZE_MAT_C;
     localparam DATA_COUNT_I = clog2(INNER_DIMENSION*I_OUTER_DIMENSION) + 1; // Used for counting the required width for WR_DATA_COUNT_WIDTH parameter in FIFO
-    localparam DATA_COUNT_W = clog2(INNER_DIMENSION*W_OUTER_DIMENSION) + 1;     
+    localparam DATA_COUNT_W = clog2(INNER_DIMENSION*W_OUTER_DIMENSION) + 1;   
+    localparam ADDR_WIDTH_I = clog2((INNER_DIMENSION*I_OUTER_DIMENSION*WIDTH)/(WIDTH*CHUNK_SIZE*NUM_CORES)); // Used for determining the width of wb and input address and other parameters in BRAMs
+    localparam ADDR_WIDTH_W = clog2((INNER_DIMENSION*W_OUTER_DIMENSION*WIDTH)/(WIDTH*CHUNK_SIZE));
 
     // MM2S FIFO (Inputs and Weights)
     wire [DATA_COUNT_I-1:0] mm2s_data_count_i;
@@ -206,12 +208,12 @@ module axis_top (
     wire top_start;
     wire top_done;
     wire wb_ena;
-    wire [2:0] wb_addra;
-    wire [63:0] wb_dina;
+    wire [ADDR_WIDTH_W-1:0] wb_addra;
+    wire [WIDTH*CHUNK_SIZE-1:0] wb_dina;
     wire [7:0] wb_wea;
     wire in_ena;
-    wire [1:0] in_addra;
-    wire [63:0] in_dina;
+    wire [ADDR_WIDTH_I-1:0] in_addra;
+    wire [(WIDTH*CHUNK_SIZE*NUM_CORES)-1:0] in_dina;
     wire [7:0] in_wea;
     wire [(WIDTH*CHUNK_SIZE*NUM_CORES)-1:0] out_core;
     /*
@@ -223,7 +225,8 @@ module axis_top (
     top_v2 #(
         .WIDTH(WIDTH), .FRAC_WIDTH(FRAC_WIDTH), .BLOCK_SIZE(BLOCK_SIZE), .CHUNK_SIZE(CHUNK_SIZE),
         .INNER_DIMENSION(INNER_DIMENSION), .W_OUTER_DIMENSION(W_OUTER_DIMENSION), .I_OUTER_DIMENSION(I_OUTER_DIMENSION), 
-        .ROW_SIZE_MAT_C(ROW_SIZE_MAT_C), .COL_SIZE_MAT_C(COL_SIZE_MAT_C), .NUM_CORES(NUM_CORES)
+        .ROW_SIZE_MAT_C(ROW_SIZE_MAT_C), .COL_SIZE_MAT_C(COL_SIZE_MAT_C), .NUM_CORES(NUM_CORES), .MAX_FLAG(MAX_FLAG),
+        .ADDR_WIDTH_I(ADDR_WIDTH_I), .ADDR_WIDTH_W(ADDR_WIDTH_W)
     ) 
     top_inst
     (
@@ -248,8 +251,8 @@ module axis_top (
     // *** Main control *********************************************************
     // State machine
     reg [2:0] state_reg, state_next;
-    reg [19:0] cnt_word_i_reg, cnt_word_i_next; // Used as a counter for weight, input, and output
-    reg [14:0] cnt_word_w_reg, cnt_word_w_next; 
+    reg [ADDR_WIDTH_I-1:0] cnt_word_i_reg, cnt_word_i_next; // Used as a counter for weight, input, and output
+    reg [ADDR_WIDTH_W-1:0] cnt_word_w_reg, cnt_word_w_next; 
 
     // Start signal from DMA MM2S
     assign start_from_mm2s = ((mm2s_data_count_i >= NUM_I_ELEMENTS) && (mm2s_data_count_w >= NUM_W_ELEMENTS)); // Start the operation after all elements had been streamed
