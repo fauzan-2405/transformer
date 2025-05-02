@@ -9,6 +9,7 @@
     6. Dont forget to update the top_v2 testbench as well (tb_top.v) (DONE)
     7. There are problems in state machine 1, it will not move to the next state, fix it (I already tried on the server's code) (DONE)
     8. Problems in state 3 (done)
+    9. Some bugs when toggling top_done to 1 and top_start to 0, check it
 */
 `timescale 1ns / 1ps
 
