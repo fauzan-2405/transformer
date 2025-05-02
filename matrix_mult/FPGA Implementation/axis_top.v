@@ -8,7 +8,7 @@
     5. Add clog2_value parameter to the top_v2, then change the width of the inputs and output (DONE)
     6. Dont forget to update the top_v2 testbench as well (tb_top.v) (DONE)
     7. There are problems in state machine 1, it will not move to the next state, fix it (I already tried on the server's code) (DONE)
-    8. Problems in state 3
+    8. Problems in state 3 (done)
 */
 `timescale 1ns / 1ps
 
@@ -54,11 +54,11 @@ module axis_top (
     localparam I_OUTER_DIMENSION = 8;
     localparam ROW_SIZE_MAT_C = I_OUTER_DIMENSION / BLOCK_SIZE;
     localparam COL_SIZE_MAT_C = W_OUTER_DIMENSION / BLOCK_SIZE;
-    localparam MAX_FLAG = ROW_SIZE_MAT_C * COL_SIZE_MAT_C;
     localparam NUM_CORES = (INNER_DIMENSION == 2754) ? 9 :
                                (INNER_DIMENSION == 256)  ? 8 :
                                (INNER_DIMENSION == 200)  ? 5 :
                                (INNER_DIMENSION == 64)   ? 4 : 2;
+    localparam MAX_FLAG = ROW_SIZE_MAT_C * COL_SIZE_MAT_C / NUM_CORES;
     localparam NUM_I_ELEMENTS = ((I_OUTER_DIMENSION/BLOCK_SIZE)*(INNER_DIMENSION/BLOCK_SIZE))/NUM_CORES; // Total elements of Input if we converted the inputs based on the NUM_CORES
     localparam NUM_W_ELEMENTS = (W_OUTER_DIMENSION/BLOCK_SIZE)*(INNER_DIMENSION/BLOCK_SIZE);
     localparam NUM_O_ELEMENTS = (ROW_SIZE_MAT_C/NUM_CORES)*COL_SIZE_MAT_C;
@@ -361,7 +361,7 @@ module axis_top (
     assign in_wea = (state_reg == 1) ? 8'hff : 0;
     
     // Start NN
-    assign top_start = (state_reg == 2) ? 1 : 0;
+    assign top_start = (state_reg == 2) || (state_reg == 3) ? 1 : 0;
     
     // Control data output port Top
     /*
