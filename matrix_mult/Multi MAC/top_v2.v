@@ -248,6 +248,7 @@ module top_v2 #(
             counter_col <=0;
             internal_rst_n <=0;
             internal_reset_acc <=0;
+            flag <=0;
         end
     end
 
