@@ -44,7 +44,8 @@ module top_v2 #(
     input [(WIDTH*CHUNK_SIZE*NUM_CORES)-1:0] in_dina,
 
     // Data output port
-    output reg [(WIDTH*CHUNK_SIZE*NUM_CORES)-1:0] out_bram // DONT FORGET TO EDIT THIS EVERYTIME YOU USE DIFFERENT 
+    output reg [(WIDTH*CHUNK_SIZE*NUM_CORES)-1:0] out_bram, // DONT FORGET TO EDIT THIS EVERYTIME YOU USE DIFFERENT 
+    output done
 );
 
     localparam MEMORY_SIZE_I = INNER_DIMENSION*I_OUTER_DIMENSION*WIDTH;
