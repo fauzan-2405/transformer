@@ -9,7 +9,7 @@
     6. Dont forget to update the top_v2 testbench as well (tb_top.v) (DONE)
     7. There are problems in state machine 1, it will not move to the next state, fix it (I already tried on the server's code) (DONE)
     8. Problems in state 3 (DONE)
-    9. Some bugs when toggling top_done to 1 and top_start to 0, check it + main controller issue, maybe try to tweak the tvalid and tready in output FIFO?
+    9. Some bugs when toggling top_done to 1 and top_start to 0, check it + main controller issue, maybe try to tweak the tvalid and tready in output FIFO? (DONE)
 */
 `timescale 1ns / 1ps
 
@@ -361,23 +361,13 @@ module axis_top (
     
     // Start NN
     assign top_start = (state_reg == 2) || (state_reg == 3) ? 1 : 0;
-    
-    // Control data output port Top
-    /*
-    assign a_enb = (state_reg == 5) ? 1 : 0;
-    assign a_addrb = cnt_word_reg[1:0];
-    */
 
     // Control S2MM FIFO
     assign s2mm_data = out_core;
     assign s2mm_valid = (state_reg == 3) ? 1 : 0;
     register #(1) reg_s2mm_valid(aclk, aresetn, s2mm_valid, s2mm_valid_reg); 
-    assign s2mm_last = (state_reg == 4) ? 1 : 0;
+    assign s2mm_last = (top_done == 1) ? 1 : 0;
     register #(1) reg_s2mm_last(aclk, aresetn, s2mm_last, s2mm_last_reg);
-    /*
-    assign m_axis_tlast = (s2mm_last_reg == 0) ? 1 : 0;
-    register #1(1) reg_m_axis_tlast(aclk, aresetn, s2mm_last, m_axis_tlast_reg)
-    */
 
     // *** S2MM FIFO Output ************************************************************
     // xpm_fifo_axis: AXI Stream FIFO
@@ -400,7 +390,7 @@ module axis_top (
         .TID_WIDTH(1),                       // DECIMAL
         .TUSER_WIDTH(1),                     // DECIMAL
         .USE_ADV_FEATURES("0004"),           // String, write data count
-        .WR_DATA_COUNT_WIDTH(21)              // DECIMAL, 
+        .WR_DATA_COUNT_WIDTH(DATA_COUNT_O)   // DECIMAL, 
     )
     xpm_fifo_axis_o
     (
@@ -438,7 +428,7 @@ module axis_top (
         .m_axis_tstrb(), 
         .m_axis_tuser(),  
         
-        .rd_data_count_axis() // data count
+        .wr_data_count_axis() // data count
     );
 
 endmodule
