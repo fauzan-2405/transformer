@@ -8,8 +8,8 @@
     5. Add clog2_value parameter to the top_v2, then change the width of the inputs and output (DONE)
     6. Dont forget to update the top_v2 testbench as well (tb_top.v) (DONE)
     7. There are problems in state machine 1, it will not move to the next state, fix it (I already tried on the server's code) (DONE)
-    8. Problems in state 3 (done)
-    9. Some bugs when toggling top_done to 1 and top_start to 0, check it
+    8. Problems in state 3 (DONE)
+    9. Some bugs when toggling top_done to 1 and top_start to 0, check it + main controller issue, maybe try to tweak the tvalid and tready in output FIFO?
 */
 `timescale 1ns / 1ps
 
@@ -65,6 +65,7 @@ module axis_top (
     localparam NUM_O_ELEMENTS = (ROW_SIZE_MAT_C/NUM_CORES)*COL_SIZE_MAT_C;
     localparam DATA_COUNT_I = clog2(INNER_DIMENSION*I_OUTER_DIMENSION) + 1; // Used for counting the required width for WR_DATA_COUNT_WIDTH parameter in FIFO
     localparam DATA_COUNT_W = clog2(INNER_DIMENSION*W_OUTER_DIMENSION) + 1;   
+    localparam DATA_COUNT_O = clog2(COL_SIZE_MAT_C*ROW_SIZE_MAT_C/NUM_CORES) + 1;
     localparam ADDR_WIDTH_I = clog2((INNER_DIMENSION*I_OUTER_DIMENSION*WIDTH)/(WIDTH*CHUNK_SIZE*NUM_CORES)); // Used for determining the width of wb and input address and other parameters in BRAMs
     localparam ADDR_WIDTH_W = clog2((INNER_DIMENSION*W_OUTER_DIMENSION*WIDTH)/(WIDTH*CHUNK_SIZE));
 
@@ -82,6 +83,7 @@ module axis_top (
     wire [WIDTH*CHUNK_SIZE*NUM_CORES:0] s2mm_data;
     wire s2mm_valid, s2mm_valid_reg;
     wire s2mm_last, s2mm_last_reg;
+    wire [DATA_COUNT_O-1:0] s2mm_data_count_o;
 
     // *** MM2S FIFO: INPUT ************************************************************
     // xpm_fifo_axis: AXI Stream FIFO
@@ -322,7 +324,7 @@ module axis_top (
                     cnt_word_i_next = cnt_word_i_reg + 1;
                 end
             end
-            2: // Start the Top module
+            2: // Start the Top module and begin inserting the result to FIFO
             begin
                 state_next = 3;          
             end
@@ -372,7 +374,7 @@ module axis_top (
 
     // Control S2MM FIFO
     assign s2mm_data = out_core;
-    assign s2mm_valid = (state_reg == 4) ? 1 : 0;
+    assign s2mm_valid = (state_reg == 2) ? 1 : 0;
     register #(1) reg_s2mm_valid(aclk, aresetn, s2mm_valid, s2mm_valid_reg); 
     assign s2mm_last = ((state_reg == 4) && (cnt_word_i_reg == NUM_O_ELEMENTS-1)) ? 1 : 0;
     register #(1) reg_s2mm_last(aclk, aresetn, s2mm_last, s2mm_last_reg);
@@ -390,7 +392,7 @@ module axis_top (
         .PACKET_FIFO("false"),               // String
         .PROG_EMPTY_THRESH(10),              // DECIMAL
         .PROG_FULL_THRESH(10),               // DECIMAL
-        .RD_DATA_COUNT_WIDTH(1),             // DECIMAL
+        .RD_DATA_COUNT_WIDTH(DATA_COUNT_O),  // DECIMAL
         .RELATED_CLOCKS(0),                  // DECIMAL
         .SIM_ASSERT_CHK(0),                  // DECIMAL
         .TDATA_WIDTH(WIDTH*CHUNK_SIZE*NUM_CORES), // DECIMAL, data width 64 bit
@@ -398,7 +400,7 @@ module axis_top (
         .TID_WIDTH(1),                       // DECIMAL
         .TUSER_WIDTH(1),                     // DECIMAL
         .USE_ADV_FEATURES("0004"),           // String, write data count
-        .WR_DATA_COUNT_WIDTH(21)              // DECIMAL, width log2(256)+1=9 
+        .WR_DATA_COUNT_WIDTH(21)              // DECIMAL, 
     )
     xpm_fifo_axis_o
     (
@@ -436,7 +438,7 @@ module axis_top (
         .m_axis_tstrb(), 
         .m_axis_tuser(),  
         
-        .wr_data_count_axis() // data count
+        .rd_data_count_axis() // data count
     );
 
 endmodule
