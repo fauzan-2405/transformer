@@ -338,6 +338,7 @@ module axis_top (
             4: // Read data output from Top
             begin
                 if ((s2mm_last_reg == 1) && (m_axis_tvalid == 0)) // If there is no valid data to be sent
+                begin
                     state_next = 0;
                     cnt_word_i_next = 0;
                     cnt_word_w_next = 0;
