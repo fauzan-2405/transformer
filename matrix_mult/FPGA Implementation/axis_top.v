@@ -324,11 +324,11 @@ module axis_top (
                     cnt_word_i_next = cnt_word_i_reg + 1;
                 end
             end
-            2: // Start the Top module and begin inserting the result to FIFO
+            2: // Start the Top module 
             begin
                 state_next = 3;          
             end
-            3: // Wait until Top computation done and S2MM FIFO is ready to accept data
+            3: // Wait until Top computation done + begin inserting the result to FIFO and S2MM FIFO is ready to accept data
             begin
                 if (s2mm_ready && top_done)
                 begin
@@ -337,15 +337,10 @@ module axis_top (
             end
             4: // Read data output from Top
             begin
-                if (cnt_word_i_reg == NUM_O_ELEMENTS-1) // If the counter for output reached its maximum value, we just reuse the cnt_word_i_reg
-                begin
+                if ((s2mm_last_reg == 1) && (m_axis_tvalid == 0)) // If there is no valid data to be sent
                     state_next = 0;
                     cnt_word_i_next = 0;
                     cnt_word_w_next = 0;
-                end
-                else
-                begin
-                    cnt_word_i_next = cnt_word_i_reg + 1;
                 end
             end
         endcase
@@ -374,10 +369,14 @@ module axis_top (
 
     // Control S2MM FIFO
     assign s2mm_data = out_core;
-    assign s2mm_valid = (state_reg == 2) ? 1 : 0;
+    assign s2mm_valid = (state_reg == 3) ? 1 : 0;
     register #(1) reg_s2mm_valid(aclk, aresetn, s2mm_valid, s2mm_valid_reg); 
-    assign s2mm_last = ((state_reg == 4) && (cnt_word_i_reg == NUM_O_ELEMENTS-1)) ? 1 : 0;
+    assign s2mm_last = (state_reg == 4) ? 1 : 0;
     register #(1) reg_s2mm_last(aclk, aresetn, s2mm_last, s2mm_last_reg);
+    /*
+    assign m_axis_tlast = (s2mm_last_reg == 0) ? 1 : 0;
+    register #1(1) reg_m_axis_tlast(aclk, aresetn, s2mm_last, m_axis_tlast_reg)
+    */
 
     // *** S2MM FIFO Output ************************************************************
     // xpm_fifo_axis: AXI Stream FIFO
@@ -392,7 +391,7 @@ module axis_top (
         .PACKET_FIFO("false"),               // String
         .PROG_EMPTY_THRESH(10),              // DECIMAL
         .PROG_FULL_THRESH(10),               // DECIMAL
-        .RD_DATA_COUNT_WIDTH(DATA_COUNT_O),  // DECIMAL
+        .RD_DATA_COUNT_WIDTH(1),             // DECIMAL
         .RELATED_CLOCKS(0),                  // DECIMAL
         .SIM_ASSERT_CHK(0),                  // DECIMAL
         .TDATA_WIDTH(WIDTH*CHUNK_SIZE*NUM_CORES), // DECIMAL, data width 64 bit
