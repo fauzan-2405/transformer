@@ -77,7 +77,7 @@ module top_v2 #(
         // Port A module parameters
         .WRITE_DATA_WIDTH_A(WIDTH*CHUNK_SIZE*NUM_CORES), // DECIMAL, varying based on the matrix size
         .READ_DATA_WIDTH_A(WIDTH*CHUNK_SIZE*NUM_CORES),  // DECIMAL, varying based on the matrix size
-        .BYTE_WRITE_WIDTH_A(8*NUM_CORES),                // DECIMAL, how many bytes in WRITE_DATA_WIDTH_A
+        .BYTE_WRITE_WIDTH_A(WIDTH*CHUNK_SIZE*NUM_CORES), // DECIMAL, how many bytes in WRITE_DATA_WIDTH_A
         .ADDR_WIDTH_A(ADDR_WIDTH_I),                   // DECIMAL, clog2(MEMORY_SIZE/WRITE_DATA_WIDTH_A)
         .READ_RESET_VALUE_A("0"),            // String
         .READ_LATENCY_A(1),                  // DECIMAL
@@ -87,7 +87,7 @@ module top_v2 #(
         // Port B module parameters  
         .WRITE_DATA_WIDTH_B(WIDTH*CHUNK_SIZE*NUM_CORES), // DECIMAL, varying based on the matrix size
         .READ_DATA_WIDTH_B(WIDTH*CHUNK_SIZE*NUM_CORES), // DECIMAL, varying based on the matrix size
-        .BYTE_WRITE_WIDTH_B(8*NUM_CORES),              // DECIMAL, how many bytes in WRITE_DATA_WIDTH_A
+        .BYTE_WRITE_WIDTH_B(WIDTH*CHUNK_SIZE*NUM_CORES), // DECIMAL, how many bytes in WRITE_DATA_WIDTH_A
         .ADDR_WIDTH_B(ADDR_WIDTH_I),                   // DECIMAL, clog2(MEMORY_SIZE/WRITE_DATA_WIDTH_A)
         .READ_RESET_VALUE_B("0"),            // String
         .READ_LATENCY_B(1),                  // DECIMAL
