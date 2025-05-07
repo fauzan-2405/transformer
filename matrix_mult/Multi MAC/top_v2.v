@@ -2,7 +2,9 @@
 // Used to combine toplevel_v2.v with BRAM
 // The output will be 64-bit x NUM_CORES
 // This version does not use buffer for its output. If you want to use a BRAM for the output, see top_v2.v
-
+/* Update
+    1. changed the BYTE_WRITE_WIDTH_A on input BRAM so the same size as WRITE_DATA_WIDTH_A
+*/
 //`include "toplevel_v2.v"
 
 module top_v2 #(
