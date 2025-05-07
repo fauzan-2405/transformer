@@ -10,6 +10,9 @@
     7. There are problems in state machine 1, it will not move to the next state, fix it (I already tried on the server's code) (DONE)
     8. Problems in state 3 (DONE)
     9. Some bugs when toggling top_done to 1 and top_start to 0, check it + main controller issue, maybe try to tweak the tvalid and tready in output FIFO? (DONE)
+
+Some changes after synthesis:
+    1. FIFO_DEPTH is restrictly tied to power of two, so FIFO_DEPTH for weight fifos is adjusted
 */
 `timescale 1ns / 1ps
 
@@ -155,7 +158,7 @@ module axis_top (
         .CDC_SYNC_STAGES(2),                 // DECIMAL
         .CLOCKING_MODE("common_clock"),      // String
         .ECC_MODE("no_ecc"),                 // String
-        .FIFO_DEPTH(INNER_DIMENSION*W_OUTER_DIMENSION), // DECIMAL, THIS IS IMPORTANT
+        .FIFO_DEPTH(INNER_DIMENSION*I_OUTER_DIMENSION), // DECIMAL, THIS IS IMPORTANT (changed so it can be synthesized)
         .FIFO_MEMORY_TYPE("auto"),           // String
         .PACKET_FIFO("false"),               // String
         .PROG_EMPTY_THRESH(10),              // DECIMAL
