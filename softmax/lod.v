@@ -11,8 +11,9 @@ module lod (
         for (i = 31; i >= 0; i = i - 1) begin
             if (num[i] == 1'b1) begin
                 pos = i[4:0];
-                disable for_loop;
+                i = -1; // force exit in pure Verilog
             end
         end
     end
 endmodule
+
