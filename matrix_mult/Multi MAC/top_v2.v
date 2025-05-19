@@ -47,7 +47,7 @@ module top_v2 #(
 
     // Data output port
     output reg [(WIDTH*CHUNK_SIZE*NUM_CORES)-1:0] out_bram, // DONT FORGET TO EDIT THIS EVERYTIME YOU USE DIFFERENT 
-    output done
+    output ready, done
 );
 
     localparam MEMORY_SIZE_I = INNER_DIMENSION*I_OUTER_DIMENSION*WIDTH;
@@ -229,6 +229,7 @@ module top_v2 #(
     // ADD THE RST_N CONDITION (DONE)
     // Based on the testbench behavior, one row of output takes 35 clock cycles
     reg [WIDTH-1:0] counter, counter_row, counter_col, flag;
+    reg counter_acc_done;
     
     // Port B controller
     always @(posedge clk) begin
@@ -248,6 +249,7 @@ module top_v2 #(
             counter <= 0;
             counter_row <=0;
             counter_col <=0;
+            counter_acc_done <= 0;
             internal_rst_n <=0;
             internal_reset_acc <=0;
             flag <=0;
@@ -304,6 +306,21 @@ module top_v2 #(
     always @(posedge accumulator_done_top) begin
         out_bram <= out_core;
     end
+
+    // Checking if the first accumulator is done
+    always @(*) begin
+        if (accumulator_done_top) begin
+            if (!counter_acc_done) begin
+                counter_acc_done <= ~counter_acc_done;
+            end
+            else begin
+                counter_acc_done <= counter_acc_done;
+            end
+        end
+    end
+
+    // Assign ready port when first accumulator_done_top is 1
+    assign ready = counter_acc_done;
 
     // Done assigning
     always @(posedge accumulator_done_top) begin
