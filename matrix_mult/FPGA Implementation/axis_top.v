@@ -215,6 +215,7 @@ module axis_top (
     // *** Top *******************************************************************
     wire top_start;
     wire top_done;
+    wire top_ready;
     wire wb_ena;
     wire [ADDR_WIDTH_W-1:0] wb_addra;
     wire [WIDTH*CHUNK_SIZE-1:0] wb_dina;
@@ -240,7 +241,7 @@ module axis_top (
     (
         .clk(aclk),
         .rst_n(aresetn),
-        //.ready(ready),
+
         .start(top_start),
         .done(top_done),
         .wb_ena(wb_ena),
@@ -253,7 +254,8 @@ module axis_top (
         .in_dina(in_dina),
         .in_wea(in_wea),
 
-        .out_bram(out_core)
+        .out_bram(out_core),
+        .ready(top_ready)
     );
     
     // *** Main control *********************************************************
@@ -367,7 +369,7 @@ module axis_top (
 
     // Control S2MM FIFO
     assign s2mm_data = out_core;
-    assign s2mm_valid = (state_reg == 3) ? 1 : 0;
+    assign s2mm_valid = ((state_reg == 3) && (top_ready)) ? 1 : 0;
     register #(1) reg_s2mm_valid(aclk, aresetn, s2mm_valid, s2mm_valid_reg); 
     assign s2mm_last = (top_done == 1) ? 1 : 0;
     register #(1) reg_s2mm_last(aclk, aresetn, s2mm_last, s2mm_last_reg);
