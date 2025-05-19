@@ -84,8 +84,8 @@ module axis_top (
     // S2MM FIFO (Outputs)
     wire s2mm_ready;
     wire [WIDTH*CHUNK_SIZE*NUM_CORES:0] s2mm_data;
-    wire s2mm_valid, s2mm_valid_reg;
-    wire s2mm_last, s2mm_last_reg;
+    wire s2mm_valid;
+    wire s2mm_last;
     wire [DATA_COUNT_O-1:0] s2mm_data_count_o;
 
     // *** MM2S FIFO: INPUT ************************************************************
@@ -342,7 +342,7 @@ module axis_top (
             end
             4: // Read data output from Top
             begin
-                if ((s2mm_last_reg == 1) && (m_axis_tvalid == 0)) // If there is no valid data to be sent
+                if ((s2mm_last == 1) && (m_axis_tvalid == 0)) // If there is no valid data to be sent
                 begin
                     state_next = 0;
                     cnt_word_i_next = 0;
@@ -370,9 +370,9 @@ module axis_top (
     // Control S2MM FIFO
     assign s2mm_data = out_core;
     assign s2mm_valid = ((state_reg == 3) && (top_ready)) ? 1 : 0;
-    register #(1) reg_s2mm_valid(aclk, aresetn, s2mm_valid, s2mm_valid_reg); 
+    // register #(1) reg_s2mm_valid(aclk, aresetn, s2mm_valid, s2mm_valid_reg); 
     assign s2mm_last = (top_done == 1) ? 1 : 0;
-    register #(1) reg_s2mm_last(aclk, aresetn, s2mm_last, s2mm_last_reg);
+    // register #(1) reg_s2mm_last(aclk, aresetn, s2mm_last, s2mm_last_reg);
 
     // *** S2MM FIFO Output ************************************************************
     // xpm_fifo_axis: AXI Stream FIFO
@@ -415,11 +415,11 @@ module axis_top (
         
         .s_axis_tready(s2mm_ready), // ready    
         .s_axis_tdata(s2mm_data), // data
-        .s_axis_tvalid(s2mm_valid_reg), // valid
+        .s_axis_tvalid(s2mm_valid), // valid
         .s_axis_tdest(1'b0), 
         .s_axis_tid(1'b0), 
         .s_axis_tkeep(8'hff), 
-        .s_axis_tlast(s2mm_last_reg),
+        .s_axis_tlast(s2mm_last),
         .s_axis_tstrb(8'hff), 
         .s_axis_tuser(1'b0), 
         
