@@ -47,7 +47,7 @@ module top_v2 #(
 
     // Data output port
     output reg [(WIDTH*CHUNK_SIZE*NUM_CORES)-1:0] out_bram, // DONT FORGET TO EDIT THIS EVERYTIME YOU USE DIFFERENT 
-    output ready, done
+    output top_ready, done
 );
 
     localparam MEMORY_SIZE_I = INNER_DIMENSION*I_OUTER_DIMENSION*WIDTH;
@@ -319,8 +319,8 @@ module top_v2 #(
         end
     end
 
-    // Assign ready port when first accumulator_done_top is 1
-    assign ready = counter_acc_done;
+    // Assign top_ready port when first accumulator_done_top is 1
+    assign top_ready = counter_acc_done;
 
     // Done assigning
     always @(posedge accumulator_done_top) begin
