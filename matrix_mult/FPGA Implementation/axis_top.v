@@ -255,7 +255,7 @@ module axis_top (
         .in_wea(in_wea),
 
         .out_bram(out_core),
-        .ready(top_ready)
+        .top_ready(top_ready)
     );
     
     // *** Main control *********************************************************
