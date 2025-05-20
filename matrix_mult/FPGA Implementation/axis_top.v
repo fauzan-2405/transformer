@@ -136,7 +136,7 @@ module axis_top (
         .s_axis_tid(1'b0), 
         .s_axis_tkeep({TKEEP_WIDTH_I{1'b1}}), 
         .s_axis_tlast(s_axis_i_tlast),
-        .s_axis_tstrb(8'hff), 
+        .s_axis_tstrb({TKEEP_WIDTH_I{1'b1}}), 
         .s_axis_tuser(1'b0), 
         
         .m_axis_tready(mm2s_ready_i_reg), // ready  
@@ -198,7 +198,7 @@ module axis_top (
         .s_axis_tid(1'b0), 
         .s_axis_tkeep({TKEEP_WIDTH_W{1'b1}}), 
         .s_axis_tlast(s_axis_w_tlast),
-        .s_axis_tstrb(8'hff), 
+        .s_axis_tstrb({TKEEP_WIDTH_W{1'b1}}), 
         .s_axis_tuser(1'b0), 
         
         .m_axis_tready(mm2s_ready_w_reg), // ready  
@@ -422,7 +422,7 @@ module axis_top (
         .s_axis_tid(1'b0), 
         .s_axis_tkeep({TKEEP_WIDTH_I{1'b1}}), 
         .s_axis_tlast(s2mm_last),
-        .s_axis_tstrb(8'hff), 
+        .s_axis_tstrb({TKEEP_WIDTH_I{1'b1}}), 
         .s_axis_tuser(1'b0), 
         
         .m_axis_tready(m_axis_tready), // ready  
