@@ -71,6 +71,8 @@ module axis_top (
     localparam DATA_COUNT_O = clog2(COL_SIZE_MAT_C*ROW_SIZE_MAT_C/NUM_CORES) + 1;
     localparam ADDR_WIDTH_I = clog2((INNER_DIMENSION*I_OUTER_DIMENSION*WIDTH)/(WIDTH*CHUNK_SIZE*NUM_CORES)); // Used for determining the width of wb and input address and other parameters in BRAMs
     localparam ADDR_WIDTH_W = clog2((INNER_DIMENSION*W_OUTER_DIMENSION*WIDTH)/(WIDTH*CHUNK_SIZE));
+    localparam TKEEP_WIDTH_I = WIDTH*CHUNK_SIZE*NUM_CORES / 8;
+    localparam TKEEP_WIDTH_W = WIDTH*CHUNK_SIZE / 8;
 
     // MM2S FIFO (Inputs and Weights)
     wire [DATA_COUNT_I-1:0] mm2s_data_count_i;
@@ -132,7 +134,7 @@ module axis_top (
         .s_axis_tvalid(s_axis_i_tvalid), // valid
         .s_axis_tdest(1'b0), 
         .s_axis_tid(1'b0), 
-        .s_axis_tkeep(8'hff), 
+        .s_axis_tkeep({TKEEP_WIDTH_I{1'b1}}), 
         .s_axis_tlast(s_axis_i_tlast),
         .s_axis_tstrb(8'hff), 
         .s_axis_tuser(1'b0), 
@@ -194,7 +196,7 @@ module axis_top (
         .s_axis_tvalid(s_axis_w_tvalid), // valid
         .s_axis_tdest(1'b0), 
         .s_axis_tid(1'b0), 
-        .s_axis_tkeep(8'hff), 
+        .s_axis_tkeep({TKEEP_WIDTH_W{1'b1}}), 
         .s_axis_tlast(s_axis_w_tlast),
         .s_axis_tstrb(8'hff), 
         .s_axis_tuser(1'b0), 
@@ -418,7 +420,7 @@ module axis_top (
         .s_axis_tvalid(s2mm_valid), // valid
         .s_axis_tdest(1'b0), 
         .s_axis_tid(1'b0), 
-        .s_axis_tkeep(8'hff), 
+        .s_axis_tkeep({TKEEP_WIDTH_I{1'b1}}), 
         .s_axis_tlast(s2mm_last),
         .s_axis_tstrb(8'hff), 
         .s_axis_tuser(1'b0), 
