@@ -1,9 +1,21 @@
 // top.v
 // Used to combine toplevel_v2.v with BRAM
 // The output will be 64-bit x NUM_CORES
-// This version does not use buffer for its output. If you want to use a BRAM for the output, see top_v2.v
-/* Update
-    1. changed the BYTE_WRITE_WIDTH_A on input BRAM so the same size as WRITE_DATA_WIDTH_A
+/* TODO: Critical Warning Solving
+    Multi-driven net on pin Q with 1st driver pin
+    1. flag (249)
+    2. counter_acc_done (246)
+    3. internal_rst_n (218)
+    4. counter (243)
+    5. counter_col (245)
+
+    Multi-driven net Q is connected to at least one constant driver which has been preserved
+    1. flag (249)
+    2. internal_rst_n (218) (?)
+    3. counter (243)
+    4. counter_col (245)
+    5. counter_row (244)
+
 */
 //`include "toplevel_v2.v"
 
