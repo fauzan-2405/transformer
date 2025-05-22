@@ -219,7 +219,12 @@ module top_v2 #(
 
     
     // *** Toplevel ***********************************************************
-    wire systolic_finish_top, accumulator_done_top;
+    wire systolic_finish_top; 
+    wire accumulator_done_top;
+    reg accumulator_done_top_d; // Delayed version of accumulator_done_top
+    wire accumulator_done_top_rising; // Rising edge of accumulator_done_top
+    assign accumulator_done_top_rising = ~accumulator_done_top_d & accumulator_done_top;
+
     wire [(WIDTH*CHUNK_SIZE*NUM_CORES)-1:0] out_core;
     reg internal_rst_n;
     reg internal_reset_acc;
@@ -249,6 +254,7 @@ module top_v2 #(
             counter_acc_done <= 0;
             internal_rst_n <=0;
             internal_reset_acc <=0;
+            accumulator_done_top_d <= 0;
             flag <=0;
             in_enb <=0;
             wb_enb <=0;
@@ -257,6 +263,8 @@ module top_v2 #(
             out_bram <=0;
         end
         else begin
+            accumulator_done_top_d <= accumulator_done_top; // Assigning the delayed version
+
             // Port B Controller
             if (start || ((wb_wea == 8'hFF) && (in_wea == 8'hFF))) begin
                 wb_enb <=1;
@@ -287,7 +295,7 @@ module top_v2 #(
             end
 
             // Column/Row Update
-            if (accumulator_done_top) begin
+            if (accumulator_done_top_rising) begin
                 // counter_row indicates the i-th input matrix (I) row
                 // counter_col indicates the i-th weight matrix (W) row
 
@@ -319,106 +327,5 @@ module top_v2 #(
     assign top_ready = counter_acc_done;
     // Done assigning based on flag
     assign done = (flag == MAX_FLAG);
-
-    // Port B controller
-    /*
-    always @(posedge clk) begin
-        if (start || ((wb_wea == 8'hFF) && (in_wea == 8'hFF))) begin
-            wb_enb <= 1;
-            in_enb <= 1;
-        end
-    end
-    */
-
-    /*
-    always @(posedge clk) begin
-        if (start) begin
-            if (systolic_finish_top == 1) begin
-                internal_rst_n <= 0;
-            end else begin // kalau 0
-                internal_rst_n <= 1;
-            end
-        end
-    end
-
-    always @(posedge systolic_finish_top) begin
-        if (accumulator_done_top == 1) begin
-            internal_reset_acc <= 0;
-        end else begin
-            internal_reset_acc <= 1;
-        end
-    end
-    */
-
-    // Counter controller (input matrix will be the stationary input)
-    /*
-    always @(posedge systolic_finish_top) begin
-        in_addrb <= counter + (INNER_DIMENSION/BLOCK_SIZE)*counter_row;
-        wb_addrb <= counter + (INNER_DIMENSION/BLOCK_SIZE)*counter_col;
-    end
-    */
-
-    // counter indicates the matrix C element iteration
-    // counter_row indicates the i-th input matrix (I) row
-    // counter_col indicates the i-th weight matrix (W) row
-    /*
-    always @(posedge systolic_finish_top) begin
-        if (counter == ((INNER_DIMENSION/BLOCK_SIZE) - 1)) begin
-            counter <=0;
-        end
-        else begin
-            counter <= counter + 1;
-        end
-    end
-    */
-
-    // Check if we already at the end of the MAT C column
-    /*
-    always @(posedge accumulator_done_top) begin 
-        if (counter_col == (COL_SIZE_MAT_C - 1)) begin
-            counter_col <= 0;
-            counter_row <= counter_row + 1;
-        end else begin
-            counter_col <= counter_col + 1;
-        end
-    end
-    */
-
-    // Output controller
-    /*
-    always @(posedge accumulator_done_top) begin
-        out_bram <= out_core;
-    end
-    */
-
-    // Checking if the first accumulator is done
-    /*
-    always @(*) begin
-        if (accumulator_done_top) begin
-            if (!counter_acc_done) begin
-                counter_acc_done <= ~counter_acc_done;
-            end
-            else begin
-                counter_acc_done <= counter_acc_done;
-            end
-        end
-    end
-    */
-
-    /*
-    // Assign top_ready port when first accumulator_done_top is 1
-    assign top_ready = counter_acc_done;
-
-    // Done assigning
-    always @(posedge accumulator_done_top) begin
-        if (flag == MAX_FLAG) begin
-            flag <= flag;
-        end
-        else begin
-            flag <= flag + 1;
-        end
-    end
-    assign done = (flag == MAX_FLAG) ? 1:0;
-    */
 
 endmodule
