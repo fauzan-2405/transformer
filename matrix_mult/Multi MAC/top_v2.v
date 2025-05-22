@@ -11,7 +11,7 @@
 
     Multi-driven net Q is connected to at least one constant driver which has been preserved
     1. flag (249)
-    2. internal_rst_n (218) (?)
+    2. internal_rst_n + internal_reset_acc (218) (?)
     3. counter (243)
     4. counter_col (245)
     5. counter_row (244)
@@ -225,7 +225,7 @@ module top_v2 #(
     reg internal_reset_acc;
     // Toggle start based on done variable
     wire top_start;
-    assign top_start = ((start == 1) && (done == 0)) ? 1:0;
+    assign top_start = (start && !done);
 
     toplevel_v2 #(.WIDTH(WIDTH), .FRAC_WIDTH(FRAC_WIDTH), .BLOCK_SIZE(BLOCK_SIZE), .CHUNK_SIZE(CHUNK_SIZE), .INNER_DIMENSION(INNER_DIMENSION), .NUM_CORES(NUM_CORES)) 
     toplevel_inst (
@@ -236,26 +236,11 @@ module top_v2 #(
     );
 
     // *** Main Controller **********************************************************
-    // ADDD THE RESET ACC LOGICC (DONE)
-    // EDIT THE RST_N AND RESET ACC LOGIC (DONE)
-    // ADD THE RST_N CONDITION (DONE)
     // Based on the testbench behavior, one row of output takes 35 clock cycles
     reg [WIDTH-1:0] counter, counter_row, counter_col, flag;
     reg counter_acc_done;
-    
-    // Port B controller
-    always @(posedge clk) begin
-        if (start || ((wb_wea == 8'hFF) && (in_wea == 8'hFF))) begin
-            wb_enb <= 1;
-            in_enb <= 1;
-        end
-    end
-    /*
-    assign wb_enb = (wb_wea == 8'hFF) && (in_wea == 8'hFF) ? 1 : 0;
-    assign in_enb = (wb_wea == 8'hFF) && (in_wea == 8'hFF) ? 1 : 0;
-    */
 
-    // Reset and counter controller
+    // Main controller logic
     always @(posedge clk) begin
         if (~rst_n) begin
             counter <= 0;
@@ -265,9 +250,87 @@ module top_v2 #(
             internal_rst_n <=0;
             internal_reset_acc <=0;
             flag <=0;
+            in_enb <=0;
+            wb_enb <=0;
+            in_addrb <=0;
+            wb_addrb <=0;
+            out_bram <=0;
+        end
+        else begin
+            // Port B Controller
+            if (start || ((wb_wea == 8'hFF) && (in_wea == 8'hFF))) begin
+                wb_enb <=1;
+                in_enb <=1;
+            end
+
+            // Internal Reset Control
+            if (start) begin
+                internal_rst_n <= ~systolic_finish_top;
+            end
+
+            if (systolic_finish_top) begin
+                internal_reset_acc <= ~accumulator_done_top;
+            end
+
+            // Counter Update
+            if (systolic_finish_top) begin
+                // counter indicates the matrix C element iteration
+                if (counter == ((INNER_DIMENSION/BLOCK_SIZE) - 1)) begin
+                    counter <=0;
+                end
+                else begin
+                    counter <= counter + 1;
+                end
+                // Address controller (input matrix will be the stationary input)
+                in_addrb <= counter + (INNER_DIMENSION/BLOCK_SIZE)*counter_row;
+                wb_addrb <= counter + (INNER_DIMENSION/BLOCK_SIZE)*counter_col;
+            end
+
+            // Column/Row Update
+            if (accumulator_done_top) begin
+                // counter_row indicates the i-th input matrix (I) row
+                // counter_col indicates the i-th weight matrix (W) row
+
+                // Check if we already at the end of the MAT C column
+                if (counter_col == (COL_SIZE_MAT_C - 1)) begin
+                    counter_col <= 0;
+                    counter_row <= counter_row + 1;
+                end else begin
+                    counter_col <= counter_col + 1;
+                end
+
+                // Assigning the output
+                out_bram <= out_core;
+
+                // Checking if the first accumulator is done
+                if (!counter_acc_done) begin
+                    counter_acc_done <=1;
+                end
+
+                // Flag assigning for 'done' variable
+                if (flag == !MAX_FLAG) begin
+                    flag <= flag + 1;   
+                end
+            end
         end
     end
 
+    // Assign top_ready port when first accumulator_done_top is 1
+    assign top_ready = counter_acc_done;
+    // Done assigning based on flag
+    assign done = (flag == MAX_FLAG);
+
+    // Port B controller
+    /*
+    always @(posedge clk) begin
+        if (start || ((wb_wea == 8'hFF) && (in_wea == 8'hFF))) begin
+            wb_enb <= 1;
+            in_enb <= 1;
+        end
+    end
+    */
+
+    /*
     always @(posedge clk) begin
         if (start) begin
             if (systolic_finish_top == 1) begin
@@ -285,16 +348,20 @@ module top_v2 #(
             internal_reset_acc <= 1;
         end
     end
+    */
 
     // Counter controller (input matrix will be the stationary input)
+    /*
     always @(posedge systolic_finish_top) begin
         in_addrb <= counter + (INNER_DIMENSION/BLOCK_SIZE)*counter_row;
         wb_addrb <= counter + (INNER_DIMENSION/BLOCK_SIZE)*counter_col;
     end
+    */
 
     // counter indicates the matrix C element iteration
     // counter_row indicates the i-th input matrix (I) row
     // counter_col indicates the i-th weight matrix (W) row
+    /*
     always @(posedge systolic_finish_top) begin
         if (counter == ((INNER_DIMENSION/BLOCK_SIZE) - 1)) begin
             counter <=0;
@@ -303,8 +370,10 @@ module top_v2 #(
             counter <= counter + 1;
         end
     end
+    */
 
     // Check if we already at the end of the MAT C column
+    /*
     always @(posedge accumulator_done_top) begin 
         if (counter_col == (COL_SIZE_MAT_C - 1)) begin
             counter_col <= 0;
@@ -313,13 +382,17 @@ module top_v2 #(
             counter_col <= counter_col + 1;
         end
     end
+    */
 
     // Output controller
+    /*
     always @(posedge accumulator_done_top) begin
         out_bram <= out_core;
     end
+    */
 
     // Checking if the first accumulator is done
+    /*
     always @(*) begin
         if (accumulator_done_top) begin
             if (!counter_acc_done) begin
@@ -330,7 +403,9 @@ module top_v2 #(
             end
         end
     end
+    */
 
+    /*
     // Assign top_ready port when first accumulator_done_top is 1
     assign top_ready = counter_acc_done;
 
@@ -344,5 +419,6 @@ module top_v2 #(
         end
     end
     assign done = (flag == MAX_FLAG) ? 1:0;
+    */
 
 endmodule
