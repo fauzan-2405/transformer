@@ -308,7 +308,7 @@ module top_v2 #(
                 end
 
                 // Flag assigning for 'done' variable
-                if (flag == !MAX_FLAG) begin
+                if (flag != MAX_FLAG) begin
                     flag <= flag + 1;   
                 end
             end
