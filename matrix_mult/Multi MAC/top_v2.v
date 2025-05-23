@@ -1,22 +1,6 @@
 // top.v
 // Used to combine toplevel_v2.v with BRAM
 // The output will be 64-bit x NUM_CORES
-/* TODO: Critical Warning Solving
-    Multi-driven net on pin Q with 1st driver pin
-    1. flag (249)
-    2. counter_acc_done (246)
-    3. internal_rst_n (218)
-    4. counter (243)
-    5. counter_col (245)
-
-    Multi-driven net Q is connected to at least one constant driver which has been preserved
-    1. flag (249)
-    2. internal_rst_n + internal_reset_acc (218) (?)
-    3. counter (243)
-    4. counter_col (245)
-    5. counter_row (244)
-
-*/
 //`include "toplevel_v2.v"
 
 module top_v2 #(
@@ -264,6 +248,7 @@ module top_v2 #(
         end
         else begin
             accumulator_done_top_d <= accumulator_done_top; // Assigning the delayed version
+            counter_acc_done <= 0;
 
             // Port B Controller
             if (start || ((wb_wea == 8'hFF) && (in_wea == 8'hFF))) begin
@@ -311,9 +296,13 @@ module top_v2 #(
                 out_bram <= out_core;
 
                 // Checking if the first accumulator is done
+                /*
                 if (!counter_acc_done) begin
                     counter_acc_done <=1;
                 end
+                */
+                // Toggle counter_acc_done if the accumulator is done
+                counter_acc_done <= 1;
 
                 // Flag assigning for 'done' variable
                 if (flag != MAX_FLAG) begin
