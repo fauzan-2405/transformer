@@ -22,7 +22,7 @@ module n2r_buffer #(
     reg [7:0] counter_block; // Block counter to start slicing the input
     reg [(WIDTH*COL)-1:0] temp_buffer [0:BLOCK_SIZE*NUM_CORES-1];
 
-    integer i;
+    integer i, j;
 
     always @(posedge clk) begin
         if (!rst_n) begin
@@ -36,11 +36,14 @@ module n2r_buffer #(
                     // Update the counter_block value
                     counter_block <= counter_block*2 + 1;
 
-                    // Inse
-                    for (i = 0; i < BLOCK_SIZE*NUM_CORES; i = i + 1) begin
-                        out_n2r_buffer[(3-i)*64 +: 64] <= temp_buffer[i][127:64];
+                    // Slicing the buffer 
+                    for (j = 0; j < COL/BLOCK_SIZE; j = j + 1) begin // Col
+                        for (i = 0; i < BLOCK_SIZE*NUM_CORES; i = i + 1) begin // Row
+                            out_n2r_buffer[(BLOCK_SIZE*NUM_CORES-1-i)*32 +: 32] <= temp_buffer[i][((WIDTH*COL-1)-(32*j)) -: 32];
+                        end
                     end
-                end 
+                end
+                
                 else begin
                     temp_buffer[counter] <= in_n2r_buffer;
                     counter <= counter + 1;
