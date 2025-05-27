@@ -93,7 +93,7 @@ module n2r_buffer (
                 else begin
                     for (j = 0; j < COL/BLOCK_SIZE; j = j + 1) begin // Col
                         for (i = 0; i < BLOCK_SIZE*NUM_CORES; i = i + 1) begin // Row
-                            out_buffer[j][(BLOCK_SIZE*NUM_CORES-1-i)*32 +: 32] <= temp_buffer[counter_row+i][((WIDTH*COL-1)-(32*j)) -: 32];
+                            out_buffer[j][(BLOCK_SIZE*NUM_CORES-1-i)*32 +: 32] = temp_buffer[counter_row+i][((WIDTH*COL-1)-(32*j)) -: 32];
                         end
                     end
                 end
