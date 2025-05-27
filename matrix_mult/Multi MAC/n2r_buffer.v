@@ -2,7 +2,7 @@
 // Normal to Ready buffer
 // Used for changing the shape of the matrix from the normal version (row by row) to the ready to be inputted to the matrix multiplication module
 /* TODO
-    1. Solve the out_buffer[j], the j variable is not correct
+    1. Solve the out_buffer[j], the j variable seems incorrect
 */
 
 module n2r_buffer (
@@ -28,7 +28,7 @@ module n2r_buffer (
     reg [7:0] counter_out; // Output counter
 
     reg [(WIDTH*COL)-1:0] temp_buffer [0:BLOCK_SIZE*NUM_CORES-1];
-    reg [WIDTH*CHUNK_SIZE*NUM_CORES-1:0] out_buffer [0:(COL/BLOCK_SIZE)]
+    reg [WIDTH*CHUNK_SIZE*NUM_CORES-1:0] out_buffer [0:(COL/BLOCK_SIZE)];
 
     integer i, j;
 
@@ -41,18 +41,22 @@ module n2r_buffer (
             counter <= 0;
             counter_out <= 0;
             counter_block <= BLOCK_SIZE*NUM_CORES-1;
-            counter_row < = 0;
+            counter_row <= 0;
         end else begin
             state_reg <= state_next;
 
             // Inserting the input to the temporary buffer
             temp_buffer[counter] <= in_n2r_buffer;
             if (counter < ROW) begin
-                counter = counter + 1;
+                counter <= counter + 1;
             end
 
             // Sending the output on state 2
             if (state_reg == 2) begin
+                // Update the counter
+                counter_block <= counter_block*2 + 1;
+                counter_row <= counter_row + BLOCK_SIZE*NUM_CORES
+
                 out_n2r_buffer <= out_buffer[counter_out];
                 if (counter_out < COL/BLOCK_SIZE) begin
                     counter_out <= counter_out + 1;
@@ -85,12 +89,8 @@ module n2r_buffer (
             begin
                 if (counter_out == COL/BLOCK_SIZE) begin
                     state_next = 1;
-                    counter_row = counter_row + BLOCK_SIZE*NUM_CORES
                 end
                 else begin
-                    // Update the counter_block
-                    counter_block = counter_block*2 + 1;
-
                     for (j = 0; j < COL/BLOCK_SIZE; j = j + 1) begin // Col
                         for (i = 0; i < BLOCK_SIZE*NUM_CORES; i = i + 1) begin // Row
                             out_buffer[j][(BLOCK_SIZE*NUM_CORES-1-i)*32 +: 32] <= temp_buffer[counter_row+i][((WIDTH*COL-1)-(32*j)) -: 32];
@@ -102,36 +102,4 @@ module n2r_buffer (
     end
 
     assign slice_done = (counter_out == COL/BLOCK_SIZE);
-
-    /*
-    always @(posedge clk) begin
-        if (!rst_n) begin
-            counter <= 0;
-            counter_block <= BLOCK_SIZE*NUM_CORES-1;
-        end
-        else begin
-            if (en) begin
-                // Do the slicing when the counter is equal to the number of the block that we want to be outputted
-                if (counter == counter_block) begin
-                    // Update the counter_block value
-                    counter_block <= counter_block*2 + 1;
-
-                    // Slicing the buffer 
-                    for (j = 0; j < COL/BLOCK_SIZE; j = j + 1) begin // Col
-                        for (i = 0; i < BLOCK_SIZE*NUM_CORES; i = i + 1) begin // Row
-                            out_n2r_buffer[(BLOCK_SIZE*NUM_CORES-1-i)*32 +: 32] <= temp_buffer[i][((WIDTH*COL-1)-(32*j)) -: 32];
-                        end
-                    end
-                end
-
-                else begin
-                    temp_buffer[counter] <= in_n2r_buffer;
-                    counter <= counter + 1;
-                end
-            end
-        end
-    end
-    */
-
-
 endmodule
