@@ -74,11 +74,11 @@ module n2r_buffer (
             end
             1: // State 1: Increment the counter and insert the input to the temp_buffer
             begin
-                if (counter == counter_block) begin
+                if (counter >= counter_block) begin
                     state_next = 2;
                 end
-                else if (counter == ROW) begin
-                    state_next = 3;
+                else if ((counter == ROW-1) & (counter_block == ROW-1)) begin
+                    state_next = 0;
                 end
             end
             2: // State 2: Slice the temp_buffer to the out buffer and send the output
