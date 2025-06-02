@@ -44,7 +44,7 @@ module n2r_buffer_v2 #(
 
     // RAM Interface
     reg ram_we;
-    reg [$clog2(RAM_DEPTH)-1:0] ram_write_addr, ram_read_addr;
+    reg [$clog2(ROW)-1:0] ram_write_addr, ram_read_addr;
     reg [RAM_DATA_WIDTH-1:0] ram_din;
     wire [RAM_DATA_WIDTH-1:0] ram_dout;
 
@@ -72,7 +72,7 @@ module n2r_buffer_v2 #(
 
             STATE_FILL:
             begin
-                state_next = (counter >= ROW) ? STATE_SLICE_RD : STATE_FILL;
+                state_next = (counter >= ROW - 1) ? STATE_SLICE_RD : STATE_FILL;
             end
 
             STATE_SLICE_RD:
@@ -157,7 +157,8 @@ module n2r_buffer_v2 #(
     // Instantiate BRAM
     ram_1w1r #(
         .DATA_WIDTH(RAM_DATA_WIDTH),
-        .DEPTH(RAM_DEPTH)
+        .DEPTH(RAM_DEPTH),
+        .ROW(ROW)
     ) temp_buffer_ram (
         .clk(clk),
         .we(ram_we),

@@ -3,12 +3,13 @@
 
 module ram_1w1r #(
     parameter DATA_WIDTH = 4096,
-    parameter DEPTH = 64
+    parameter DEPTH = 64,
+    parameter ROW = 8
 ) (
     input clk,
     input we,
-    input [$clog2(DEPTH-1):0] write_addr,
-    input [$clog2(DEPTH-1):0] read_addr,
+    input [$clog2(ROW)-1:0] write_addr,
+    input [$clog2(ROW)-1:0] read_addr,
     input [DATA_WIDTH-1:0] din,
     output reg [DATA_WIDTH-1:0] dout
 );
