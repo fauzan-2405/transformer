@@ -6,7 +6,7 @@ module tb_n2r_buffer;
     parameter COL         = 6;
     parameter ROW         = 8;
     parameter BLOCK_SIZE  = 2;
-    parameter CHUNK_SIZE  = 2;
+    parameter CHUNK_SIZE  = 4;
     parameter NUM_CORES   = 2;
     parameter DATA_WIDTH  = WIDTH * COL; // 96
     parameter OUT_WIDTH   = WIDTH * CHUNK_SIZE * NUM_CORES; // 64
@@ -39,44 +39,41 @@ module tb_n2r_buffer;
     // Clock
     always #5 clk = ~clk;
 
-    integer i;
+    integer i, j;
+    reg [WIDTH*COL-1:0] temp_row;
+    reg [15:0] val;
+    reg [15:0] q88_val;
 
     initial begin
-        // Reset
         rst_n = 0;
         #10 rst_n = 1;
-        #5 en = 1;
+        #5  en = 1;
 
-        // Feed 8 rows (96 bits each)
-        // Q8.8 values from 1.0 to 48.0 (just for clarity)
-        for (i = 0; i < 8; i = i + 1) begin
-            in_n2r_buffer = {
-                16'h0000 + (i*6 + 1)*256,
-                16'h0000 + (i*6 + 2)*256,
-                16'h0000 + (i*6 + 3)*256,
-                16'h0000 + (i*6 + 4)*256,
-                16'h0000 + (i*6 + 5)*256,
-                16'h0000 + (i*6 + 6)*256
-            };
+        // Feed ROW rows
+        for (i = 0; i < ROW; i = i + 1) begin
+            temp_row = 0;
+            $write("in_n2r_buffer = %0d'h", WIDTH*COL); // Print bit width
+            for (j = 0; j < COL; j = j + 1) begin
+                val = i * COL + j;        // Start from 0.0
+                q88_val = val * 256;      // Q8.8 format (val << 8)
+                temp_row = (temp_row << 16) | q88_val;
+                $write("%04h", q88_val);
+                if (j != COL - 1) $write("_");
+            end
+            $write("; // ");
+            for (j = 0; j < COL; j = j + 1) begin
+                val = i * COL + j;
+                $write("%0d.0 ", val);
+            end
+            $write("\n");
+
+            in_n2r_buffer = temp_row;
             #10;
         end
 
         //en = 0;
         #200;
         $finish;
-    end
-
-    // Display output in Q8.8 format
-    always @(posedge clk) begin
-        if (slice_done) begin
-            $display("OUT: %h | %0d.%0d %0d.%0d %0d.%0d %0d.%0d",
-                out_n2r_buffer,
-                out_n2r_buffer[63:56], out_n2r_buffer[55:48], // 1st 16-bit value
-                out_n2r_buffer[47:40], out_n2r_buffer[39:32],
-                out_n2r_buffer[31:24], out_n2r_buffer[23:16],
-                out_n2r_buffer[15:8],  out_n2r_buffer[7:0]
-            );
-        end
     end
 
 endmodule
