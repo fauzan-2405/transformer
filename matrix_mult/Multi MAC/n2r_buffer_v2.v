@@ -65,7 +65,7 @@ module n2r_buffer_v2 #(
     // FSM next state logic
     always @(*) begin
         case(state_reg)
-        STATE_IDLE:
+            STATE_IDLE:
             begin
                 state_next = en ? STATE_FILL : STATE_IDLE;
             end
@@ -77,7 +77,7 @@ module n2r_buffer_v2 #(
 
             STATE_SLICE_RD:
             begin
-                state_next = (slice_load_counter >= SLICE_ROWS - 1) ? STATE_OUTPUT : STATE_SLICE_RD;
+                state_next = ((ram_read_addr  >= SLICE_ROWS - 1) && (slice_load_counter >= SLICE_ROWS - 1)) ? STATE_OUTPUT : STATE_SLICE_RD;
             end
 
             STATE_OUTPUT:
@@ -129,8 +129,12 @@ module n2r_buffer_v2 #(
                     slice_row[slice_load_counter] <= ram_dout;
 
                     if (slice_load_counter == SLICE_ROWS - 1) begin
-                        slice_ready <= 1;
-                        slice_load_counter <= 0;
+                        if (ram_read_addr == slice_load_counter) begin
+                            slice_ready <= 1;
+                            slice_load_counter <= 0;
+                        end else begin
+                            slice_load_counter <= slice_load_counter;
+                        end
                     end else begin
                         slice_load_counter <= slice_load_counter + 1;
                     end
