@@ -31,6 +31,7 @@ module n2r_buffer_v2 #(
     localparam STATE_FILL       = 3'd1;
     localparam STATE_SLICE_RD   = 3'd2;
     localparam STATE_OUTPUT     = 3'd3;
+    integer i;
 
     // State Machine
     reg [2:0] state_reg, state_next;
@@ -45,7 +46,7 @@ module n2r_buffer_v2 #(
     reg ram_we;
     reg [$clog2(RAM_DEPTH)-1:0] ram_write_addr, ram_read_addr;
     reg [RAM_DATA_WIDTH-1:0] ram_din;
-    reg [RAM_DATA_WIDTH-1:0] ram_dout;
+    wire [RAM_DATA_WIDTH-1:0] ram_dout;
 
     // Slice row buffer
     reg [RAM_DATA_WIDTH-1:0] slice_row [0:SLICE_ROWS-1];
@@ -62,7 +63,7 @@ module n2r_buffer_v2 #(
     end
 
     // FSM next state logic
-    always (*) begin
+    always @(*) begin
         case(state_reg)
         STATE_IDLE:
             begin
@@ -134,9 +135,8 @@ module n2r_buffer_v2 #(
                 STATE_OUTPUT:
                 begin
                     if (slice_ready) begin
-                        for (integer i = 0; i < SLICE_ROWS; i = i+1) begin
-                            out_n2r_buffer[(SLICE_ROWS - 1 - i)*32 += 32] <=
-                                slice_row[i][(RAM_DATA_WIDTH - 1 - 32*counter_out) -: 32];
+                        for (i = 0; i < SLICE_ROWS; i = i+1) begin
+                            out_n2r_buffer[(SLICE_ROWS - 1 - i)*32 +: 32] <= slice_row[i][(RAM_DATA_WIDTH - 1 - 32*counter_out) -: 32];
                         end
 
                         if (counter_out == CHUNKS_PER_ROW - 1) begin
