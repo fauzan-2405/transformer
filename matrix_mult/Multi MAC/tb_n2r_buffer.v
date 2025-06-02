@@ -1,6 +1,6 @@
 `timescale 1ns / 1ps
 
-module n2r_buffer_tb;
+module tb_n2r_buffer;
 
     parameter WIDTH       = 16;
     parameter COL         = 6;
