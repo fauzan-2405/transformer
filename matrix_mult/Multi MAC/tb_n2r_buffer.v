@@ -61,7 +61,7 @@ module tb_n2r_buffer;
             #10;
         end
 
-        en = 0;
+        //en = 0;
         #200;
         $finish;
     end

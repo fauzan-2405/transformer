@@ -72,7 +72,7 @@ module n2r_buffer_v2 #(
 
             STATE_FILL:
             begin
-                state_next = (counter >= ROW - 1) ? STATE_SLICE_RD : STATE_FILL;
+                state_next = ((counter >= ROW - 1) && (ram_write_addr >= ROW - 1)) ? STATE_SLICE_RD : STATE_FILL;
             end
 
             STATE_SLICE_RD:
@@ -95,7 +95,7 @@ module n2r_buffer_v2 #(
     // RAM write logic during STATE_FILL
     always @(posedge clk) begin
         ram_we <= 0;
-        if (state_reg == STATE_FILL && en) begin
+        if (state_reg == STATE_FILL) begin
             ram_we          <= 1;
             ram_write_addr  <= counter;
             ram_din         <= in_n2r_buffer;
@@ -115,7 +115,11 @@ module n2r_buffer_v2 #(
                 STATE_FILL: 
                 begin
                     if (en && counter < ROW) begin
-                        counter <= counter + 1;
+                        if (counter == ROW - 1) begin
+                            counter <= counter;
+                        end else begin
+                            counter <= counter + 1;
+                        end
                     end
                 end
 
