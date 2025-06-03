@@ -40,6 +40,7 @@ module n2r_buffer_v2 #(
     reg [$clog2(ROW)-1:0] counter;      // Write index
     reg [$clog2(ROW)-1:0] counter_row;  // Current slice row base
     reg [$clog2(CHUNKS_PER_ROW)-1:0] counter_out;
+    reg [$clog2(CHUNKS_PER_ROW)-1:0] counter_out_d;
     reg [$clog2(SLICE_ROWS)-1:0] slice_load_counter;
     reg [$clog2(SLICE_ROWS)-1:0] slice_load_counter_d;
 
@@ -84,7 +85,7 @@ module n2r_buffer_v2 #(
 
             STATE_OUTPUT:
             begin
-                state_next = (counter_out == CHUNKS_PER_ROW - 1) ? STATE_SLICE_RD : STATE_OUTPUT;
+                state_next = ((counter_out == CHUNKS_PER_ROW - 1) && (counter_out_d == CHUNKS_PER_ROW - 1)) ? STATE_SLICE_RD : STATE_OUTPUT;
             end
 
             default:
@@ -113,6 +114,7 @@ module n2r_buffer_v2 #(
             slice_load_counter <= 0;
             slice_ready     <= 0;
         end else begin
+            counter_out_d <= counter_out;
             case (state_reg)
                 STATE_FILL: 
                 begin
@@ -151,9 +153,14 @@ module n2r_buffer_v2 #(
                         end
 
                         if (counter_out == CHUNKS_PER_ROW - 1) begin
-                            counter_out <= 0;
-                            counter_row <= counter_row + SLICE_ROWS;
-                            slice_ready <= 0;
+                            if (counter_out == counter_out_d) begin
+                                counter_out <= 0;
+                                counter_row <= counter_row + SLICE_ROWS;
+                                slice_ready <= 0;
+                            end
+                            else begin
+                                counter_out <= counter_out;
+                            end
                         end else begin
                             counter_out <= counter_out + 1;
                         end
@@ -163,7 +170,7 @@ module n2r_buffer_v2 #(
         end
     end
 
-    assign slice_done = (state_reg == STATE_OUTPUT) && (counter_out == CHUNKS_PER_ROW - 1);
+    assign slice_done = (state_reg == STATE_OUTPUT) && (counter_out_d == CHUNKS_PER_ROW - 1);
     assign ram_read_addr = (state_reg == STATE_SLICE_RD) ? (counter_row + slice_load_counter) : 0;
 
     // Instantiate BRAM
