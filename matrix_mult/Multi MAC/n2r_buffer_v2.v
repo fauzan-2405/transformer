@@ -79,7 +79,7 @@ module n2r_buffer_v2 #(
 
             STATE_SLICE_RD:
             begin
-                state_next = ((ram_read_addr  >= SLICE_ROWS - 1) && (slice_load_counter >= SLICE_ROWS - 1)) ? STATE_OUTPUT : STATE_SLICE_RD;
+                state_next = ((ram_read_addr  >= SLICE_ROWS - 1) && (slice_load_counter_d >= SLICE_ROWS - 1)) ? STATE_OUTPUT : STATE_SLICE_RD;
             end
 
             STATE_OUTPUT:
