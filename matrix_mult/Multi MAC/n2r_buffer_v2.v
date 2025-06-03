@@ -19,11 +19,13 @@ module n2r_buffer_v2 #(
     input  wire                          en,
     input  wire [WIDTH*COL-1:0]          in_n2r_buffer,
     output wire                          slice_done,
+    output wire                          buffer_done,
     output reg  [WIDTH*CHUNK_SIZE*NUM_CORES-1:0] out_n2r_buffer
 );
     // Local parameters
     localparam SLICE_ROWS       = BLOCK_SIZE * NUM_CORES; // 
     localparam CHUNKS_PER_ROW   = COL/BLOCK_SIZE;
+    localparam ROW_DIV_CORES    = ROW/(NUM_CORES*BLOCK_SIZE);
     localparam OUTPUT_WIDTH     = WIDTH * CHUNK_SIZE * NUM_CORES;
     localparam RAM_DEPTH        = ROW;
     localparam RAM_DATA_WIDTH   = WIDTH * COL;
@@ -36,13 +38,15 @@ module n2r_buffer_v2 #(
     // State Machine
     reg [2:0] state_reg, state_next;
 
-    // Counters
+    // Counters & Flag
     reg [$clog2(ROW)-1:0] counter;      // Write index
     reg [$clog2(ROW)-1:0] counter_row;  // Current slice row base
+    reg [$clog2(ROW)-1:0] counter_row_index; // Current row based on the ROW / NUM_CORES
     reg [$clog2(CHUNKS_PER_ROW)-1:0] counter_out;
     reg [$clog2(CHUNKS_PER_ROW)-1:0] counter_out_d;
-    reg [$clog2(SLICE_ROWS)-1:0] slice_load_counter;
-    reg [$clog2(SLICE_ROWS)-1:0] slice_load_counter_d;
+    reg [$clog2(ROW)-1:0] slice_load_counter;
+    reg [$clog2(ROW)-1:0] slice_load_counter_d;
+    wire all_slice_done;
 
     // RAM Interface
     reg ram_we;
@@ -113,8 +117,11 @@ module n2r_buffer_v2 #(
             counter_out     <= 0;
             slice_load_counter <= 0;
             slice_ready     <= 0;
+            counter_row_index <= 0;
         end else begin
             counter_out_d <= counter_out;
+            slice_load_counter_d <= slice_load_counter;
+
             case (state_reg)
                 STATE_FILL: 
                 begin
@@ -130,13 +137,18 @@ module n2r_buffer_v2 #(
                 STATE_SLICE_RD: 
                 begin
                     //ram_read_addr <= counter_row + slice_load_counter;
-                    slice_load_counter_d <= slice_load_counter;
                     slice_row[slice_load_counter_d] <= ram_dout;
 
                     if (slice_load_counter == SLICE_ROWS - 1) begin
                         if (ram_read_addr == slice_load_counter) begin
                             slice_ready <= 1;
                             slice_load_counter <= 0;
+
+                            if (counter_row_index == ROW_DIV_CORES - 1) begin'
+                                counter_row_index <= counter_row_index;
+                            end else begin
+                                counter_row_index <= counter_row_index + 1;
+                            end
                         end else begin
                             slice_load_counter <= slice_load_counter;
                         end
@@ -170,8 +182,9 @@ module n2r_buffer_v2 #(
         end
     end
 
-    assign slice_done = (state_reg == STATE_OUTPUT) && (counter_out_d == CHUNKS_PER_ROW - 1);
     assign ram_read_addr = (state_reg == STATE_SLICE_RD) ? (counter_row + slice_load_counter) : 0;
+    assign all_slice_done = (counter_row_index == ROW_DIV_CORES);
+    assign slice_done = (state_reg == STATE_OUTPUT) && (counter_out_d == CHUNKS_PER_ROW - 1);
 
     // Instantiate BRAM
     ram_1w1r #(
