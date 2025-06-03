@@ -41,10 +41,12 @@ module n2r_buffer_v2 #(
     reg [$clog2(ROW)-1:0] counter_row;  // Current slice row base
     reg [$clog2(CHUNKS_PER_ROW)-1:0] counter_out;
     reg [$clog2(SLICE_ROWS)-1:0] slice_load_counter;
+    reg [$clog2(SLICE_ROWS)-1:0] slice_load_counter_d;
 
     // RAM Interface
     reg ram_we;
-    reg [$clog2(ROW)-1:0] ram_write_addr, ram_read_addr;
+    reg [$clog2(ROW)-1:0] ram_write_addr;
+    wire [$clog2(ROW)-1:0] ram_read_addr;
     reg [RAM_DATA_WIDTH-1:0] ram_din;
     wire [RAM_DATA_WIDTH-1:0] ram_dout;
 
@@ -125,8 +127,9 @@ module n2r_buffer_v2 #(
 
                 STATE_SLICE_RD: 
                 begin
-                    ram_read_addr <= counter_row + slice_load_counter;
-                    slice_row[slice_load_counter] <= ram_dout;
+                    //ram_read_addr <= counter_row + slice_load_counter;
+                    slice_load_counter_d <= slice_load_counter;
+                    slice_row[slice_load_counter_d] <= ram_dout;
 
                     if (slice_load_counter == SLICE_ROWS - 1) begin
                         if (ram_read_addr == slice_load_counter) begin
@@ -161,6 +164,7 @@ module n2r_buffer_v2 #(
     end
 
     assign slice_done = (state_reg == STATE_OUTPUT) && (counter_out == CHUNKS_PER_ROW - 1);
+    assign ram_read_addr = (state_reg == STATE_SLICE_RD) ? (counter_row + slice_load_counter) : 0;
 
     // Instantiate BRAM
     ram_1w1r #(
