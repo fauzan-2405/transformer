@@ -19,6 +19,7 @@ module n2r_buffer_v2 #(
     input  wire                          en,
     input  wire [WIDTH*COL-1:0]          in_n2r_buffer,
     output wire                          slice_done,
+    output wire                          output_ready,
     output wire                          buffer_done,
     output reg  [WIDTH*CHUNK_SIZE*NUM_CORES-1:0] out_n2r_buffer
 );
@@ -59,6 +60,7 @@ module n2r_buffer_v2 #(
     // Slice row buffer
     reg [RAM_DATA_WIDTH-1:0] slice_row [0:SLICE_ROWS-1];
     reg slice_ready;
+    reg slice_ready_d;
 
     // FSM state register
     always @(posedge clk) begin
@@ -137,6 +139,7 @@ module n2r_buffer_v2 #(
         end else begin
             counter_out_d <= counter_out;
             slice_load_counter_d <= slice_load_counter;
+            slice_ready_d <= slice_ready;
 
             case (state_reg)
                 STATE_FILL: 
@@ -201,6 +204,8 @@ module n2r_buffer_v2 #(
     assign ram_read_addr = (state_reg == STATE_SLICE_RD) ? (counter_row + slice_load_counter) : 0;
     assign all_slice_done = (counter_row_index == ROW_DIV_CORES);
     assign slice_done = (state_reg == STATE_OUTPUT) && (counter_out_d == CHUNKS_PER_ROW - 1);
+    assign buffer_done = (all_slice_done & slice_done);
+    assign output_ready = (slice_ready_d & slice_ready);
 
     // Instantiate BRAM
     ram_1w1r #(
