@@ -140,7 +140,7 @@ module n2r_buffer_v2 #(
                     slice_row[slice_load_counter_d] <= ram_dout;
 
                     if (slice_load_counter == SLICE_ROWS - 1) begin
-                        if (ram_read_addr == slice_load_counter) begin
+                        if ((slice_load_counter_d + (counter_row_index * SLICE_ROWS)) == ram_read_addr ) begin
                             slice_ready <= 1;
                             slice_load_counter <= 0;
 
