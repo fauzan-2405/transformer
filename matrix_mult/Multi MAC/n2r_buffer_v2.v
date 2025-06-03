@@ -33,6 +33,7 @@ module n2r_buffer_v2 #(
     localparam STATE_FILL       = 3'd1;
     localparam STATE_SLICE_RD   = 3'd2;
     localparam STATE_OUTPUT     = 3'd3;
+    localparam STATE_DONE       = 3'd4;
     integer i;
 
     // State Machine
@@ -89,7 +90,22 @@ module n2r_buffer_v2 #(
 
             STATE_OUTPUT:
             begin
-                state_next = ((counter_out == CHUNKS_PER_ROW - 1) && (counter_out_d == CHUNKS_PER_ROW - 1)) ? STATE_SLICE_RD : STATE_OUTPUT;
+                // state_next = ((counter_out == CHUNKS_PER_ROW - 1) && (counter_out_d == CHUNKS_PER_ROW - 1)) ? STATE_SLICE_RD : STATE_OUTPUT;
+                if ((counter_out == CHUNKS_PER_ROW - 1) && (counter_out_d == CHUNKS_PER_ROW - 1)) begin
+                    if (all_slice_done) begin
+                        state_next = STATE_DONE;
+                    end else begin
+                        state_next = STATE_SLICE_RD;
+                    end
+                end 
+                else begin
+                    state_next = STATE_OUTPUT;
+                end
+            end
+
+            STATE_DONE:
+            begin
+                state_next = (!rst_n) ? STATE_IDLE : STATE_DONE;
             end
 
             default:
@@ -144,7 +160,7 @@ module n2r_buffer_v2 #(
                             slice_ready <= 1;
                             slice_load_counter <= 0;
 
-                            if (counter_row_index == ROW_DIV_CORES - 1) begin'
+                            if (counter_row_index == ROW_DIV_CORES) begin'
                                 counter_row_index <= counter_row_index;
                             end else begin
                                 counter_row_index <= counter_row_index + 1;
