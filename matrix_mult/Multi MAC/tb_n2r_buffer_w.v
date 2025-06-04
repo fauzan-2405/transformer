@@ -49,8 +49,9 @@ module tb_n2r_buffer_w;
     initial begin
         // Reset
         rst_n = 0;
-        #10 rst_n = 1;
-        #5 en = 1;
+        #15 rst_n = 1;
+        en = 1;
+        #10
 
         // Feed 8 rows (ROW=8, COL=6), values from 0.0 to 47.0 in Q8.8 format
         for (i = 0; i < ROW; i = i + 1) begin
