@@ -29,8 +29,9 @@ module n2r_buffer_w #(
     localparam STATE_FILL      = 2'd1;
     localparam STATE_SLICE     = 2'd2;
     localparam STATE_DONE      = 2'd3;
+    integer j;
 
-    reg [1:0] state, next_state;
+    reg [1:0] state_reg, state_next;
 
     // Memory
     reg                      ram_we;
@@ -55,13 +56,13 @@ module n2r_buffer_w #(
     // FSM
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n)
-            state <= STATE_IDLE;
+            state_reg <= STATE_IDLE;
         else
-            state <= next_state;
+            state_reg <= next_state;
     end
 
     always @(*) begin
-        case (state)
+        case (state_reg)
             STATE_IDLE:  next_state = en ? STATE_FILL : STATE_IDLE;
             STATE_FILL:  next_state = (row_counter == ROW) ? STATE_SLICE : STATE_FILL;
             STATE_SLICE: next_state = (block_row_index == TOTAL_BLOCKS && block_col_index == COL_GROUPS) ? STATE_DONE : STATE_SLICE;
@@ -73,7 +74,7 @@ module n2r_buffer_w #(
     // RAM Write
     always @(posedge clk) begin
         ram_we <= 0;
-        if (state == STATE_FILL && en) begin
+        if (state_reg == STATE_FILL && en) begin
             ram_we         <= 1;
             ram_write_addr <= row_counter;
             ram_din        <= in_n2r_buffer;
@@ -84,7 +85,7 @@ module n2r_buffer_w #(
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             row_counter <= 0;
-        end else if (state == STATE_FILL && en) begin
+        end else if (state_reg == STATE_FILL && en) begin
             if (row_counter < ROW)
                 row_counter <= row_counter + 1;
         end
@@ -96,7 +97,7 @@ module n2r_buffer_w #(
             block_row_index <= 0;
             block_col_index <= 0;
             slice_ready     <= 0;
-        end else if (state == STATE_SLICE) begin
+        end else if (state_reg == STATE_SLICE) begin
             slice_ready <= 1;
 
             // Read row data
@@ -118,7 +119,7 @@ module n2r_buffer_w #(
     // Output vertical block (2 rows × 4 columns)
     always @(posedge clk) begin
         if (slice_ready) begin
-            for (int j = 0; j < CHUNK_SIZE/2; j = j + 1) begin
+            for (j = 0; j < CHUNK_SIZE/2; j = j + 1) begin
                 out_n2r_buffer[(2*j+0)*WIDTH +: WIDTH] <= row0_data[(RAM_DATA_WIDTH - 1 - (block_col_index*CHUNK_SIZE + j)*WIDTH) -: WIDTH];
                 out_n2r_buffer[(2*j+1)*WIDTH +: WIDTH] <= row1_data[(RAM_DATA_WIDTH - 1 - (block_col_index*CHUNK_SIZE + j)*WIDTH) -: WIDTH];
             end
@@ -127,7 +128,7 @@ module n2r_buffer_w #(
 
     // Assign read addresses (row pair)
     always @(*) begin
-        if (state == STATE_SLICE) begin
+        if (state_reg == STATE_SLICE) begin
             ram_read_addr0 = block_row_index * BLOCK_SIZE + 0;
             ram_read_addr1 = block_row_index * BLOCK_SIZE + 1;
         end else begin
@@ -137,8 +138,8 @@ module n2r_buffer_w #(
     end
 
     assign output_ready = slice_ready;
-    assign slice_done   = (state == STATE_SLICE) && (block_row_index == TOTAL_BLOCKS - 1) && (block_col_index == COL_GROUPS - 1);
-    assign buffer_done  = (state == STATE_DONE);
+    assign slice_done   = (state_reg == STATE_SLICE) && (block_row_index == TOTAL_BLOCKS - 1) && (block_col_index == COL_GROUPS - 1);
+    assign buffer_done  = (state_reg == STATE_DONE);
 
     // RAM Instance (dual read ports emulated via ping-pong if needed)
     ram_1w2r #(
