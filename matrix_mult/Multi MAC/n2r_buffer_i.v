@@ -1,8 +1,8 @@
 // n2r_buffer.v
-// Normal to Ready buffer
-// Used for changing the shape of the matrix from the normal version (row by row) to the ready to be inputted to the matrix multiplication module
+// Normal to Ready buffer for input
+// Used for changing the shape of the input matrix from the normal version (row by row) to the ready to be inputted to the matrix multiplication module (block per block)
 
-module n2r_buffer #(
+module n2r_buffer_i #(
     parameter WIDTH       = 16,
     parameter FRAC_WIDTH  = 8,
     parameter BLOCK_SIZE  = 2, 
