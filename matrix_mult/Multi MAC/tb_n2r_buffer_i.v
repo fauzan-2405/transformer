@@ -1,6 +1,6 @@
 `timescale 1ns / 1ps
 
-module tb_n2r_buffer;
+module tb_n2r_buffer_i;
 
     parameter WIDTH       = 16;
     parameter COL         = 6;
@@ -19,7 +19,7 @@ module tb_n2r_buffer;
     wire slice_done;
 
     // Instantiate n2r_buffer
-    n2r_buffer #(
+    n2r_buffer_i #(
         .WIDTH(WIDTH),
         .FRAC_WIDTH(8),
         .BLOCK_SIZE(BLOCK_SIZE),
