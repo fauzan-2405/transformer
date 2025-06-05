@@ -16,9 +16,9 @@ module ram_1w2r #(
     reg [DATA_WIDTH-1:0] mem [0:DEPTH-1];
 
     always @(posedge clk) begin
-        if (we)
+        if (we) begin
             mem[write_addr] <= din;
-
+        end
         dout0 <= mem[read_addr0];
         dout1 <= mem[read_addr1];
     end
