@@ -55,6 +55,7 @@ module n2r_buffer_i #(
     reg [$clog2(ROW)-1:0] ram_write_addr;
     wire [$clog2(ROW)-1:0] ram_read_addr;
     reg [RAM_DATA_WIDTH-1:0] ram_din;
+    reg [RAM_DATA_WIDTH-1:0] ram_din_d;
     wire [RAM_DATA_WIDTH-1:0] ram_dout;
 
     // Slice row buffer
@@ -120,10 +121,12 @@ module n2r_buffer_i #(
     // RAM write logic during STATE_FILL
     always @(posedge clk) begin
         ram_we <= 0;
+        ram_din         <= in_n2r_buffer;
         if (state_reg == STATE_FILL) begin
             ram_we          <= 1;
             ram_write_addr  <= counter;
-            ram_din         <= in_n2r_buffer;
+            //ram_din         <= in_n2r_buffer;
+            ram_din_d       <= ram_din;
         end
     end
 
@@ -217,7 +220,7 @@ module n2r_buffer_i #(
         .we(ram_we),
         .write_addr(ram_write_addr),
         .read_addr(ram_read_addr),
-        .din(ram_din),
+        .din(ram_din_d),
         .dout(ram_dout)
     );
 

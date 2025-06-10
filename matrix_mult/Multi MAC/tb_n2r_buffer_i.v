@@ -46,8 +46,8 @@ module tb_n2r_buffer_i;
 
     initial begin
         rst_n = 0;
-        #10 rst_n = 1;
-        #5  en = 1;
+        #15 rst_n = 1;
+        #10  en = 1;
 
         // Feed ROW rows
         for (i = 0; i < ROW; i = i + 1) begin
