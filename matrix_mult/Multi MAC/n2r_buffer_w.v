@@ -18,7 +18,7 @@ module n2r_buffer_w #(
     input  wire                     rst_n,
     input  wire                     en,
     input  wire [WIDTH*COL-1:0]     in_n2r_buffer,
-    output reg  [WIDTH*BLOCK_SIZE*CHUNK_SIZE-1:0] out_n2r_buffer,
+    output reg  [OUTPUT_WIDTH-1:0] out_n2r_buffer,
     output wire                     slice_done,
     output wire                     buffer_done,
     output wire                     output_ready
@@ -34,11 +34,12 @@ module n2r_buffer_w #(
     reg [1:0] state_reg, state_next;
 
     // Memory
-    reg                      ram_we;
-    reg [$clog2(ROW)-1:0]    ram_write_addr;
-    reg [$clog2(ROW)-1:0]    ram_read_addr0, ram_read_addr1;
-    reg [RAM_DATA_WIDTH-1:0] ram_din;
-    wire [RAM_DATA_WIDTH-1:0] ram_dout0, ram_dout1;
+    wire                        ram_we;
+    reg [$clog2(ROW)-1:0]       ram_write_addr;
+    reg [$clog2(ROW)-1:0]       ram_read_addr0, ram_read_addr1;
+    reg [RAM_DATA_WIDTH-1:0]    ram_din;
+    reg [RAM_DATA_WIDTH-1:0]    ram_din_d;
+    wire [RAM_DATA_WIDTH-1:0]   ram_dout0, ram_dout1;
 
     // Row counter for fill
     reg [$clog2(ROW):0] row_counter;
@@ -54,7 +55,7 @@ module n2r_buffer_w #(
     reg slice_ready;
 
     // FSM
-    always @(posedge clk or negedge rst_n) begin
+    always @(posedge clk) begin
         if (!rst_n)
             state_reg <= STATE_IDLE;
         else
@@ -73,16 +74,16 @@ module n2r_buffer_w #(
 
     // RAM Write
     always @(posedge clk) begin
-        ram_we <= 0;
+        ram_din < in_n2r_buffer;
         if (state_reg == STATE_FILL && en) begin
-            ram_we         <= 1;
             ram_write_addr <= row_counter;
-            ram_din        <= in_n2r_buffer;
+            //ram_din < in_n2r_buffer;
+            ram_din_d <= ram_din;
         end
     end
 
     // Row Counter (during FILL)
-    always @(posedge clk or negedge rst_n) begin
+    always @(posedge clk) begin
         if (!rst_n) begin
             row_counter <= 0;
         end else if (state_reg == STATE_FILL && en) begin
@@ -137,6 +138,9 @@ module n2r_buffer_w #(
         end
     end
 
+    assign ram_we = (state_reg == STATE_FILL && en);
+    //assign ram_din = in_n2r_buffer;
+    //assign ram_write_addr = row_counter;
     assign output_ready = slice_ready;
     assign slice_done   = (state_reg == STATE_SLICE) && (block_row_index == TOTAL_BLOCKS - 1) && (block_col_index == COL_GROUPS - 1);
     assign buffer_done  = (state_reg == STATE_DONE);
@@ -151,7 +155,7 @@ module n2r_buffer_w #(
         .write_addr(ram_write_addr),
         .read_addr0(ram_read_addr0),
         .read_addr1(ram_read_addr1),
-        .din(ram_din),
+        .din(ram_din_d),
         .dout0(ram_dout0),
         .dout1(ram_dout1)
     );
