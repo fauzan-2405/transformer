@@ -75,7 +75,7 @@ module n2r_buffer_w #(
     // RAM Write
     always @(posedge clk) begin
         ram_din < in_n2r_buffer;
-        if (state_reg == STATE_FILL && en) begin
+        if (state_reg == STATE_FILL) begin
             ram_write_addr <= row_counter;
             //ram_din < in_n2r_buffer;
             ram_din_d <= ram_din;
@@ -86,7 +86,7 @@ module n2r_buffer_w #(
     always @(posedge clk) begin
         if (!rst_n) begin
             row_counter <= 0;
-        end else if (state_reg == STATE_FILL && en) begin
+        end else if (state_reg == STATE_FILL) begin
             if (row_counter < ROW - 1)
                 row_counter <= row_counter + 1;
         end
@@ -132,9 +132,6 @@ module n2r_buffer_w #(
         if (state_reg == STATE_SLICE) begin
             ram_read_addr0 = block_row_index * BLOCK_SIZE + 0;
             ram_read_addr1 = block_row_index * BLOCK_SIZE + 1;
-        end else begin
-            ram_read_addr0 = 0;
-            ram_read_addr1 = 0;
         end
     end
 
