@@ -46,13 +46,14 @@ module n2r_buffer_w #(
 
     // Output slice indexing
     localparam TOTAL_BLOCKS = ROW / BLOCK_SIZE;
-    localparam COL_GROUPS   = COL / CHUNK_SIZE;
+    localparam COL_GROUPS   = COL / BLOCK_SIZE;
 
     reg [$clog2(TOTAL_BLOCKS):0] block_row_index;  // for vertical groups (rows)
     reg [$clog2(COL_GROUPS):0]   block_col_index;  // for vertical groups (columns)
+    reg [$clog2(COL_GROUPS):0]   block_col_index_d;  // for vertical groups (columns)
 
-    reg [RAM_DATA_WIDTH-1:0] row0_data, row1_data;
-    reg slice_ready;
+    wire [RAM_DATA_WIDTH-1:0] row0_data, row1_data;
+    wire slice_ready;
 
     // FSM
     always @(posedge clk) begin
@@ -93,36 +94,42 @@ module n2r_buffer_w #(
     end
 
     // Slice control logic
-    always @(posedge clk or negedge rst_n) begin
+    always @(posedge clk) begin
         if (!rst_n) begin
             block_row_index <= 0;
             block_col_index <= 0;
-            slice_ready     <= 0;
+            //slice_ready     <= 0;
         end else if (state_reg == STATE_SLICE) begin
-            slice_ready <= 1;
+            //slice_ready <= 1;
 
             // Read row data
-            row0_data <= ram_dout0;
-            row1_data <= ram_dout1;
+            //row0_data <= ram_dout0;
+            //row1_data <= ram_dout1;
 
             // Prepare for next block
-            if (block_col_index == COL_GROUPS - 1) begin
-                block_col_index <= 0;
-                block_row_index <= block_row_index + 1;
+            if (block_row_index == TOTAL_BLOCKS - 1) begin
+                block_row_index <= 0;
+                if (block_col_index == COL_GROUPS -1) begin
+                    block_col_index <= 0;
+                end else begin
+                    block_col_index <= block_col_index + 1;
+                end
             end else begin
-                block_col_index <= block_col_index + 1;
+                block_row_index <= block_row_index + 1;
             end
-        end else begin
+
+        end /*else begin
             slice_ready <= 0;
-        end
+        end */
     end
 
     // Output vertical block (2 rows × 4 columns)
     always @(posedge clk) begin
-        if (slice_ready) begin
-            for (j = 0; j < CHUNK_SIZE/2; j = j + 1) begin
-                out_n2r_buffer[(2*j+0)*WIDTH +: WIDTH] <= row0_data[(RAM_DATA_WIDTH - 1 - (block_col_index*CHUNK_SIZE + j)*WIDTH) -: WIDTH];
-                out_n2r_buffer[(2*j+1)*WIDTH +: WIDTH] <= row1_data[(RAM_DATA_WIDTH - 1 - (block_col_index*CHUNK_SIZE + j)*WIDTH) -: WIDTH];
+        block_col_index_d <= block_col_index;
+        if (state_reg == STATE_SLICE) begin
+            for (j = 0; j < BLOCK_SIZE; j = j + 1) begin
+                out_n2r_buffer[(2*(BLOCK_SIZE - 1 - j)+0)*WIDTH +: WIDTH] <= ram_dout1[(RAM_DATA_WIDTH - 1 - (block_col_index_d*BLOCK_SIZE + j)*WIDTH) -: WIDTH];
+                out_n2r_buffer[(2*(BLOCK_SIZE - 1 - j)+1)*WIDTH +: WIDTH] <= ram_dout0[(RAM_DATA_WIDTH - 1 - (block_col_index_d*BLOCK_SIZE + j)*WIDTH) -: WIDTH];
             end
         end
     end
@@ -138,6 +145,7 @@ module n2r_buffer_w #(
     assign ram_we = (state_reg == STATE_FILL && en);
     //assign ram_din = in_n2r_buffer;
     //assign ram_write_addr = row_counter;
+    assign 
     assign output_ready = slice_ready;
     assign slice_done   = (state_reg == STATE_SLICE) && (block_row_index == TOTAL_BLOCKS - 1) && (block_col_index == COL_GROUPS - 1);
     assign buffer_done  = (state_reg == STATE_DONE);
