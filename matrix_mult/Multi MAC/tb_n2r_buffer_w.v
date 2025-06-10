@@ -9,7 +9,7 @@ module tb_n2r_buffer_w;
     parameter CHUNK_SIZE   = 4;
     parameter NUM_CORES    = 1;
     parameter DATA_WIDTH   = WIDTH * COL;
-    parameter OUT_WIDTH    = WIDTH * CHUNK_SIZE;
+    parameter OUT_WIDTH    = WIDTH * CHUNK_SIZE * NUM_CORES;
 
     reg clk = 0;
     reg rst_n = 0;
@@ -50,8 +50,8 @@ module tb_n2r_buffer_w;
         // Reset
         rst_n = 0;
         #15 rst_n = 1;
-        en = 1;
-        #10
+        #10 en = 1;
+        //#10
 
         // Feed 8 rows (ROW=8, COL=6), values from 0.0 to 47.0 in Q8.8 format
         for (i = 0; i < ROW; i = i + 1) begin
