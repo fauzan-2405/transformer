@@ -61,16 +61,16 @@ module n2r_buffer_w #(
         if (!rst_n)
             state_reg <= STATE_IDLE;
         else
-            state_reg <= next_state;
+            state_reg <= state_next;
     end
 
     always @(*) begin
         case (state_reg)
-            STATE_IDLE:  next_state = en ? STATE_FILL : STATE_IDLE;
-            STATE_FILL:  next_state = ((ram_write_addr == ROW - 1) && ( row_counter == ROW - 1)) ? STATE_SLICE : STATE_FILL;
-            STATE_SLICE: next_state = ((block_row_index_d == TOTAL_BLOCKS - 1) && (block_col_index_d == COL_GROUPS - 1)) ? STATE_DONE : STATE_SLICE;
-            STATE_DONE:  next_state = (!rst_n) ? STATE_IDLE : STATE_DONE;
-            default:     next_state = STATE_IDLE;
+            STATE_IDLE:  state_next = en ? STATE_FILL : STATE_IDLE;
+            STATE_FILL:  state_next = ((ram_write_addr == ROW - 1) && ( row_counter == ROW - 1)) ? STATE_SLICE : STATE_FILL;
+            STATE_SLICE: state_next = ((block_row_index_d == TOTAL_BLOCKS - 1) && (block_col_index_d == COL_GROUPS - 1)) ? STATE_DONE : STATE_SLICE;
+            STATE_DONE:  state_next = (!rst_n) ? STATE_IDLE : STATE_DONE;
+            default:     state_next = STATE_IDLE;
         endcase
     end
 
