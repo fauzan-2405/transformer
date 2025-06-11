@@ -19,7 +19,7 @@ module n2r_buffer_i #(
     input  wire                          en,
     input  wire [WIDTH*COL-1:0]          in_n2r_buffer,
     output wire                          slice_done,
-    output wire                          output_ready,
+    output reg                          output_ready,
     output wire                          buffer_done,
     output reg  [WIDTH*CHUNK_SIZE*NUM_CORES-1:0] out_n2r_buffer
 );
@@ -112,7 +112,7 @@ module n2r_buffer_i #(
                 slice_col_index <= slice_col_index + 1;
             end
         end else begin
-            slice_ready  <= 0;
+            slice_valid  <= 0;
             output_ready <= 0;
         end
     end
@@ -127,12 +127,8 @@ module n2r_buffer_i #(
     end
 
     // Assign read addresses
-    always @(*) begin
-        if (state_reg == STATE_SLICE) begin
-            ram_read_addr0 = slice_row_index * SLICE_ROWS + 0;
-            ram_read_addr1 = slice_row_index * SLICE_ROWS + 1;
-        end
-    end
+    assign ram_read_addr0 = slice_row_index * SLICE_ROWS + 0;
+    assign ram_read_addr1 = slice_row_index * SLICE_ROWS + 1;
 
     assign ram_we = (state_reg == STATE_FILL && en);
 
