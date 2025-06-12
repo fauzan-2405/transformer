@@ -19,7 +19,7 @@ module n2r_buffer_w #(
     input  wire                     en,
     input  wire [WIDTH*COL-1:0]     in_n2r_buffer,
     output reg  [OUTPUT_WIDTH-1:0] out_n2r_buffer,
-    output wire                     slice_done,
+    output wire                     slice_last,
     output wire                     buffer_done,
     output reg                     output_ready
 );
@@ -76,7 +76,7 @@ module n2r_buffer_w #(
 
     // RAM Write
     always @(posedge clk) begin
-        ram_din < in_n2r_buffer;
+        ram_din <= in_n2r_buffer;
         if (state_reg == STATE_FILL) begin
             ram_write_addr <= row_counter;
             //ram_din < in_n2r_buffer;
@@ -96,17 +96,13 @@ module n2r_buffer_w #(
 
     // Slice control logic
     always @(posedge clk) begin
-        output_ready <= slice_ready;
+        output_ready <= (slice_ready && state_reg == STATE_SLICE);
         if (!rst_n) begin
             block_row_index <= 0;
             block_col_index <= 0;
             slice_ready     <= 0;
         end else if (state_reg == STATE_SLICE) begin
             slice_ready <= 1;
-
-            // Read row data
-            //row0_data <= ram_dout0;
-            //row1_data <= ram_dout1;
 
             // Prepare for next block
             if (block_row_index == TOTAL_BLOCKS - 1) begin
@@ -150,7 +146,7 @@ module n2r_buffer_w #(
     //assign ram_write_addr = row_counter;
     //assign slice_ready = (state_reg == STATE_SLICE);
     //assign output_ready = slice_ready;
-    assign slice_done   = (state_reg == STATE_SLICE) && (block_row_index_d == TOTAL_BLOCKS - 1) && (block_col_index_d == COL_GROUPS - 1);
+    assign slice_last   = slice_ready && (state_reg == STATE_DONE);
     assign buffer_done  = (state_reg == STATE_DONE);
 
     // RAM Instance (dual read ports emulated via ping-pong if needed)
