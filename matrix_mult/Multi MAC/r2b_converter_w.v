@@ -1,8 +1,8 @@
-// n2r_buffer_w.v
-// Normal to Ready buffer for WEIGHT matrix
+// r2b_converter_w.v
+// Row to block converter for WEIGHT matrix
 // Reorders row-major input into vertical BLOCK_SIZE × CHUNK_SIZE chunks (2x4 = 4 elements)
 
-module n2r_buffer_w #(
+module r2b_converter_w #(
     parameter WIDTH         = 16,
     parameter FRAC_WIDTH    = 8,
     parameter ROW           = 256,   // fixed
