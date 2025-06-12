@@ -20,6 +20,7 @@ module n2r_buffer_i #(
     input  wire [WIDTH*COL-1:0]          in_n2r_buffer,
     output wire                          slice_done,
     output wire                          output_ready,
+    output wire                          slice_last,
     output wire                          buffer_done,
     output reg  [WIDTH*CHUNK_SIZE*NUM_CORES-1:0] out_n2r_buffer
 );
@@ -207,13 +208,14 @@ module n2r_buffer_i #(
     assign ram_read_addr = (state_reg == STATE_SLICE_RD) ? (counter_row + slice_load_counter) : 0;
     assign all_slice_done = (counter_row_index == ROW_DIV_CORES);
     assign slice_done = (state_reg == STATE_OUTPUT) && (counter_out_d == CHUNKS_PER_ROW - 1);
-    assign buffer_done = (all_slice_done & slice_done);
+    assign slice_last = (all_slice_done & slice_done);
     assign output_ready = (slice_ready_d & slice_ready);
+    assign buffer_done = slice_last || (state_reg == STATE_DONE);
 
     // Instantiate BRAM
     ram_1w1r #(
         .DATA_WIDTH(RAM_DATA_WIDTH),
-        .DEPTH(RAM_DEPTH),
+        .DEPTH(RAM_DEPTH)
     ) temp_buffer_ram (
         .clk(clk),
         .we(ram_we),
