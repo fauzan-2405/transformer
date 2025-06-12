@@ -34,17 +34,17 @@ module n2r_buffer_i #(
     localparam STATE_FILL       = 2'd1;
     localparam STATE_SLICE     = 2'd2;
     localparam STATE_DONE       = 2'd3;
-    integer i;
+    integer i, j;
 
     // State Machine
     reg [1:0] state_reg, state_next;
 
     // RAM control
     reg  [$clog2(RAM_DEPTH)-1:0] ram_write_addr;
-    wire [$clog2(RAM_DEPTH)-1:0] ram_read_addr0, ram_read_addr1;
+    wire [$clog2(RAM_DEPTH)-1:0] ram_read_addr;
     reg  [RAM_DATA_WIDTH-1:0] ram_din;
     reg  [RAM_DATA_WIDTH-1:0] ram_din_d;
-    wire [RAM_DATA_WIDTH-1:0] ram_dout0, ram_dout1;
+    wire [RAM_DATA_WIDTH-1:0] ram_dout;
     wire ram_we;
 
     // Counters
@@ -121,7 +121,8 @@ module n2r_buffer_i #(
     always @(posedge clk) begin
         if (state_reg == STATE_SLICE) begin
             for (i = 0; i < SLICE_ROWS; i = i + 1) begin
-                out_n2r_buffer[(SLICE_ROWS - 1 - i)*WIDTH +: WIDTH] <= ram_dout0[(RAM_DATA_WIDTH - 1 - WIDTH * (slice_col_index * BLOCK_SIZE + i)) -: WIDTH];
+                out_n2r_buffer[(2*(SLICE_ROWS - 1 - i)+0)*32 +: 32] <= ram_dout[(RAM_DATA_WIDTH - 1 - WIDTH * (slice_col_index * BLOCK_SIZE + i)) -: 32];
+                //out_n2r_buffer[(2*(SLICE_ROWS - 1 - i)+1)*32 +: 32] <= ram_dout0[(RAM_DATA_WIDTH - 1 - WIDTH * (slice_col_index * BLOCK_SIZE + i)) -: 32];
             end
         end
     end
