@@ -17,7 +17,7 @@ module tb_n2r_buffer_w;
 
     reg  [DATA_WIDTH-1:0] in_n2r_buffer;
     wire [OUT_WIDTH-1:0]  out_n2r_buffer;
-    wire slice_done, output_ready, buffer_done;
+    wire slice_last, output_ready, buffer_done;
 
     // Instantiate the DUT
     n2r_buffer_w #(
@@ -33,7 +33,7 @@ module tb_n2r_buffer_w;
         .en(en),
         .in_n2r_buffer(in_n2r_buffer),
         .out_n2r_buffer(out_n2r_buffer),
-        .slice_done(slice_done),
+        .slice_last(slice_last),
         .output_ready(output_ready),
         .buffer_done(buffer_done)
     );
