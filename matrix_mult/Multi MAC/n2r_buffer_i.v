@@ -214,7 +214,6 @@ module n2r_buffer_i #(
     ram_1w1r #(
         .DATA_WIDTH(RAM_DATA_WIDTH),
         .DEPTH(RAM_DEPTH),
-        .ROW(ROW)
     ) temp_buffer_ram (
         .clk(clk),
         .we(ram_we),
