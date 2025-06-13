@@ -17,6 +17,7 @@ module r2b_converter_i #(
     input  wire                          clk,
     input  wire                          rst_n,
     input  wire                          en,
+    input wire                           in_valid,
     input  wire [WIDTH*COL-1:0]          in_n2r_buffer,
     output wire                          slice_done,
     output wire                          output_ready,
@@ -56,7 +57,7 @@ module r2b_converter_i #(
     reg [$clog2(ROW)-1:0] ram_write_addr;
     wire [$clog2(ROW)-1:0] ram_read_addr;
     reg [RAM_DATA_WIDTH-1:0] ram_din;
-    reg [RAM_DATA_WIDTH-1:0] ram_din_d;
+    //reg [RAM_DATA_WIDTH-1:0] ram_din_d;
     wire [RAM_DATA_WIDTH-1:0] ram_dout;
 
     // Slice row buffer
@@ -122,12 +123,14 @@ module r2b_converter_i #(
     // RAM write logic during STATE_FILL
     always @(posedge clk) begin
         ram_we <= 0;
-        ram_din         <= in_n2r_buffer;
-        if (state_reg == STATE_FILL) begin
-            ram_we          <= 1;
-            ram_write_addr  <= counter;
-            //ram_din         <= in_n2r_buffer;
-            ram_din_d       <= ram_din;
+        if (en) begin
+            ram_din         <= in_n2r_buffer;
+            if (state_reg == STATE_FILL && in_valid) begin
+                ram_we          <= 1;
+                ram_write_addr  <= counter;
+                //ram_din         <= in_n2r_buffer;
+                //ram_din_d       <= ram_din;
+            end
         end
     end
 
@@ -141,67 +144,69 @@ module r2b_converter_i #(
             slice_ready     <= 0;
             counter_row_index <= 0;
         end else begin
-            counter_out_d <= counter_out;
-            slice_load_counter_d <= slice_load_counter;
-            slice_ready_d <= slice_ready;
+            if (en) begin
+                counter_out_d <= counter_out;
+                slice_load_counter_d <= slice_load_counter;
+                slice_ready_d <= slice_ready;
 
-            case (state_reg)
-                STATE_FILL: 
-                begin
-                    if (en && counter < ROW) begin
-                        if (counter == ROW - 1) begin
-                            counter <= counter;
-                        end else begin
-                            counter <= counter + 1;
-                        end
-                    end
-                end
-
-                STATE_SLICE_RD: 
-                begin
-                    //ram_read_addr <= counter_row + slice_load_counter;
-                    slice_row[slice_load_counter_d] <= ram_dout;
-
-                    if (slice_load_counter == SLICE_ROWS - 1) begin
-                        if ((slice_load_counter_d + (counter_row_index * SLICE_ROWS)) == ram_read_addr ) begin
-                            slice_ready <= 1;
-                            slice_load_counter <= 0;
-
-                            if (counter_row_index == ROW_DIV_CORES) begin'
-                                counter_row_index <= counter_row_index;
+                case (state_reg)
+                    STATE_FILL: 
+                    begin
+                        if (en && in_valid && counter < ROW) begin
+                            if (counter == ROW - 1) begin
+                                counter <= counter;
                             end else begin
-                                counter_row_index <= counter_row_index + 1;
+                                counter <= counter + 1;
                             end
-                        end else begin
-                            slice_load_counter <= slice_load_counter;
-                        end
-                    end else begin
-                        slice_load_counter <= slice_load_counter + 1;
-                    end
-                end
-
-                STATE_OUTPUT:
-                begin
-                    if (slice_ready) begin
-                        for (i = 0; i < SLICE_ROWS; i = i+1) begin
-                            out_n2r_buffer[(SLICE_ROWS - 1 - i)*32 +: 32] <= slice_row[i][(RAM_DATA_WIDTH - 1 - 32*counter_out) -: 32];
-                        end
-
-                        if (counter_out == CHUNKS_PER_ROW - 1) begin
-                            if (counter_out == counter_out_d) begin
-                                counter_out <= 0;
-                                counter_row <= counter_row + SLICE_ROWS;
-                                slice_ready <= 0;
-                            end
-                            else begin
-                                counter_out <= counter_out;
-                            end
-                        end else begin
-                            counter_out <= counter_out + 1;
                         end
                     end
-                end
-            endcase
+
+                    STATE_SLICE_RD: 
+                    begin
+                        //ram_read_addr <= counter_row + slice_load_counter;
+                        slice_row[slice_load_counter_d] <= ram_dout;
+
+                        if (slice_load_counter == SLICE_ROWS - 1) begin
+                            if ((slice_load_counter_d + (counter_row_index * SLICE_ROWS)) == ram_read_addr ) begin
+                                slice_ready <= 1;
+                                slice_load_counter <= 0;
+
+                                if (counter_row_index == ROW_DIV_CORES) begin'
+                                    counter_row_index <= counter_row_index;
+                                end else begin
+                                    counter_row_index <= counter_row_index + 1;
+                                end
+                            end else begin
+                                slice_load_counter <= slice_load_counter;
+                            end
+                        end else begin
+                            slice_load_counter <= slice_load_counter + 1;
+                        end
+                    end
+
+                    STATE_OUTPUT:
+                    begin
+                        if (slice_ready) begin
+                            for (i = 0; i < SLICE_ROWS; i = i+1) begin
+                                out_n2r_buffer[(SLICE_ROWS - 1 - i)*32 +: 32] <= slice_row[i][(RAM_DATA_WIDTH - 1 - 32*counter_out) -: 32];
+                            end
+
+                            if (counter_out == CHUNKS_PER_ROW - 1) begin
+                                if (counter_out == counter_out_d) begin
+                                    counter_out <= 0;
+                                    counter_row <= counter_row + SLICE_ROWS;
+                                    slice_ready <= 0;
+                                end
+                                else begin
+                                    counter_out <= counter_out;
+                                end
+                            end else begin
+                                counter_out <= counter_out + 1;
+                            end
+                        end
+                    end
+                endcase
+            end
         end
     end
 
@@ -221,7 +226,7 @@ module r2b_converter_i #(
         .we(ram_we),
         .write_addr(ram_write_addr),
         .read_addr(ram_read_addr),
-        .din(ram_din_d),
+        .din(ram_din),
         .dout(ram_dout)
     );
 
