@@ -14,6 +14,7 @@ module tb_r2b_converter_w;
     reg clk = 0;
     reg rst_n = 0;
     reg en = 0;
+    reg in_valid = 0;
 
     reg  [DATA_WIDTH-1:0] in_n2r_buffer;
     wire [OUT_WIDTH-1:0]  out_n2r_buffer;
@@ -31,6 +32,7 @@ module tb_r2b_converter_w;
         .clk(clk),
         .rst_n(rst_n),
         .en(en),
+        .in_valid(in_valid)
         .in_n2r_buffer(in_n2r_buffer),
         .out_n2r_buffer(out_n2r_buffer),
         .slice_last(slice_last),
@@ -50,8 +52,8 @@ module tb_r2b_converter_w;
         // Reset
         rst_n = 0;
         #15 rst_n = 1;
-        #10 en = 1;
-        //#10
+        #30 en = 1;
+        #30 in_valid = 1;
 
         // Feed 8 rows (ROW=8, COL=6), values from 0.0 to 47.0 in Q8.8 format
         for (i = 0; i < ROW; i = i + 1) begin
@@ -69,7 +71,7 @@ module tb_r2b_converter_w;
         end
 
         // Stop feeding input
-        //en = 0;
+        in_valid = 0;
 
         #1000;
         $finish;
