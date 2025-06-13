@@ -17,6 +17,7 @@ module r2b_converter_w #(
     input  wire                     clk,
     input  wire                     rst_n,
     input  wire                     en,
+    input  wire                     in_valid,
     input  wire [WIDTH*COL-1:0]     in_n2r_buffer,
     output reg  [OUTPUT_WIDTH-1:0] out_n2r_buffer,
     output wire                     slice_last,
@@ -38,7 +39,7 @@ module r2b_converter_w #(
     reg [$clog2(ROW)-1:0]       ram_write_addr;
     reg [$clog2(ROW)-1:0]       ram_read_addr0, ram_read_addr1;
     reg [RAM_DATA_WIDTH-1:0]    ram_din;
-    reg [RAM_DATA_WIDTH-1:0]    ram_din_d;
+    //reg [RAM_DATA_WIDTH-1:0]    ram_din_d;
     wire [RAM_DATA_WIDTH-1:0]   ram_dout0, ram_dout1;
 
     // Row counter for fill
@@ -76,11 +77,13 @@ module r2b_converter_w #(
 
     // RAM Write
     always @(posedge clk) begin
-        ram_din <= in_n2r_buffer;
-        if (state_reg == STATE_FILL) begin
-            ram_write_addr <= row_counter;
-            //ram_din < in_n2r_buffer;
-            ram_din_d <= ram_din;
+        if (en) begin
+            ram_din <= in_n2r_buffer;
+            if (state_reg == STATE_FILL && in_valid) begin
+                ram_write_addr <= row_counter;
+                //ram_din < in_n2r_buffer;
+                //ram_din_d <= ram_din;
+            end
         end
     end
 
@@ -88,7 +91,7 @@ module r2b_converter_w #(
     always @(posedge clk) begin
         if (!rst_n) begin
             row_counter <= 0;
-        end else if (state_reg == STATE_FILL) begin
+        end else if (state_reg == STATE_FILL && in_valid && en) begin
             if (row_counter < ROW - 1)
                 row_counter <= row_counter + 1;
         end
@@ -101,47 +104,51 @@ module r2b_converter_w #(
             block_row_index <= 0;
             block_col_index <= 0;
             slice_ready     <= 0;
-        end else if (state_reg == STATE_SLICE) begin
-            slice_ready <= 1;
-
-            // Prepare for next block
-            if (block_row_index == TOTAL_BLOCKS - 1) begin
-                block_row_index <= 0;
-                if (block_col_index == COL_GROUPS -1) begin
-                    block_col_index <= 0;
-                end else begin
-                    block_col_index <= block_col_index + 1;
-                end
-            end else begin
-                block_row_index <= block_row_index + 1;
-            end
-
         end else begin
-            slice_ready <= 0;
-        end 
+            if (state_reg == STATE_SLICE && en) begin
+                slice_ready <= 1;
+
+                // Prepare for next block
+                if (block_row_index == TOTAL_BLOCKS - 1) begin
+                    block_row_index <= 0;
+                    if (block_col_index == COL_GROUPS -1) begin
+                        block_col_index <= 0;
+                    end else begin
+                        block_col_index <= block_col_index + 1;
+                    end
+                end else begin
+                    block_row_index <= block_row_index + 1;
+                end
+
+            end else begin
+                slice_ready <= 0;
+            end
+        end
     end
 
     // Output vertical block (2 rows × 4 columns)
     always @(posedge clk) begin
-        block_col_index_d <= block_col_index;
-        block_row_index_d <= block_row_index;
-        if (state_reg == STATE_SLICE) begin
-            for (j = 0; j < BLOCK_SIZE; j = j + 1) begin
-                out_n2r_buffer[(2*(BLOCK_SIZE - 1 - j)+0)*WIDTH +: WIDTH] <= ram_dout1[(RAM_DATA_WIDTH - 1 - (block_col_index_d*BLOCK_SIZE + j)*WIDTH) -: WIDTH];
-                out_n2r_buffer[(2*(BLOCK_SIZE - 1 - j)+1)*WIDTH +: WIDTH] <= ram_dout0[(RAM_DATA_WIDTH - 1 - (block_col_index_d*BLOCK_SIZE + j)*WIDTH) -: WIDTH];
+        if (en) begin
+            block_col_index_d <= block_col_index;
+            block_row_index_d <= block_row_index;
+            if (state_reg == STATE_SLICE) begin
+                for (j = 0; j < BLOCK_SIZE; j = j + 1) begin
+                    out_n2r_buffer[(2*(BLOCK_SIZE - 1 - j)+0)*WIDTH +: WIDTH] <= ram_dout1[(RAM_DATA_WIDTH - 1 - (block_col_index_d*BLOCK_SIZE + j)*WIDTH) -: WIDTH];
+                    out_n2r_buffer[(2*(BLOCK_SIZE - 1 - j)+1)*WIDTH +: WIDTH] <= ram_dout0[(RAM_DATA_WIDTH - 1 - (block_col_index_d*BLOCK_SIZE + j)*WIDTH) -: WIDTH];
+                end
             end
         end
     end
 
     // Assign read addresses (row pair)
     always @(*) begin
-        if (state_reg == STATE_SLICE) begin
+        if (state_reg == STATE_SLICE && en) begin
             ram_read_addr0 = block_row_index * BLOCK_SIZE + 0;
             ram_read_addr1 = block_row_index * BLOCK_SIZE + 1;
         end
     end
 
-    assign ram_we = (state_reg == STATE_FILL && en);
+    assign ram_we = en;
     //assign ram_din = in_n2r_buffer;
     //assign ram_write_addr = row_counter;
     //assign slice_ready = (state_reg == STATE_SLICE);
@@ -159,7 +166,7 @@ module r2b_converter_w #(
         .write_addr(ram_write_addr),
         .read_addr0(ram_read_addr0),
         .read_addr1(ram_read_addr1),
-        .din(ram_din_d),
+        .din(ram_din),
         .dout0(ram_dout0),
         .dout1(ram_dout1)
     );
