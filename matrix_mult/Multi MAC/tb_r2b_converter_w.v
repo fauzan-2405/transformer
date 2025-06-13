@@ -1,6 +1,6 @@
 `timescale 1ns / 1ps
 
-module tb_n2r_buffer_w;
+module tb_r2b_converter_w;
 
     parameter WIDTH        = 16;
     parameter ROW          = 8;
@@ -20,7 +20,7 @@ module tb_n2r_buffer_w;
     wire slice_last, output_ready, buffer_done;
 
     // Instantiate the DUT
-    n2r_buffer_w #(
+    r2b_converter_w #(
         .WIDTH(WIDTH),
         .ROW(ROW),
         .COL(COL),
