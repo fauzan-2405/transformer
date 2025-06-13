@@ -14,6 +14,7 @@ module tb_r2b_converter_i;
     reg clk = 0;
     reg rst_n = 0;
     reg en = 0;
+    reg in_valid = 0;;
     reg [DATA_WIDTH-1:0] in_n2r_buffer;
     wire [OUT_WIDTH-1:0] out_n2r_buffer;
     wire slice_done;
@@ -31,6 +32,7 @@ module tb_r2b_converter_i;
         .clk(clk),
         .rst_n(rst_n),
         .en(en),
+        .in_valid(in_valid),
         .in_n2r_buffer(in_n2r_buffer),
         .slice_done(slice_done),
         .out_n2r_buffer(out_n2r_buffer)
@@ -47,7 +49,8 @@ module tb_r2b_converter_i;
     initial begin
         rst_n = 0;
         #15 rst_n = 1;
-        #10  en = 1;
+        #30  en = 1;
+        #30 in_valid = 1;
 
         // Feed ROW rows
         for (i = 0; i < ROW; i = i + 1) begin
@@ -70,6 +73,7 @@ module tb_r2b_converter_i;
             in_n2r_buffer = temp_row;
             #10;
         end
+        in_valid = 0;
 
         //en = 0;
         #1000;
