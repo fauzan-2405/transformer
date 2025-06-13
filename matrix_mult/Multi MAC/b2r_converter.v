@@ -1,5 +1,5 @@
 // b2r_converter.v
-// Used to convert the block-per-block output into row-per-row (normal matrix) output
+// Used to convert block-per-block input into row-per-row (normal matrix ordering)
 
 module b2r_converter #(
     parameter WIDTH         = 16,
@@ -11,50 +11,46 @@ module b2r_converter #(
     parameter NUM_CORES     = 2
 )(
     input                          clk,
-    input                          rst,
+    input                          rst_n,           
     input                          start,
-    input                          top_valid,
-    input  [WIDTH*BLOCK_SIZE*NUM_CORES-1:0] top_data,
-    input                          row_ready,
+    input                          in_valid,
+    input  [WIDTH*CHUNK_SIZE*NUM_CORES-1:0] in_data,
 
-    output reg                     row_valid,
-    output reg [WIDTH*COL-1:0]     row_data,
+    output reg                     out_valid,
+    output reg [WIDTH*COL-1:0]     out_data,
     output reg                     done
 );
-    // Localparameters
+    // FSM
     localparam STATE_IDLE      = 2'd0;
     localparam STATE_WRITE     = 2'd1;
     localparam STATE_READ      = 2'd2;
     localparam STATE_DONE      = 2'd3;
 
-    // FSM states
     reg [1:0] state_reg, state_next;
 
     localparam TOTAL_ELEM = ROW * COL;
     localparam ELEM_PER_INPUT = BLOCK_SIZE * NUM_CORES;
 
-    // Write and read pointers
     reg [$clog2(TOTAL_ELEM):0] write_ptr;
     reg [$clog2(ROW):0]        read_row;
 
-    // BRAM storage
     reg [WIDTH-1:0] bram [0:TOTAL_ELEM-1];
 
-    // Flattened top_data unpacking
     integer i;
+
+    // BRAM Write
     always @(posedge clk) begin
-        if (top_valid && state_reg == STATE_WRITE) begin
+        if (in_valid && state_reg == STATE_WRITE) begin
             for (i = 0; i < ELEM_PER_INPUT; i = i + 1) begin
                 if (write_ptr + i < TOTAL_ELEM) begin
-                    bram[write_ptr + i] <= top_data[(i+1)*WIDTH-1 -: WIDTH];
+                    bram[write_ptr + i] <= in_data[(i+1)*WIDTH-1 -: WIDTH]; // This seems wrong
                 end
             end
         end
     end
 
-    // FSM
-    always @(posedge clk or posedge rst) begin
-        if (rst)
+    always @(posedge clk) begin
+        if (!rst_n)
             state_reg <= STATE_IDLE;
         else
             state_reg <= state_next;
@@ -70,38 +66,35 @@ module b2r_converter #(
         endcase
     end
 
-    // Write pointer update
     always @(posedge clk) begin
-        if (rst || state_reg == STATE_IDLE)
+        if (!rst_n)
             write_ptr <= 0;
-        else if (top_valid && state_reg == STATE_WRITE)
+        else if (in_valid && state_reg == STATE_WRITE)
             write_ptr <= write_ptr + ELEM_PER_INPUT;
     end
 
-    // Read logic
     always @(posedge clk) begin
-        if (rst || state_reg == STATE_IDLE) begin
-            row_valid <= 0;
+        if (!rst_n) begin
+            out_valid <= 0;
             read_row <= 0;
-            row_data <= 0;
+            out_data <= 0;
         end else if (state_reg == STATE_READ) begin
             if (row_ready) begin
-                row_valid <= 1;
+                out_valid <= 1;
                 for (i = 0; i < COL; i = i + 1) begin
-                    row_data[(i+1)*WIDTH-1 -: WIDTH] <= bram[read_row * COL + i];
+                    out_data[(i+1)*WIDTH-1 -: WIDTH] <= bram[read_row * COL + i];
                 end
                 read_row <= read_row + 1;
             end else begin
-                row_valid <= 0;
+                out_valid <= 0;
             end
         end else begin
-            row_valid <= 0;
+            out_valid <= 0;
         end
     end
 
-    // Done signal
     always @(posedge clk) begin
-        if (rst)
+        if (!rst_n)
             done <= 0;
         else if (state_reg == STATE_DONE)
             done <= 1;
