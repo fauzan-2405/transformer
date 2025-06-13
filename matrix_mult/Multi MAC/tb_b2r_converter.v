@@ -86,10 +86,10 @@ module tb_b2r_converter;
         end
 
         // Wait for done
-        wait (done);
-        $display("==== All rows emitted ====");
-        repeat (5) @(posedge clk);
-        $finish;
+       // wait (done);
+        //$display("==== All rows emitted ====");
+        //repeat (5) @(posedge clk);
+        //$finish;
     end
 
     // Output Monitor
