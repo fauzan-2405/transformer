@@ -1,8 +1,9 @@
-// r2b_converter_i.v
-// Row to block converter for input
+// io_converter.v
+// Row to block converter for input and output
 // Used for changing the shape of the input matrix from the normal version (row by row) to the ready to be inputted to the matrix multiplication module (block per block)
+// And for output from block-per-block to row-per-row
 
-module r2b_converter_i #(
+module io_converter #(
     parameter WIDTH       = 16,
     parameter FRAC_WIDTH  = 8,
     parameter BLOCK_SIZE  = 2, 
