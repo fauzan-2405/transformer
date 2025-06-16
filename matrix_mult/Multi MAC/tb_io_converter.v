@@ -1,6 +1,6 @@
 `timescale 1ns / 1ps
 
-module tb_r2b_converter_i;
+module tb_io_converter;
 
     parameter WIDTH       = 16;
     parameter COL         = 6;
@@ -20,7 +20,7 @@ module tb_r2b_converter_i;
     wire slice_done;
 
     // Instantiate n2r_buffer
-    n2r_buffer_i #(
+    io_converter #(
         .WIDTH(WIDTH),
         .FRAC_WIDTH(8),
         .BLOCK_SIZE(BLOCK_SIZE),
