@@ -1,19 +1,18 @@
-// io_converter.v
+// r2b_converter_i.v
 // Row to block converter for input and output
 // Used for changing the shape of the input matrix from the normal version (row by row) to the ready to be inputted to the matrix multiplication module (block per block)
-// And for output from block-per-block to row-per-row
 
-module io_converter #(
+module r2b_converter_i #(
     parameter WIDTH       = 16,
     parameter FRAC_WIDTH  = 8,
     parameter BLOCK_SIZE  = 2, 
     parameter CHUNK_SIZE  = 4,
     parameter ROW         = 2754, 
     parameter COL         = 256,
-    parameter NUM_CORES   = (COL == 2754) ? 9 :
-                            (COL == 256)  ? 8 :
-                            (COL == 200)  ? 5 :
-                            (COL == 64)   ? 4 : 2
+    parameter NUM_CORES   = (ROW == 2754) ? 9 :
+                            (ROW == 256)  ? 8 :
+                            (ROW == 200)  ? 5 :
+                            (ROW == 64)   ? 4 : 2
 ) (
     input  wire                          clk,
     input  wire                          rst_n,
@@ -29,8 +28,8 @@ module io_converter #(
     // Local parameters
     localparam SLICE_ROWS       = BLOCK_SIZE * NUM_CORES; // 
     localparam CHUNKS_PER_ROW   = COL/BLOCK_SIZE;
-    localparam ROW_DIV_CORES    = ROW/(NUM_CORES*BLOCK_SIZE);
-    localparam OUTPUT_WIDTH     = WIDTH * CHUNK_SIZE * NUM_CORES;
+    localparam ROW_DIV          = ROW/(SLICE_ROWS);
+    //localparam OUTPUT_WIDTH     = WIDTH * CHUNK_SIZE * NUM_CORES; // Not used
     localparam RAM_DEPTH        = ROW;
     localparam RAM_DATA_WIDTH   = WIDTH * COL;
     localparam STATE_IDLE       = 3'd0;
@@ -172,7 +171,7 @@ module io_converter #(
                                 slice_ready <= 1;
                                 slice_load_counter <= 0;
 
-                                if (counter_row_index == ROW_DIV_CORES) begin'
+                                if (counter_row_index == ROW_DIV) begin'
                                     counter_row_index <= counter_row_index;
                                 end else begin
                                     counter_row_index <= counter_row_index + 1;
@@ -212,7 +211,7 @@ module io_converter #(
     end
 
     assign ram_read_addr = (state_reg == STATE_SLICE_RD) ? (counter_row + slice_load_counter) : 0;
-    assign all_slice_done = (counter_row_index == ROW_DIV_CORES);
+    assign all_slice_done = (counter_row_index == ROW_DIV);
     assign slice_done = (state_reg == STATE_OUTPUT) && (counter_out_d == CHUNKS_PER_ROW - 1);
     assign slice_last = (all_slice_done & slice_done);
     assign output_ready = (slice_ready_d & slice_ready);
