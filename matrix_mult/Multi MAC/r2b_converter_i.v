@@ -171,7 +171,7 @@ module r2b_converter_i #(
                                 slice_ready <= 1;
                                 slice_load_counter <= 0;
 
-                                if (counter_row_index == ROW_DIV) begin'
+                                if (counter_row_index == ROW_DIV) begin
                                     counter_row_index <= counter_row_index;
                                 end else begin
                                     counter_row_index <= counter_row_index + 1;
