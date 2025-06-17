@@ -26,7 +26,7 @@ module top_matmul #(
     output wire out_matmul_ready,
     output wire out_matmul_last,
     output wire out_matmul_done,
-    output reg  [WIDTH*W_OUTER_DIMENSION-1:0] out_matmul_data 
+    output wire  [WIDTH*W_OUTER_DIMENSION-1:0] out_matmul_data 
 );
     // Local Parameters
     localparam ADDR_WIDTH_I = $clog2((INNER_DIMENSION*I_OUTER_DIMENSION*WIDTH)/(WIDTH*CHUNK_SIZE*NUM_CORES));
