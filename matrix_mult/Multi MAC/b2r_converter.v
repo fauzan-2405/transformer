@@ -16,13 +16,15 @@ module b2r_converter #(
 )(
     input                          clk,
     input                          rst_n,           
-    input                          start,
+    input                          en,
     input                          in_valid,
     input  [WIDTH*CHUNK_SIZE*NUM_CORES-1:0] in_data,
 
-    output reg                     out_valid,
-    output reg [WIDTH*COL-1:0]     out_data,
-    output reg                     done
+    output wire                          slice_done,
+    output wire                          output_ready,
+    output wire                          slice_last,
+    output wire                          buffer_done,
+    output reg [WIDTH*COL-1:0]     out_data
 );
     // Local parameters
     localparam TOTAL_INPUT_ROW  = ROW/(BLOCK_SIZE*NUM_CORES) * (COL/BLOCK_SIZE);
@@ -126,11 +128,11 @@ module b2r_converter #(
     always @(posedge clk) begin
         ram_we <= 0;
         if (en) begin
-            ram_din         <= in_n2r_buffer;
+            ram_din         <= in_data;
             if (state_reg == STATE_FILL && in_valid) begin
                 ram_we          <= 1;
                 ram_write_addr  <= counter;
-                //ram_din         <= in_n2r_buffer;
+                //ram_din         <= in_data;
                 //ram_din_d       <= ram_din;
             end
         end
@@ -173,7 +175,7 @@ module b2r_converter #(
                                 slice_ready <= 1;
                                 slice_load_counter <= 0;
 
-                                if (counter_row_index == ROW_DIV) begin'
+                                if (counter_row_index == ROW_DIV) begin
                                     counter_row_index <= counter_row_index;
                                 end else begin
                                     counter_row_index <= counter_row_index + 1;
@@ -190,7 +192,7 @@ module b2r_converter #(
                     begin
                         if (slice_ready) begin
                             for (i = 0; i < SLICE_ROWS; i = i+1) begin
-                                out_n2r_buffer[(SLICE_ROWS - 1 - i)*32 +: 32] <= slice_row[i][(RAM_DATA_WIDTH - 1 - 32*counter_out) -: 32];
+                                out_data[(SLICE_ROWS - 1 - i)*32 +: 32] <= slice_row[i][(RAM_DATA_WIDTH - 1 - 32*counter_out) -: 32];
                             end
 
                             if (counter_out == CHUNKS_PER_ROW - 1) begin
