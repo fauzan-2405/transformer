@@ -37,7 +37,7 @@ module pe #(
     assign add_result = {{(ACC_WIDTH-MULT_WIDTH){mult_result[MULT_WIDTH-1]}}, mult_result} + aligned_result;
 
     // Saturation + truncation
-    saturate #(
+    saturate_v2 #(
         .IN_WIDTH(ACC_WIDTH),
         .OUT_WIDTH(WIDTH_OUT),
         .FRAC_IN(MULT_FRAC),
