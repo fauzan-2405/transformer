@@ -4,6 +4,7 @@
 //`include "pe_v2.v"
 
 module systolic_array_2x2_v2 #(
+    parameter CHUNK_SIZE = 4,
     parameter WIDTH_A = 16,
     parameter FRAC_WIDTH_A = 8,
     parameter WIDTH_B = 16,
@@ -15,7 +16,7 @@ module systolic_array_2x2_v2 #(
     input [WIDTH_B-1:0] in_north0, in_north1,
     input [WIDTH_A-1:0] in_west0, in_west2,
     output reg done,
-    output [WIDTH_OUT*4-1:0] out
+    output [WIDTH_OUT*CHUNK_SIZE-1:0] out
 );
     // Dont initialize counter if you want to do systolic_array_2x2 or mac simulation on testbench
     reg [2:0] count = 3'b111;
