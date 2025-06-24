@@ -2,7 +2,7 @@
 // Used as a processing element (PE) in systolic array
 // Now it can take any different input and weight length, along with desired length of output as well
 
-module pe #(
+module pe_v2 #(
     parameter WIDTH_A = 16,
     parameter FRAC_WIDTH_A = 8,
     parameter WIDTH_B = 16,
@@ -35,6 +35,7 @@ module pe #(
     // Align 'result' to the same fixed-point scale as mult_result before accumulation
     wire signed [ACC_WIDTH-1:0] aligned_result = {{(ACC_WIDTH-WIDTH_OUT){result[WIDTH_OUT-1]}}, result} <<< (MULT_FRAC - FRAC_WIDTH_OUT);
     assign add_result = {{(ACC_WIDTH-MULT_WIDTH){mult_result[MULT_WIDTH-1]}}, mult_result} + aligned_result;
+    //assign result = temp_acc;
 
     // Saturation + truncation
     saturate_v2 #(
@@ -53,10 +54,12 @@ module pe #(
             out_south <= 0;
             out_east <= 0;
             result <= 0;
+            //aligned_result <=0;
         end else begin
             out_east <= in_west;
             out_south <= in_north;
             result <= temp_acc;
+            //aligned_result <= {{(ACC_WIDTH-WIDTH_OUT){result[WIDTH_OUT-1]}}, result} <<< (MULT_FRAC - FRAC_WIDTH_OUT);
         end
     end
 endmodule
