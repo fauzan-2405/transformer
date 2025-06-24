@@ -81,7 +81,7 @@ module tb_systolic_array_2x2_v2;
         E11 = 3*1 + 4*3;   // 15
 
         // Reset
-        rst_n = 0; #20;
+        rst_n = 0; #25;
         rst_n = 1;
         en = 1;
 
