@@ -63,7 +63,7 @@ module tb_top_matmul;
         input_w_valid = 0;
         input_i = 0;
         input_w = 0;
-        #20;
+        #25;
 
         rst_n = 1;
         en_top_matmul = 1;
