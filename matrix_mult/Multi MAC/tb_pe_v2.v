@@ -42,7 +42,7 @@ module tb_pe_v2;
     );
 
     // Helper to convert real to fixed-point
-    function [WIDTH-1:0] to_fixed;
+    function [31:0] to_fixed;
         input real value;
         input integer WIDTH;
         input integer FRAC;
@@ -54,13 +54,14 @@ module tb_pe_v2;
     // Test sequence
     initial begin
         $display("Starting PE testbench...");
-        $dumpfile("tb_pe.vcd");
-        $dumpvars(0, tb_pe);
+        //$dumpfile("tb_pe.vcd");
+        //$dumpvars(0, tb_pe);
 
         // Reset
         rst_n = 0;
-        #12;
+        #15;
         rst_n = 1;
+        #20;
 
         // Scenario 1: Simple multiply-accumulate (Q4.4 × Q8.8)
         apply_inputs(1.5, 2.0);     // 1.5 * 2.0 = 3.0
@@ -86,7 +87,7 @@ module tb_pe_v2;
         #10;
 
         $display("Testbench completed.");
-        $finish;
+        //$finish;
     end
 
     // Procedure to apply test inputs
