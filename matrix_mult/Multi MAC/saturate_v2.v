@@ -2,7 +2,7 @@
 // Used to check whether the output is saturated or not
 // Now with arbitrary length of output
 
-module saturate #(
+module saturate_v2 #(
     parameter IN_WIDTH = 32,
     parameter OUT_WIDTH = 16,
     parameter FRAC_IN = 16,
@@ -10,7 +10,7 @@ module saturate #(
 )(
     input clk, rst_n,
     input signed [IN_WIDTH-1:0] in,
-    output reg signed [OUT_WIDTH-1:0] out
+    output wire signed [OUT_WIDTH-1:0] out
 );
 
     wire signed [IN_WIDTH-1:0] shifted = in >>> (FRAC_IN - FRAC_OUT);
@@ -18,7 +18,11 @@ module saturate #(
     // Clamp to max/min if overflow
     wire signed [OUT_WIDTH-1:0] max_val = {1'b0, {(OUT_WIDTH-1){1'b1}}};
     wire signed [OUT_WIDTH-1:0] min_val = {1'b1, {(OUT_WIDTH-1){1'b0}}};
-
+    
+    assign out = (shifted > max_val) ? max_val :
+                    (shifted < min_val) ? min_val : shifted[OUT_WIDTH-1:0];
+    
+    /*
     always @(posedge clk) begin
         if (!rst_n) begin
             out <= 0;
@@ -31,4 +35,5 @@ module saturate #(
                 out <= shifted[OUT_WIDTH-1:0];
         end
     end
+    */
 endmodule
