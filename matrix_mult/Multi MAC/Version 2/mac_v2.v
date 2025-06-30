@@ -25,11 +25,11 @@ module mac_v2 #(
     // wire done_systolic; // output from systolic
     wire [WIDTH_OUT*CHUNK_SIZE-1:0] out_systolic;
 
-    systolic_array_2x2 #(.CHUNK_SIZE(CHUNK_SIZE), .WIDTH_A(WIDTH_A), .FRAC_WIDTH_A(FRAC_WIDTH_A), .WIDTH_B(WIDTH_B), .FRAC_WIDTH_B(FRAC_WIDTH_B), .WIDTH_OUT(WIDTH_OUT), .FRAC_WIDTH_OUT(FRAC_WIDTH_OUT)) 
+    systolic_array_2x2_v2 #(.CHUNK_SIZE(CHUNK_SIZE), .WIDTH_A(WIDTH_A), .FRAC_WIDTH_A(FRAC_WIDTH_A), .WIDTH_B(WIDTH_B), .FRAC_WIDTH_B(FRAC_WIDTH_B), .WIDTH_OUT(WIDTH_OUT), .FRAC_WIDTH_OUT(FRAC_WIDTH_OUT)) 
         systolic (.clk(clk), .en(en), .rst_n(rst_n), .in_north0(in_north0), .in_north1(in_north1), .in_west0(in_west0), .in_west2(in_west2), .done(systolic_finish), .out(out_systolic)
     );
 
-    accumulator #(.WIDTH_OUT(WIDTH_OUT), .FRAC_WIDTH_OUT(FRAC_WIDTH_OUT), .BLOCK_SIZE(BLOCK_SIZE), .CHUNK_SIZE(CHUNK_SIZE), .INNER_DIMENSION(INNER_DIMENSION)) 
+    accumulator_v2 #(.WIDTH_OUT(WIDTH_OUT), .FRAC_WIDTH_OUT(FRAC_WIDTH_OUT), .BLOCK_SIZE(BLOCK_SIZE), .CHUNK_SIZE(CHUNK_SIZE), .INNER_DIMENSION(INNER_DIMENSION)) 
         acc (.clk(clk), .rst_n(reset_acc), .in(out_systolic), .systolic_done(systolic_finish), .accumulator_done(accumulator_done), .out(out)
     );
 
