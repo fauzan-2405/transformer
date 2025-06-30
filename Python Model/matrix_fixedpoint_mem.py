@@ -1,7 +1,7 @@
 import numpy as np
 import os
-import random
-from typing import Tuple, List, Union
+import argparse
+from typing import Tuple
 
 class FixedPointConverter:
     """Handles fixed-point number conversion and arithmetic"""
@@ -44,11 +44,6 @@ class FixedPointConverter:
         if self.is_signed and val < 0:
             val = (1 << self.total_bits) + val
         return format(val, f'0{self.total_bits}b')
-    
-    def fixed_to_readable(self, val: int) -> str:
-        """Convert fixed-point to human-readable format"""
-        float_val = self.fixed_to_float(val)
-        return f"{int(val)} ({float_val:.4f})"
 
 class MatrixProcessor:
     """Handles matrix creation, multiplication, and export"""
@@ -85,22 +80,37 @@ class MatrixProcessor:
         to_fixed_C = np.vectorize(converter_C.float_to_fixed)
         return to_fixed_C(C_float)
     
-    def print_matrix(self, matrix: np.ndarray, name: str):
-        """Print matrix in integer/float format"""
+    def print_matrix(self, matrix: np.ndarray, converter: FixedPointConverter, 
+                    name: str, display_format: str = 'int'):
+        """Print matrix in specified format"""
         print(f"\n{name}:")
         for row in matrix:
-            print(" ".join([f"{int(x):4}" for x in row]))
+            line = []
+            for val in row:
+                int_val = int(val)
+                if display_format == 'float':
+                    float_val = converter.fixed_to_float(int_val)
+                    line.append(f"{float_val:8.4f}")
+                else:  # 'int' format
+                    line.append(f"{int_val:6}")
+            print(" ".join(line))
     
     def export_matrix(self, matrix: np.ndarray, converter: FixedPointConverter, 
                      filename: str, mode: str = 'row', 
-                     block_size: int = 2, num_cores: int = 1):
+                     block_size: int = 2, num_cores: int = 1,
+                     matrix_type: str = 'A'):
         """Export matrix in specified format"""
         rows, cols = matrix.shape
         
         if mode == 'row':
             self._export_row_mode(matrix, converter, filename)
         elif mode == 'core':
-            self._export_core_mode_A(matrix, converter, filename, block_size, num_cores)
+            if matrix_type == 'A':
+                self._export_core_mode_A(matrix, converter, filename, block_size, num_cores)
+            elif matrix_type == 'B':
+                self._export_core_mode_B(matrix, converter, filename, block_size, num_cores)
+            elif matrix_type == 'C':
+                self._export_core_mode_C(matrix, converter, filename, block_size, num_cores)
     
     def _export_row_mode(self, matrix: np.ndarray, 
                         converter: FixedPointConverter, filename: str):
@@ -113,36 +123,38 @@ class MatrixProcessor:
     def _export_core_mode_A(self, matrix: np.ndarray, 
                           converter: FixedPointConverter, filename: str,
                           block_size: int, num_cores: int):
-        """Export matrix A in core block format with correct pattern"""
+        """
+        Export matrix A in core block format (horizontal access)
+        Pattern: Process block rows horizontally, left to right
+        """
         rows, cols = matrix.shape
         
         # Validate dimensions
         if rows % (num_cores * block_size) != 0:
-            raise ValueError(f"Rows ({rows}) must be divisible by cores×block_size ({num_cores}×{block_size})")
+            raise ValueError(f"Matrix A: Rows ({rows}) must be divisible by cores×block_size ({num_cores}×{block_size})")
         if cols % block_size != 0:
-            raise ValueError(f"Columns ({cols}) must be divisible by block_size ({block_size})")
+            raise ValueError(f"Matrix A: Columns ({cols}) must be divisible by block_size ({block_size})")
         
-        # Calculate parameters
+        # Calculate total lines
         total_elements = rows * cols
-        block_area = block_size * block_size
-        elements_per_line = num_cores * block_area
+        elements_per_line = num_cores * (block_size * block_size)
         total_lines = total_elements // elements_per_line
         
         # Group processing
         row_groups = rows // (num_cores * block_size)
-        blocks_per_group = cols // block_size
+        blocks_per_row = cols // block_size
         
         with open(filename, 'w') as f:
             for group_idx in range(row_groups):
-                group_start = group_idx * num_cores * block_size
+                group_start_row = group_idx * num_cores * block_size
                 
-                for block_col in range(blocks_per_group):
+                for block_col in range(blocks_per_row):
                     col_start = block_col * block_size
                     line = []
                     
                     # Process all cores in this group
                     for core_idx in range(num_cores):
-                        row_start = group_start + core_idx * block_size
+                        row_start = group_start_row + core_idx * block_size
                         
                         # Extract block
                         block = matrix[row_start:row_start+block_size, 
@@ -154,21 +166,87 @@ class MatrixProcessor:
                                 line.append(converter.int_to_binary(int(block[r, c])))
                     
                     f.write(" ".join(line) + '\n')
+    
+    def _export_core_mode_B(self, matrix: np.ndarray, 
+                          converter: FixedPointConverter, filename: str,
+                          block_size: int, num_cores: int):
+        """
+        Export matrix B in core block format (vertical access)
+        Pattern: Process block columns vertically, top to bottom
+        """
+        rows, cols = matrix.shape
+        
+        # Validate dimensions
+        if cols % (num_cores * block_size) != 0:
+            raise ValueError(f"Matrix B: Columns ({cols}) must be divisible by cores×block_size ({num_cores}×{block_size})")
+        if rows % block_size != 0:
+            raise ValueError(f"Matrix B: Rows ({rows}) must be divisible by block_size ({block_size})")
+        
+        # Calculate total lines
+        total_elements = rows * cols
+        elements_per_line = num_cores * (block_size * block_size)
+        total_lines = total_elements // elements_per_line
+        
+        # Group processing
+        col_groups = cols // (num_cores * block_size)
+        blocks_per_col = rows // block_size
+        
+        with open(filename, 'w') as f:
+            for group_idx in range(col_groups):
+                group_start_col = group_idx * num_cores * block_size
+                
+                for block_row in range(blocks_per_col):
+                    row_start = block_row * block_size
+                    line = []
+                    
+                    # Process all cores in this group
+                    for core_idx in range(num_cores):
+                        col_start = group_start_col + core_idx * block_size
+                        
+                        # Extract block
+                        block = matrix[row_start:row_start+block_size, 
+                                      col_start:col_start+block_size]
+                        
+                        # Flatten block in column-major order
+                        for c in range(block_size):
+                            for r in range(block_size):
+                                line.append(converter.int_to_binary(int(block[r, c])))
+                    
+                    f.write(" ".join(line) + '\n')
+    
+    def _export_core_mode_C(self, matrix: np.ndarray, 
+                          converter: FixedPointConverter, filename: str,
+                          block_size: int, num_cores: int):
+        """Export matrix C in core block format (same as matrix A)"""
+        self._export_core_mode_A(matrix, converter, filename, block_size, num_cores)
 
 def main():
-    # Example configuration - adjust as needed
+    # Parse command-line arguments
+    parser = argparse.ArgumentParser(description='Fixed-Point Matrix Multiplier')
+    parser.add_argument('--display', choices=['int', 'float'], default='int',
+                        help='Display format for matrices (int or float)')
+    parser.add_argument('--min_val', type=float, default=0.0,
+                        help='Minimum value for matrix elements')
+    parser.add_argument('--max_val', type=float, default=2.0,
+                        help='Maximum value for matrix elements')
+    parser.add_argument('--integers', action='store_true',
+                        help='Use integer-only values')
+    parser.add_argument('--block_size', type=int, default=2,
+                        help='Block size for core-mode export')
+    parser.add_argument('--cores_a', type=int, default=2,
+                        help='Number of cores for matrix A')
+    parser.add_argument('--cores_b', type=int, default=1,
+                        help='Number of cores for matrix B')
+    args = parser.parse_args()
+    
+    # Matrix dimensions
     ROWS_A, COLS_A = 12, 6
     COLS_B = 8
-    MIN_VAL, MAX_VAL = 0, 2
-    BLOCK_SIZE = 2
-    NUM_CORES_A = 3
-    NUM_CORES_B = 1
-    INTEGER_ONLY = False
     
     # Fixed-point configurations (total_bits, fractional_bits, signed)
-    fp_config_A = (8, 4, True)   # Q7.8 format
-    fp_config_B = (8, 4, True)   # Q7.8 format
-    fp_config_C = (16, 8, True)  # Q15.16 format
+    fp_config_A = (8, 4, True)   # total bits, fracs
+    fp_config_B = (8, 4, True)   
+    fp_config_C = (16, 8, True)  
     
     processor = MatrixProcessor()
     
@@ -178,16 +256,16 @@ def main():
     conv_C = FixedPointConverter(*fp_config_C)
     
     # Create matrices
-    A = processor.create_matrix(ROWS_A, COLS_A, MIN_VAL, MAX_VAL, conv_A, INTEGER_ONLY)
-    B = processor.create_matrix(COLS_A, COLS_B, MIN_VAL, MAX_VAL, conv_B, INTEGER_ONLY)
+    A = processor.create_matrix(ROWS_A, COLS_A, args.min_val, args.max_val, conv_A, args.integers)
+    B = processor.create_matrix(COLS_A, COLS_B, args.min_val, args.max_val, conv_B, args.integers)
     
     # Perform multiplication
     C = processor.multiply_matrices(A, B, conv_A, conv_B, conv_C)
     
-    # Print matrices (in integer format)
-    processor.print_matrix(A, "Matrix A")
-    processor.print_matrix(B, "Matrix B")
-    processor.print_matrix(C, "Matrix C (A x B)")
+    # Print matrices with specified format
+    processor.print_matrix(A, conv_A, "Matrix A", args.display)
+    processor.print_matrix(B, conv_B, "Matrix B", args.display)
+    processor.print_matrix(C, conv_C, "Matrix C (A x B)", args.display)
     
     # Export matrices
     os.makedirs("exports", exist_ok=True)
@@ -198,8 +276,13 @@ def main():
     processor.export_matrix(C, conv_C, "exports/matrix_C_row.mem", 'row')
     
     # Export in core mode
-    processor.export_matrix(A, conv_A, "exports/matrix_A_core.mem", 'core', BLOCK_SIZE, NUM_CORES_A)
-    processor.export_matrix(B, conv_B, "exports/matrix_B_core.mem", 'core', BLOCK_SIZE, NUM_CORES_B)
+    processor.export_matrix(A, conv_A, "exports/matrix_A_core.mem", 'core', 
+                           args.block_size, args.cores_a, 'A')
+    processor.export_matrix(B, conv_B, "exports/matrix_B_core.mem", 'core', 
+                           args.block_size, args.cores_b, 'B')
+    # For matrix C, num_cores = NUM_CORES_A * NUM_CORES_B
+    processor.export_matrix(C, conv_C, "exports/matrix_C_core.mem", 'core', 
+                           args.block_size, args.cores_a * args.cores_b, 'C')
     
     print("\nExports saved to 'exports' directory")
 
