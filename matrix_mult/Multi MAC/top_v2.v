@@ -1,6 +1,8 @@
 // top.v
 // Used to combine toplevel_v2.v with BRAM
 // The output will be 64-bit x NUM_CORES
+// This version does not use buffer for its output. If you want to use a BRAM for the output, see top_v2.v
+
 //`include "toplevel_v2.v"
 
 module top_v2 #(
@@ -18,13 +20,13 @@ module top_v2 #(
     // To calculate the max_flag, the formula is:
     // ROW_SIZE_MAT_C = (ROW_SIZE_MAT_A / BLOCK_SIZE)
     // COL_SIZE_MAT_C = (COL_SIZE_MAT_B / BLOCK_SIZE) 
-    // MAX_FLAG = ROW_SIZE_MAT_C * COL_SIZE_MAT_C
+    // MAX_FLAG = ROW_SIZE_MAT_C * COL_SIZE_MAT_C / NUM_CORES
     parameter NUM_CORES = (INNER_DIMENSION == 2754) ? 9 :
                                (INNER_DIMENSION == 256)  ? 8 :
                                (INNER_DIMENSION == 200)  ? 5 :
                                (INNER_DIMENSION == 64)   ? 4 : 2,
     parameter MAX_FLAG = ROW_SIZE_MAT_C * COL_SIZE_MAT_C / NUM_CORES,
-    parameter ADDR_WIDTH_I = 2, // Used for determining the width of wb and input address and other parameters in BRAMs
+    parameter ADDR_WIDTH_I = 2,
     parameter ADDR_WIDTH_W = 2
 ) (
     input clk, rst_n,
@@ -33,17 +35,17 @@ module top_v2 #(
 
     input wb_ena,
     input [7:0] wb_wea,
-    input [ADDR_WIDTH_W-1:0] wb_addra, 
+    input [ADDR_WIDTH_W-1:0] wb_addra,
     input [WIDTH*CHUNK_SIZE-1:0] wb_dina,
 
     input in_ena,
     input [7:0] in_wea,
-    input [ADDR_WIDTH_I-1:0] in_addra, 
-    input [(WIDTH*CHUNK_SIZE*NUM_CORES)-1:0] in_dina,
+    input [ADDR_WIDTH_I-1:0] in_addra,
+    input [WIDTH*CHUNK_SIZE*NUM_CORES-1:0] in_dina,
 
     // Data output port
-    output reg [(WIDTH*CHUNK_SIZE*NUM_CORES)-1:0] out_bram, // DONT FORGET TO EDIT THIS EVERYTIME YOU USE DIFFERENT 
-    output top_ready, done
+    output done, top_ready,
+    output reg [(WIDTH*CHUNK_SIZE*NUM_CORES)-1:0] out_bram
 );
 
     localparam MEMORY_SIZE_I = INNER_DIMENSION*I_OUTER_DIMENSION*WIDTH;
@@ -75,7 +77,7 @@ module top_v2 #(
         // Port A module parameters
         .WRITE_DATA_WIDTH_A(WIDTH*CHUNK_SIZE*NUM_CORES), // DECIMAL, varying based on the matrix size
         .READ_DATA_WIDTH_A(WIDTH*CHUNK_SIZE*NUM_CORES),  // DECIMAL, varying based on the matrix size
-        .BYTE_WRITE_WIDTH_A(WIDTH*CHUNK_SIZE*NUM_CORES), // DECIMAL, how many bytes in WRITE_DATA_WIDTH_A
+        .BYTE_WRITE_WIDTH_A(WIDTH*CHUNK_SIZE*NUM_CORES),                // DECIMAL, how many bytes in WRITE_DATA_WIDTH_A
         .ADDR_WIDTH_A(ADDR_WIDTH_I),                   // DECIMAL, clog2(MEMORY_SIZE/WRITE_DATA_WIDTH_A)
         .READ_RESET_VALUE_A("0"),            // String
         .READ_LATENCY_A(1),                  // DECIMAL
@@ -85,7 +87,7 @@ module top_v2 #(
         // Port B module parameters  
         .WRITE_DATA_WIDTH_B(WIDTH*CHUNK_SIZE*NUM_CORES), // DECIMAL, varying based on the matrix size
         .READ_DATA_WIDTH_B(WIDTH*CHUNK_SIZE*NUM_CORES), // DECIMAL, varying based on the matrix size
-        .BYTE_WRITE_WIDTH_B(WIDTH*CHUNK_SIZE*NUM_CORES), // DECIMAL, how many bytes in WRITE_DATA_WIDTH_A
+        .BYTE_WRITE_WIDTH_B(WIDTH*CHUNK_SIZE*NUM_CORES),              // DECIMAL, how many bytes in WRITE_DATA_WIDTH_A
         .ADDR_WIDTH_B(ADDR_WIDTH_I),                   // DECIMAL, clog2(MEMORY_SIZE/WRITE_DATA_WIDTH_A)
         .READ_RESET_VALUE_B("0"),            // String
         .READ_LATENCY_B(1),                  // DECIMAL
@@ -201,14 +203,13 @@ module top_v2 #(
         .doutb(wb_doutb)
     );
 
-    
     // *** Toplevel ***********************************************************
-    wire systolic_finish_top; 
+    wire systolic_finish_top;
     wire accumulator_done_top;
     reg accumulator_done_top_d; // Delayed version of accumulator_done_top
-    wire accumulator_done_top_rising; // Rising edge of accumulator_done_top
+    wire accumulator_done_top_rising; // Rising edge signal
     assign accumulator_done_top_rising = ~accumulator_done_top_d & accumulator_done_top;
-
+    
     wire [(WIDTH*CHUNK_SIZE*NUM_CORES)-1:0] out_core;
     reg internal_rst_n;
     reg internal_reset_acc;
@@ -238,7 +239,7 @@ module top_v2 #(
             counter_acc_done <= 0;
             internal_rst_n <=0;
             internal_reset_acc <=0;
-            accumulator_done_top_d <= 0;
+            accumulator_done_top_d <=0;
             flag <=0;
             in_enb <=0;
             wb_enb <=0;
@@ -247,9 +248,9 @@ module top_v2 #(
             out_bram <=0;
         end
         else begin
-            accumulator_done_top_d <= accumulator_done_top; // Assigning the delayed version
-            counter_acc_done <= 0;
-
+            accumulator_done_top_d <= accumulator_done_top; // Assigninig the delayed version 
+            counter_acc_done <= 0; // Assign this to zero every clock cycle
+            
             // Port B Controller
             if (start || ((wb_wea == 8'hFF) && (in_wea == 8'hFF))) begin
                 wb_enb <=1;
@@ -301,7 +302,6 @@ module top_v2 #(
                     counter_acc_done <=1;
                 end
                 */
-                // Toggle counter_acc_done if the accumulator is done
                 counter_acc_done <= 1;
 
                 // Flag assigning for 'done' variable
@@ -316,5 +316,6 @@ module top_v2 #(
     assign top_ready = counter_acc_done;
     // Done assigning based on flag
     assign done = (flag == MAX_FLAG);
+
 
 endmodule
