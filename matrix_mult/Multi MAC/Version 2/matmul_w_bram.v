@@ -26,7 +26,7 @@ module matmul_w_bram #(
                                (INNER_DIMENSION == 200)  ? 5 :
                                (INNER_DIMENSION == 64)   ? 4 : 2,
     parameter ADDR_WIDTH_A = $clog2((INNER_DIMENSION*A_OUTER_DIMENSION*WIDTH_A)/(WIDTH_A*CHUNK_SIZE*NUM_CORES_A)),
-    parameter ADDR_WIDTH_B = $clog2((INNER_DIMENSION*B_OUTER_DIMENSION*WIDTH_B)/(WIDTH_B*CHUNK_SIZE*NUM_CORES_B));
+    parameter ADDR_WIDTH_B = $clog2((INNER_DIMENSION*B_OUTER_DIMENSION*WIDTH_B)/(WIDTH_B*CHUNK_SIZE*NUM_CORES_B))
 ) (
     input clk, rst_n,
     // Control and status port
@@ -35,16 +35,16 @@ module matmul_w_bram #(
     input in_b_ena,
     input [7:0] in_b_wea,
     input [ADDR_WIDTH_B-1:0] in_b_addra,
-    input [WIDTH*CHUNK_SIZE*NUM_CORES_B-1:0] in_b_dina,
+    input [WIDTH_B*CHUNK_SIZE*NUM_CORES_B-1:0] in_b_dina,
 
     input in_a_ena,
     input [7:0] in_a_wea,
     input [ADDR_WIDTH_A-1:0] in_a_addra,
-    input [WIDTH*CHUNK_SIZE*NUM_CORES_A-1:0] in_a_dina,
+    input [WIDTH_A*CHUNK_SIZE*NUM_CORES_A-1:0] in_a_dina,
 
     // Data output port
     output done, out_valid,
-    output reg [(WIDTH*CHUNK_SIZE*NUM_CORES)-1:0] out_bram
+    output reg [(WIDTH_OUT*CHUNK_SIZE*NUM_CORES_A*NUM_CORES_B)-1:0] out_bram
 );
     localparam ROW_SIZE_MAT_C = A_OUTER_DIMENSION / (BLOCK_SIZE * NUM_CORES_A); // Maybe?
     localparam COL_SIZE_MAT_C = B_OUTER_DIMENSION / (BLOCK_SIZE * NUM_CORES_B); 
@@ -219,7 +219,19 @@ module matmul_w_bram #(
     wire top_start;
     assign top_start = (start && !done);
 
-    matmul_module #(.WIDTH(WIDTH), .FRAC_WIDTH(FRAC_WIDTH), .BLOCK_SIZE(BLOCK_SIZE), .CHUNK_SIZE(CHUNK_SIZE), .INNER_DIMENSION(INNER_DIMENSION), .NUM_CORES(NUM_CORES)) 
+    matmul_module #(
+        .BLOCK_SIZE(BLOCK_SIZE),
+        .INNER_DIMENSION(INNER_DIMENSION),
+        .CHUNK_SIZE(CHUNK_SIZE),
+        .WIDTH_A(WIDTH_A),
+        .FRAC_WIDTH_A(FRAC_WIDTH_A),
+        .WIDTH_B(WIDTH_B),
+        .FRAC_WIDTH_B(FRAC_WIDTH_B),
+        .WIDTH_OUT(WIDTH_OUT),
+        .FRAC_WIDTH_OUT(FRAC_WIDTH_OUT),
+        .NUM_CORES_A(NUM_CORES_A),
+        ,NUM_CORES_B(NUM_CORES_B)
+    ) 
     matmul_module_inst (
         .clk(clk), .en(top_start), .rst_n(internal_rst_n), .reset_acc(internal_reset_acc),
         .input_n(in_b_doutb), .input_w(in_a_doutb),
@@ -271,7 +283,8 @@ module matmul_w_bram #(
             // Counter Update
             if (systolic_finish_top) begin
                 // counter indicates the matrix C element iteration
-                if (counter == ((INNER_DIMENSION/BLOCK_SIZE) - 1)) begin // Please solve this later!
+                //if (counter == ((INNER_DIMENSION/BLOCK_SIZE) - 1)) begin // Please solve this later!
+                if (counter == ((NUM_CORES_A*BLOCK_SIZE) - 1)) begin // Change between these two
                     counter <=0;
                 end
                 else begin
