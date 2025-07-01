@@ -46,8 +46,8 @@ module matmul_w_bram #(
     output done, out_valid,
     output reg [(WIDTH*CHUNK_SIZE*NUM_CORES)-1:0] out_bram
 );
-    localparam ROW_SIZE_MAT_C = A_OUTER_DIMENSION / BLOCK_SIZE;
-    localparam COL_SIZE_MAT_C = B_OUTER_DIMENSION / BLOCK_SIZE;
+    localparam ROW_SIZE_MAT_C = A_OUTER_DIMENSION / (BLOCK_SIZE * NUM_CORES_A); // Maybe?
+    localparam COL_SIZE_MAT_C = B_OUTER_DIMENSION / (BLOCK_SIZE * NUM_CORES_B); 
     localparam MAX_FLAG = (ROW_SIZE_MAT_C * COL_SIZE_MAT_C) / (NUM_CORES_A * NUM_CORES_B);
 
     localparam MEMORY_SIZE_A = INNER_DIMENSION*A_OUTER_DIMENSION*WIDTH_A;
@@ -271,7 +271,7 @@ module matmul_w_bram #(
             // Counter Update
             if (systolic_finish_top) begin
                 // counter indicates the matrix C element iteration
-                if (counter == ((INNER_DIMENSION/BLOCK_SIZE) - 1)) begin
+                if (counter == ((INNER_DIMENSION/BLOCK_SIZE) - 1)) begin // Please solve this later!
                     counter <=0;
                 end
                 else begin
@@ -284,8 +284,8 @@ module matmul_w_bram #(
 
             // Column/Row Update
             if (accumulator_done_top_rising) begin
-                // counter_row indicates the i-th input matrix (I) row
-                // counter_col indicates the i-th weight matrix (W) row
+                // counter_row indicates the i-th row of the matrix C that we are working right now
+                // counter_col indicates the i-th column of the matrix C that we are working right now
 
                 // Check if we already at the end of the MAT C column
                 if (counter_col == (COL_SIZE_MAT_C - 1)) begin
