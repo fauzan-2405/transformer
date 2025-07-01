@@ -268,7 +268,7 @@ def main():
                         help='Block size for core-mode export')
     parser.add_argument('--cores_a', type=int, default=2,
                         help='Number of cores for matrix A')
-    parser.add_argument('--cores_b', type=int, default=1,
+    parser.add_argument('--cores_b', type=int, default=2,
                         help='Number of cores for matrix B')
     args = parser.parse_args()
     
@@ -277,9 +277,9 @@ def main():
     COLS_B = 8
     
     # Fixed-point configurations (total_bits, fractional_bits, signed)
-    fp_config_A = (16, 8, True)   # Q7.8 format
-    fp_config_B = (16, 8, True)   # Q7.8 format
-    fp_config_C = (32, 16, True)  # Q15.16 format
+    fp_config_A = (8, 4, True)   # Q7.8 format
+    fp_config_B = (8, 4, True)   # Q7.8 format
+    fp_config_C = (16, 8, True)  # Q15.16 format
     
     processor = MatrixProcessor()
     processor.cores_a = args.cores_a
