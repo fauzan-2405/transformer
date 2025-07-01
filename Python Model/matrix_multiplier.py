@@ -254,6 +254,9 @@ class MatrixProcessor:
                     f.write(" ".join(line) + '\n')
 
 def main():
+    # How to use
+    # python matrix_multiplier.py --display float --integers --min_val 0 --max_val 100 --block_size 4 --cores_a 1 --cores_b 1
+    
     # Parse command-line arguments
     parser = argparse.ArgumentParser(description='Fixed-Point Matrix Multiplier')
     parser.add_argument('--display', choices=['int', 'float'], default='int',

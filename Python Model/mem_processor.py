@@ -153,6 +153,9 @@ def process_mem_file(file_path: str, converter: FixedPointConverter, display_for
     print(f"\nCleaned file saved to: {cleaned_path}")
 
 def main():
+    # How to use
+    # python mem_processor.py --dir exports --display float --total_bits 8 --frac_bits 4
+
     parser = argparse.ArgumentParser(description='Process .mem files from matrix multiplier')
     parser.add_argument('--dir', type=str, default='exports',
                         help='Directory containing .mem files')
