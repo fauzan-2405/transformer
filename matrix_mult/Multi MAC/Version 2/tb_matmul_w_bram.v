@@ -18,8 +18,14 @@ module tb_matmul_w_bram;
     parameter BLOCK_SIZE = 2;
     parameter CHUNK_SIZE = 4;
 
-    //parameter NUM_CORES_A = 2;
-    //parameter NUM_CORES_B = 2;
+    parameter NUM_CORES_A = (INNER_DIMENSION == 2754) ? 9 :
+                               (INNER_DIMENSION == 256)  ? 8 :
+                               (INNER_DIMENSION == 200)  ? 5 :
+                               (INNER_DIMENSION == 64)   ? 4 : 2;
+    parameter NUM_CORES_B = (INNER_DIMENSION == 2754) ? 9 :
+                               (INNER_DIMENSION == 256)  ? 8 :
+                               (INNER_DIMENSION == 200)  ? 5 :
+                               (INNER_DIMENSION == 64)   ? 4 : 2;               
 
     // Derived parameters
     parameter DATA_WIDTH_A = WIDTH_A * CHUNK_SIZE * NUM_CORES_A;
@@ -52,6 +58,7 @@ module tb_matmul_w_bram;
     reg [DATA_WIDTH_B-1:0] mem_B [0:NUM_WORDS_B-1];
 
     // Output logging
+    integer i;
     integer output_file;
     integer output_count = 0;
 
@@ -88,7 +95,7 @@ module tb_matmul_w_bram;
         // Write A BRAM
         in_a_ena = 1;
         in_a_wea = 1;
-        for (int i = 0; i < NUM_WORDS_A; i++) begin
+        for (i = 0; i < NUM_WORDS_A; i = i + 1) begin
             @(posedge clk);
             in_a_addra <= i;
             in_a_dina <= mem_A[i];
@@ -99,7 +106,7 @@ module tb_matmul_w_bram;
         // Write B BRAM
         in_b_ena = 1;
         in_b_wea = 1;
-        for (int i = 0; i < NUM_WORDS_B; i++) begin
+        for (i = 0; i < NUM_WORDS_B; i = i + 1) begin
             @(posedge clk);
             in_b_addra <= i;
             in_b_dina <= mem_B[i];
@@ -121,7 +128,7 @@ module tb_matmul_w_bram;
             @(posedge clk);
             if (out_valid) begin
                 $fdisplay(output_file, "%b", out_bram);
-                output_count++;
+                output_count = output_count + 1;
             end
         end
 
