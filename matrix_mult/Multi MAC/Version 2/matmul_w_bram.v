@@ -33,12 +33,12 @@ module matmul_w_bram #(
     input start, // start to compute
 
     input in_b_ena,
-    input [7:0] in_b_wea,
+    input in_b_wea,
     input [ADDR_WIDTH_B-1:0] in_b_addra,
     input [WIDTH_B*CHUNK_SIZE*NUM_CORES_B-1:0] in_b_dina,
 
     input in_a_ena,
-    input [7:0] in_a_wea,
+    input in_a_wea,
     input [ADDR_WIDTH_A-1:0] in_a_addra,
     input [WIDTH_A*CHUNK_SIZE*NUM_CORES_A-1:0] in_a_dina,
 
@@ -79,7 +79,7 @@ module matmul_w_bram #(
         // Port A module parameters
         .WRITE_DATA_WIDTH_A(WIDTH_A*CHUNK_SIZE*NUM_CORES_A), // DECIMAL, varying based on the matrix size
         .READ_DATA_WIDTH_A(WIDTH_A*CHUNK_SIZE*NUM_CORES_A),  // DECIMAL, varying based on the matrix size
-        .BYTE_WRITE_WIDTH_A(WIDTH_A*CHUNK_SIZE*NUM_CORES_A),                // DECIMAL, how many bytes in WRITE_DATA_WIDTH_A, use $clog2 maybe?
+        .BYTE_WRITE_WIDTH_A((WIDTH_A*CHUNK_SIZE*NUM_CORES_A) / 8),                // DECIMAL, how many bytes in WRITE_DATA_WIDTH_A, use $clog2 maybe?
         .ADDR_WIDTH_A(ADDR_WIDTH_A),                   // DECIMAL, clog2(MEMORY_SIZE_A/WRITE_DATA_WIDTH_A)
         .READ_RESET_VALUE_A("0"),            // String
         .READ_LATENCY_A(1),                  // DECIMAL
@@ -89,7 +89,7 @@ module matmul_w_bram #(
         // Port B module parameters  
         .WRITE_DATA_WIDTH_B(WIDTH_A*CHUNK_SIZE*NUM_CORES_A), // DECIMAL, varying based on the matrix size
         .READ_DATA_WIDTH_B(WIDTH_A*CHUNK_SIZE*NUM_CORES_A), // DECIMAL, varying based on the matrix size
-        .BYTE_WRITE_WIDTH_B(WIDTH_A*CHUNK_SIZE*NUM_CORES_A),              // DECIMAL, how many bytes in WRITE_DATA_WIDTH_A
+        .BYTE_WRITE_WIDTH_B((WIDTH_A*CHUNK_SIZE*NUM_CORES_A) / 8),              // DECIMAL, how many bytes in WRITE_DATA_WIDTH_A
         .ADDR_WIDTH_B(ADDR_WIDTH_A),                   // DECIMAL, clog2(MEMORY_SIZE/WRITE_DATA_WIDTH_A)
         .READ_RESET_VALUE_B("0"),            // String
         .READ_LATENCY_B(1),                  // DECIMAL
@@ -155,7 +155,7 @@ module matmul_w_bram #(
         // Port A module parameters
         .WRITE_DATA_WIDTH_A(WIDTH_B*CHUNK_SIZE*NUM_CORES_B), // DECIMAL, data width: 64-bit
         .READ_DATA_WIDTH_A(WIDTH_B*CHUNK_SIZE*NUM_CORES_B),  // DECIMAL, data width: 64-bit
-        .BYTE_WRITE_WIDTH_A(WIDTH_B*CHUNK_SIZE*NUM_CORES_B),              // DECIMAL, how many bytes in WRITE_DATA_WIDTH_A, use $clog2 maybe?
+        .BYTE_WRITE_WIDTH_A((WIDTH_B*CHUNK_SIZE*NUM_CORES_B) / 8),              // DECIMAL, how many bytes in WRITE_DATA_WIDTH_A, use $clog2 maybe?
         .ADDR_WIDTH_A(ADDR_WIDTH_B),                   // DECIMAL, clog2(MEMORY_SIZE/WRITE_DATA_WIDTH_A)
         .READ_RESET_VALUE_A("0"),            // String
         .READ_LATENCY_A(1),                  // DECIMAL
@@ -165,7 +165,7 @@ module matmul_w_bram #(
         // Port B module parameters  
         .WRITE_DATA_WIDTH_B(WIDTH_B*CHUNK_SIZE*NUM_CORES_B), // DECIMAL, data width: 64-bit
         .READ_DATA_WIDTH_B(WIDTH_B*CHUNK_SIZE*NUM_CORES_B), // DECIMAL, data width: 64-bit
-        .BYTE_WRITE_WIDTH_B(WIDTH_B*CHUNK_SIZE*NUM_CORES_B),              // DECIMAL
+        .BYTE_WRITE_WIDTH_B((WIDTH_B*CHUNK_SIZE*NUM_CORES_B) / 8),              // DECIMAL
         .ADDR_WIDTH_B(ADDR_WIDTH_B),                   // DECIMAL, clog2(MEMORY_SIZE/WRITE_DATA_WIDTH_A)
         .READ_RESET_VALUE_B("0"),            // String
         .READ_LATENCY_B(1),                  // DECIMAL
@@ -230,7 +230,7 @@ module matmul_w_bram #(
         .WIDTH_OUT(WIDTH_OUT),
         .FRAC_WIDTH_OUT(FRAC_WIDTH_OUT),
         .NUM_CORES_A(NUM_CORES_A),
-        ,NUM_CORES_B(NUM_CORES_B)
+        .NUM_CORES_B(NUM_CORES_B)
     ) 
     matmul_module_inst (
         .clk(clk), .en(top_start), .rst_n(internal_rst_n), .reset_acc(internal_reset_acc),
@@ -266,7 +266,7 @@ module matmul_w_bram #(
             counter_acc_done <= 0; // Assign this to zero every clock cycle
             
             // Port B Controller
-            if (start || ((in_b_wea == 8'hFF) && (in_a_wea == 8'hFF))) begin
+            if (start || ((in_b_wea) && (in_a_wea))) begin
                 in_b_enb <=1;
                 in_a_enb <=1;
             end
