@@ -21,7 +21,7 @@ module systolic_array_2x2_v2 #(
     // Dont initialize counter if you want to do systolic_array_2x2 or mac simulation on testbench
     //reg [2:0] count = 3'b111;
     reg [2:0] count;
-
+    
     // For convenience
     //wire [WIDTH-1:0] in_north0, in_north1;
     //wire [WIDTH-1:0] in_west0, in_west2;
@@ -37,9 +37,9 @@ module systolic_array_2x2_v2 #(
 
     // Second row
     pe_v2 #(.WIDTH_A(WIDTH_A), .FRAC_WIDTH_A(FRAC_WIDTH_A), .WIDTH_B(WIDTH_B), .FRAC_WIDTH_B(FRAC_WIDTH_B), .WIDTH_OUT(WIDTH_OUT), .FRAC_WIDTH_OUT(FRAC_WIDTH_OUT)) 
-        pe2 (.clk(clk), .rst_n(rst_n), .in_north(out_south0), .in_west(in_west2), .out_south(out_south2), .out_east(out_east2), .result(result2));
+         pe2 (.clk(clk), .rst_n(rst_n), .in_north(out_south0), .in_west(in_west2), .out_south(out_south2), .out_east(out_east2), .result(result2));
     pe_v2 #(.WIDTH_A(WIDTH_A), .FRAC_WIDTH_A(FRAC_WIDTH_A), .WIDTH_B(WIDTH_B), .FRAC_WIDTH_B(FRAC_WIDTH_B), .WIDTH_OUT(WIDTH_OUT), .FRAC_WIDTH_OUT(FRAC_WIDTH_OUT)) 
-        pe3 (.clk(clk), .rst_n(rst_n), .in_north(out_south1), .in_west(out_east2), .out_south(out_south3), .out_east(out_east3), .result(result3));
+         pe3 (.clk(clk), .rst_n(rst_n), .in_north(out_south1), .in_west(out_east2), .out_south(out_south3), .out_east(out_east3), .result(result3));
 
     assign out = {result0, result1, result2, result3};
 
@@ -62,5 +62,3 @@ module systolic_array_2x2_v2 #(
         end
     end
 endmodule
-
-		      
