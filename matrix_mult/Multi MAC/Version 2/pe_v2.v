@@ -33,7 +33,7 @@ module pe_v2 #(
     assign mult_result = a_signed * b_signed;
 
     // Align 'result' to the same fixed-point scale as mult_result before accumulation
-    wire signed [ACC_WIDTH-1:0] aligned_result = {{(ACC_WIDTH-WIDTH_OUT){result[WIDTH_OUT-1]}}, result} <<< (MULT_FRAC - FRAC_WIDTH_OUT);
+    wire signed [ACC_WIDTH-1:0] aligned_result = {{(ACC_WIDTH-WIDTH_OUT){result[WIDTH_OUT-1]}}, result} <<< (MULT_FRAC - FRAC_WIDTH_OUT); 
     assign add_result = {{(ACC_WIDTH-MULT_WIDTH){mult_result[MULT_WIDTH-1]}}, mult_result} + aligned_result;
     //assign result = temp_acc;
 
@@ -63,3 +63,4 @@ module pe_v2 #(
         end
     end
 endmodule
+
