@@ -19,7 +19,8 @@ module systolic_array_2x2_v2 #(
     output [WIDTH_OUT*CHUNK_SIZE-1:0] out
 );
     // Dont initialize counter if you want to do systolic_array_2x2 or mac simulation on testbench
-    reg [2:0] count = 3'b111;
+    //reg [2:0] count = 3'b111;
+    reg [2:0] count;
 
     // For convenience
     //wire [WIDTH-1:0] in_north0, in_north1;
