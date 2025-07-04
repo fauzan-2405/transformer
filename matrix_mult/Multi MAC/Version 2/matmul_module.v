@@ -44,7 +44,7 @@ module matmul_module #(
 
     // Dynamically wire input_n_array based on NUM_CORES_B
     generate
-        for (i = 0; i < NUM_CORES_A; i = i + 1) begin : WIRE_N
+        for (i = 0; i < NUM_CORES_B; i = i + 1) begin : WIRE_N
             if (NUM_CORES_B == 1) begin
                 assign input_n_array[i] = input_n;
             end else begin
@@ -57,6 +57,7 @@ module matmul_module #(
     generate
         for (j = 0; j < NUM_CORES_B; j = j + 1) begin
             for (i = 0; i < NUM_CORES_A; i = i + 1) begin
+                localparam INDEX = j * NUM_CORES_A + i;
                 core_v2 #(
                     .BLOCK_SIZE(BLOCK_SIZE),
                     .INNER_DIMENSION(INNER_DIMENSION),
@@ -74,9 +75,10 @@ module matmul_module #(
                     .reset_acc(reset_acc),
                     .input_w(input_w_array[i]),
                     .input_n(input_n_array[j]),
-                    .accumulator_done(acc_done_array[i]),
-                    .systolic_finish(systolic_finish_array[i]),
+                    .accumulator_done(acc_done_array[INDEX]),
+                    .systolic_finish(systolic_finish_array[INDEX]),
                     .out(out_top[(j * NUM_CORES_A + i + 1)*(WIDTH_OUT * CHUNK_SIZE) - 1 -: (WIDTH_OUT * CHUNK_SIZE)])
+                    //.out(out_top[(j * NUM_CORES_A + i + 1)*(WIDTH_OUT * BLOCK_SIZE) - 1 -: (WIDTH_OUT * BLOCK_SIZE)])
                 );
             end
         end
