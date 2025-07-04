@@ -48,7 +48,7 @@ module matmul_w_bram #(
 );
     localparam ROW_SIZE_MAT_C = A_OUTER_DIMENSION / (BLOCK_SIZE * NUM_CORES_A); // Maybe?
     localparam COL_SIZE_MAT_C = B_OUTER_DIMENSION / (BLOCK_SIZE * NUM_CORES_B); 
-    localparam MAX_FLAG = (ROW_SIZE_MAT_C * COL_SIZE_MAT_C) / (NUM_CORES_A * NUM_CORES_B);
+    localparam MAX_FLAG = (ROW_SIZE_MAT_C * COL_SIZE_MAT_C);
 
     localparam MEMORY_SIZE_A = INNER_DIMENSION*A_OUTER_DIMENSION*WIDTH_A;
     localparam MEMORY_SIZE_B = INNER_DIMENSION*B_OUTER_DIMENSION*WIDTH_B;
@@ -57,6 +57,7 @@ module matmul_w_bram #(
     // xpm_memory_tdpram: True Dual Port RAM
     // Xilinx Parameterized Macro, version 2018.3
     reg in_a_enb;
+    reg in_a_enb_d;
     reg [ADDR_WIDTH_A-1:0] in_a_addrb; // Same as in_a_addra
     wire [WIDTH_A*CHUNK_SIZE*NUM_CORES_A-1:0] in_a_doutb;
 
@@ -79,7 +80,7 @@ module matmul_w_bram #(
         // Port A module parameters
         .WRITE_DATA_WIDTH_A(WIDTH_A*CHUNK_SIZE*NUM_CORES_A), // DECIMAL, varying based on the matrix size
         .READ_DATA_WIDTH_A(WIDTH_A*CHUNK_SIZE*NUM_CORES_A),  // DECIMAL, varying based on the matrix size
-        .BYTE_WRITE_WIDTH_A((WIDTH_A*CHUNK_SIZE*NUM_CORES_A) / 8),                // DECIMAL, how many bytes in WRITE_DATA_WIDTH_A, use $clog2 maybe?
+        .BYTE_WRITE_WIDTH_A((WIDTH_A*CHUNK_SIZE*NUM_CORES_A)),                // DECIMAL, how many bytes in WRITE_DATA_WIDTH_A, use $clog2 maybe?
         .ADDR_WIDTH_A(ADDR_WIDTH_A),                   // DECIMAL, clog2(MEMORY_SIZE_A/WRITE_DATA_WIDTH_A)
         .READ_RESET_VALUE_A("0"),            // String
         .READ_LATENCY_A(1),                  // DECIMAL
@@ -89,7 +90,7 @@ module matmul_w_bram #(
         // Port B module parameters  
         .WRITE_DATA_WIDTH_B(WIDTH_A*CHUNK_SIZE*NUM_CORES_A), // DECIMAL, varying based on the matrix size
         .READ_DATA_WIDTH_B(WIDTH_A*CHUNK_SIZE*NUM_CORES_A), // DECIMAL, varying based on the matrix size
-        .BYTE_WRITE_WIDTH_B((WIDTH_A*CHUNK_SIZE*NUM_CORES_A) / 8),              // DECIMAL, how many bytes in WRITE_DATA_WIDTH_A
+        .BYTE_WRITE_WIDTH_B((WIDTH_A*CHUNK_SIZE*NUM_CORES_A)),              // DECIMAL, how many bytes in WRITE_DATA_WIDTH_A
         .ADDR_WIDTH_B(ADDR_WIDTH_A),                   // DECIMAL, clog2(MEMORY_SIZE/WRITE_DATA_WIDTH_A)
         .READ_RESET_VALUE_B("0"),            // String
         .READ_LATENCY_B(1),                  // DECIMAL
@@ -122,7 +123,7 @@ module matmul_w_bram #(
         // Port B module ports
         .clkb(clk),
         .rstb(~rst_n),
-        .enb(in_a_enb),
+        .enb(in_a_enb_d),
         .web(0),
         .addrb(in_a_addrb),
         .dinb(0),
@@ -133,6 +134,7 @@ module matmul_w_bram #(
     // xpm_memory_tdpram: True Dual Port RAM
     // Xilinx Parameterized Macro, version 2018.3
     reg in_b_enb;
+    reg in_b_enb_d;
     reg [ADDR_WIDTH_B-1:0] in_b_addrb; // Same as in_b_addra
     wire [WIDTH_B*CHUNK_SIZE*NUM_CORES_B-1:0] in_b_doutb;
 
@@ -155,7 +157,7 @@ module matmul_w_bram #(
         // Port A module parameters
         .WRITE_DATA_WIDTH_A(WIDTH_B*CHUNK_SIZE*NUM_CORES_B), // DECIMAL, data width: 64-bit
         .READ_DATA_WIDTH_A(WIDTH_B*CHUNK_SIZE*NUM_CORES_B),  // DECIMAL, data width: 64-bit
-        .BYTE_WRITE_WIDTH_A((WIDTH_B*CHUNK_SIZE*NUM_CORES_B) / 8),              // DECIMAL, how many bytes in WRITE_DATA_WIDTH_A, use $clog2 maybe?
+        .BYTE_WRITE_WIDTH_A((WIDTH_B*CHUNK_SIZE*NUM_CORES_B)),              // DECIMAL, how many bytes in WRITE_DATA_WIDTH_A, use $clog2 maybe?
         .ADDR_WIDTH_A(ADDR_WIDTH_B),                   // DECIMAL, clog2(MEMORY_SIZE/WRITE_DATA_WIDTH_A)
         .READ_RESET_VALUE_A("0"),            // String
         .READ_LATENCY_A(1),                  // DECIMAL
@@ -165,7 +167,7 @@ module matmul_w_bram #(
         // Port B module parameters  
         .WRITE_DATA_WIDTH_B(WIDTH_B*CHUNK_SIZE*NUM_CORES_B), // DECIMAL, data width: 64-bit
         .READ_DATA_WIDTH_B(WIDTH_B*CHUNK_SIZE*NUM_CORES_B), // DECIMAL, data width: 64-bit
-        .BYTE_WRITE_WIDTH_B((WIDTH_B*CHUNK_SIZE*NUM_CORES_B) / 8),              // DECIMAL
+        .BYTE_WRITE_WIDTH_B((WIDTH_B*CHUNK_SIZE*NUM_CORES_B)),              // DECIMAL
         .ADDR_WIDTH_B(ADDR_WIDTH_B),                   // DECIMAL, clog2(MEMORY_SIZE/WRITE_DATA_WIDTH_A)
         .READ_RESET_VALUE_B("0"),            // String
         .READ_LATENCY_B(1),                  // DECIMAL
@@ -198,7 +200,7 @@ module matmul_w_bram #(
         // Port B module ports
         .clkb(clk),
         .rstb(~rst_n),
-        .enb(in_b_enb),
+        .enb(in_b_enb_d),
         .web(0),
         .addrb(in_b_addrb),
         .dinb(0),
@@ -216,8 +218,8 @@ module matmul_w_bram #(
     reg internal_rst_n;
     reg internal_reset_acc;
     // Toggle start based on done variable
-    wire top_start;
-    assign top_start = (start && !done);
+    reg top_start;
+    //assign top_start = (start && !done);
 
     matmul_module #(
         .BLOCK_SIZE(BLOCK_SIZE),
@@ -247,6 +249,7 @@ module matmul_w_bram #(
     // Main controller logic
     always @(posedge clk) begin
         if (~rst_n) begin
+            top_start <= 0;
             counter <= 0;
             counter_row <=0;
             counter_col <=0;
@@ -257,18 +260,24 @@ module matmul_w_bram #(
             flag <=0;
             in_a_enb <=0;
             in_b_enb <=0;
+            in_a_enb_d <=0;
+            in_b_enb_d <=0;
             in_a_addrb <=0;
             in_b_addrb <=0;
             out_bram <=0;
         end
         else begin
             accumulator_done_top_d <= accumulator_done_top; // Assigninig the delayed version 
+            in_a_enb_d <= in_a_enb;
+            in_b_enb_d <= in_b_enb;
             counter_acc_done <= 0; // Assign this to zero every clock cycle
             
             // Port B Controller
-            if (start || ((in_b_wea) && (in_a_wea))) begin
+            //if (start || ((in_b_wea) && (in_a_wea))) begin
+            if (start) begin
                 in_b_enb <=1;
                 in_a_enb <=1;
+                top_start <= 1;
             end
 
             // Internal Reset Control
@@ -283,16 +292,18 @@ module matmul_w_bram #(
             // Counter Update
             if (systolic_finish_top) begin
                 // counter indicates the matrix C element iteration
-                //if (counter == ((INNER_DIMENSION/BLOCK_SIZE) - 1)) begin // Please solve this later!
-                if (counter == ((NUM_CORES_A*BLOCK_SIZE) - 1)) begin // Change between these two
+                if (counter == ((INNER_DIMENSION/BLOCK_SIZE) - 1)) begin // Please solve this later!
+                //if (counter == ((NUM_CORES_A*BLOCK_SIZE) - 1)) begin // Change between these two
                     counter <=0;
                 end
                 else begin
                     counter <= counter + 1;
                 end
-                // Address controller (input matrix will be the stationary input)
+                // Address controller
                 in_a_addrb <= counter + (INNER_DIMENSION/BLOCK_SIZE)*counter_row;
                 in_b_addrb <= counter + (INNER_DIMENSION/BLOCK_SIZE)*counter_col;
+                //in_a_addrb <= counter + (NUM_CORES_A*BLOCK_SIZE)*counter_row;
+                //in_b_addrb <= counter + (NUM_CORES_B*BLOCK_SIZE)*counter_col;
             end
 
             // Column/Row Update
@@ -328,4 +339,5 @@ module matmul_w_bram #(
 
 
 endmodule
+
 
