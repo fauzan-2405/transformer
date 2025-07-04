@@ -5,21 +5,21 @@ module tb_matmul_w_bram;
     // Parameters from user
     parameter WIDTH_A = 8; 
     parameter WIDTH_B = 8; 
-    parameter WIDTH_OUT = 16;
+    parameter WIDTH_OUT = 12;
 
     parameter FRAC_WIDTH_A = 4; 
-    parameter FRAC_WIDTH_B = 4; 
-    parameter FRAC_WIDTH_OUT = 8;
+    parameter FRAC_WIDTH_B = 2; 
+    parameter FRAC_WIDTH_OUT = 4;
 
-    parameter INNER_DIMENSION = 6; 
-    parameter A_OUTER_DIMENSION = 12; 
-    parameter B_OUTER_DIMENSION = 8; 
+    parameter INNER_DIMENSION = 4; 
+    parameter A_OUTER_DIMENSION = 4; 
+    parameter B_OUTER_DIMENSION = 6; 
 
     parameter BLOCK_SIZE = 2;
     parameter CHUNK_SIZE = 4;
 
     parameter NUM_CORES_A = 2;
-    parameter NUM_CORES_B = 2;
+    parameter NUM_CORES_B = 3;
 
     // Derived parameters
     parameter DATA_WIDTH_A = WIDTH_A * CHUNK_SIZE * NUM_CORES_A;
@@ -87,7 +87,7 @@ module tb_matmul_w_bram;
     integer i;
 
     initial begin
-        $display("🔁 Starting parallel BRAM initialization testbench...");
+        $display("Starting parallel BRAM initialization testbench...");
         $readmemb("mem_A_core.mem", mem_A);
         $readmemb("mem_B_core.mem", mem_B);
 
@@ -101,6 +101,7 @@ module tb_matmul_w_bram;
         in_b_ena = 1;
         in_a_wea = 1;
         in_b_wea = 1;
+        //#10 start = 1;
 
         // Write data in parallel to BRAM A and B
         for (i = 0; i < NUM_WORDS_A || i < NUM_WORDS_B; i = i + 1) begin
@@ -136,13 +137,13 @@ module tb_matmul_w_bram;
             @(posedge clk);
             if (out_valid) begin
                 $fdisplay(output_file, "%b", out_bram);
-                output_count=output_count + 1;
+                output_count= output_count + 1;
             end
         end
 
         $fclose(output_file);
-        $display("Finished. Output saved to mem_C_result.mem (%0d lines)", output_count);
-        $stop;
+        $display("✅ Finished. Output saved to mem_C_result.mem (%0d lines)", output_count);
+        //$stop;
     end
 
 endmodule
