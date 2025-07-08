@@ -1,5 +1,10 @@
 --display float --min_val 0.0 --max_val 3 --block_size 2 --cores_a 2 --cores_b 2 --integers
 
+Fixed-point configurations (total_bits, fractional_bits, signed)
+fp_config_A = (8, 2, True)   
+fp_config_B = (8, 4, True)   
+fp_config_C = (16, 10, True)  
+
 Matrix A(12x6) :
 3.0000   2.0000   3.0000   1.0000   1.0000   2.0000
 1.0000   2.0000   2.0000   0.0000   2.0000   3.0000
