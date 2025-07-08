@@ -2,14 +2,14 @@
 // Row to block converter for input (and output?)
 // Used for changing the shape of the input matrix from the normal version (row by row) to the ready to be inputted to the matrix multiplication module (block per block)
 
-module vertical_converter #(
+module r2b_converter_i #(
     parameter WIDTH       = 16,
     parameter FRAC_WIDTH  = 8,
     parameter BLOCK_SIZE  = 2, 
     parameter CHUNK_SIZE  = 4,
     parameter ROW         = 2754, 
     parameter COL         = 256,
-    parameter NUM_CORES_H  = 2,
+    parameter NUM_CORES_H = 1,
     parameter NUM_CORES_V = 2
 ) (
     input  wire                          clk,
@@ -24,8 +24,8 @@ module vertical_converter #(
     output reg  [WIDTH*CHUNK_SIZE*NUM_CORES_V-1:0] out_data
 );
     // Local parameters
-    localparam SLICE_ROWS       = BLOCK_SIZE * NUM_CORES_V; // 
-    localparam CHUNKS_PER_ROW   = COL/BLOCK_SIZE;
+    localparam SLICE_ROWS       = BLOCK_SIZE * NUM_CORES_V; 
+    localparam CHUNKS_PER_ROW   = COL/(BLOCK_SIZE * NUM_CORES_H);
     localparam ROW_DIV          = ROW/(SLICE_ROWS);
     localparam RAM_DEPTH        = ROW;
     localparam RAM_DATA_WIDTH   = WIDTH * COL;
