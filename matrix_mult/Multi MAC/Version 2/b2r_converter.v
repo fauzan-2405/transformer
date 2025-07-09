@@ -1,4 +1,4 @@
-// b2r_converter.v
+// b2r_converter.v VERSIONN TWOOO
 // Used to convert block-per-block input into row-per-row (normal matrix ordering)
 // WIDTH*CHUNK_SIZE*NUM_CORES = COL_OPERATION (in this computation)
 
@@ -30,7 +30,7 @@ module b2r_converter #(
 
     localparam SLICE_ROWS       = COL/(BLOCK_SIZE*NUM_CORES_H);         // Indicates how many input rows (in core mode) that needed to produce one output
     localparam CHUNKS_PER_ROW   = TOTAL_INPUT_COL_REAL/BLOCK_SIZE;      // Indicates how many chunks within one core in one input row (in core mode), 
-    localparam ROW_DIV          = TOTAL_INPUT_ROW_REAL/(SLICE_ROWS);
+    localparam ROW_DIV          = TOTAL_INPUT_ROW_REAL/(SLICE_ROWS);    // Indicates how many iterations in rows based on the vertical cores
 
     localparam RAM_DEPTH        = TOTAL_INPUT_ROW_REAL;
     localparam RAM_DATA_WIDTH   = WIDTH * TOTAL_INPUT_COL_REAL;
@@ -68,6 +68,12 @@ module b2r_converter #(
     reg slice_ready_d;
 
     // Integer variable for output
+    // row_idx : row index when iterating slice_rows
+    // core_h : indicates which core_h that we accessing right now in the row_idx-th 
+    // elem_idx indicates elements that we want to access based on the BLOCK_SIZE
+    integer row_idx, core_h, elem_idx;     
+    integer base_col_idx;
+    reg [WIDTH-1:0] temp_val;
 
     // FSM state register
     always @(posedge clk) begin
@@ -191,8 +197,14 @@ module b2r_converter #(
                     STATE_OUTPUT:
                     begin
                         if (slice_ready) begin
-                            for (i = 0; i < SLICE_ROWS; i = i+1) begin
-                                out_data[(SLICE_ROWS - 1 - i)*32 +: 32] <= slice_row[i][(RAM_DATA_WIDTH - 1 - 32*counter_out) -: 32];
+                            for (row_idx = 0; row_idx < SLICE_ROWS; row_idx = row_idx + 1) begin
+                                for (core_h = 0; core_h < NUM_CORES_H; core_h = core_h + 1) begin
+                                    for (elem_idx = 0; elem_idx < BLOCK_SIZE; elem_idx = elem_idx + 1) begin
+                                        base_col_idx = (core_h * CHUNK_SIZE) + (counter_out * BLOCK_SIZE) + elem_idx;
+                                        temp_val = slice_row[row_idx][base_col_idx*WIDTH +: WIDTH];
+                                        out_data[((row_idx * NUM_CORES_H * BLOCK_SIZE + core_h * BLOCK_SIZE + elem_idx + 1) * WIDTH) - 1 -: WIDTH] <= temp_val;
+                                    end
+                                end
                             end
 
                             if (counter_out == CHUNKS_PER_ROW - 1) begin
