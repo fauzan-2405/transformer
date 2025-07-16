@@ -280,9 +280,9 @@ def main():
     COLS_B = 8
     
     # Fixed-point configurations (total_bits, fractional_bits, signed)
-    fp_config_A = (8, 4, True)   # Q7.8 format
-    fp_config_B = (8, 4, True)   # Q7.8 format
-    fp_config_C = (16, 8, True)  # Q15.16 format
+    fp_config_A = (8, 4, True)   
+    fp_config_B = (8, 4, True)   
+    fp_config_C = (16, 8, True)  
     
     processor = MatrixProcessor()
     processor.cores_a = args.cores_a
