@@ -28,12 +28,14 @@ module b2r_converter #(
     localparam TOTAL_INPUT_ROW_REAL  = ROW/(BLOCK_SIZE*NUM_CORES_V) * COL/(BLOCK_SIZE*NUM_CORES_H); // Total rows in core mode
     localparam TOTAL_INPUT_COL_REAL  = CHUNK_SIZE * NUM_CORES_H * NUM_CORES_V;                      // Total cols in core mode
 
-    localparam SLICE_ROWS       = COL/(BLOCK_SIZE*NUM_CORES_H);         // Indicates how many input rows (in core mode) that needed to produce one output
-    localparam CHUNKS_PER_ROW   = TOTAL_INPUT_COL_REAL/BLOCK_SIZE;      // Indicates how many chunks within one core in one input row (in core mode), 
-    localparam ROW_DIV          = TOTAL_INPUT_ROW_REAL/(SLICE_ROWS);    // Indicates how many iterations in rows based on the vertical cores
-
+    localparam SLICE_ROWS       = COL/(BLOCK_SIZE*NUM_CORES_H);                     // Indicates how many input rows (in core mode) that needed to produce one output
+    localparam CHUNKS_PER_ROW   = TOTAL_INPUT_COL_REAL/(BLOCK_SIZE*NUM_CORES_H);    // Indicates how many chunks within one core in one input row (in core mode),
+    localparam ROW_DIV          = TOTAL_INPUT_ROW_REAL/(SLICE_ROWS);                // Indicates how many iterations in rows based on the SLICE_ROWS
     localparam RAM_DEPTH        = TOTAL_INPUT_ROW_REAL;
     localparam RAM_DATA_WIDTH   = WIDTH * TOTAL_INPUT_COL_REAL;
+    localparam BLOCKS_PER_V_CORE = CHUNK_SIZE / BLOCK_SIZE;
+    localparam OUTPUTS_PER_SLICE = NUM_CORES_V * BLOCKS_PER_V_CORE;
+    
     localparam STATE_IDLE       = 3'd0;
     localparam STATE_FILL       = 3'd1;
     localparam STATE_SLICE_RD   = 3'd2;
@@ -57,9 +59,10 @@ module b2r_converter #(
     // RAM Interface
     reg ram_we;
     reg [$clog2(TOTAL_INPUT_ROW_REAL)-1:0] ram_write_addr;
+    //reg [$clog2(TOTAL_INPUT_ROW_REAL)-1:0] ram_read_addr;
     wire [$clog2(TOTAL_INPUT_ROW_REAL)-1:0] ram_read_addr;
     reg [RAM_DATA_WIDTH-1:0] ram_din;
-    //reg [RAM_DATA_WIDTH-1:0] ram_din_d;
+    reg [RAM_DATA_WIDTH-1:0] ram_din_d;
     wire [RAM_DATA_WIDTH-1:0] ram_dout;
 
     // Slice row buffer
@@ -69,11 +72,15 @@ module b2r_converter #(
 
     // Integer variable for output
     // row_idx : row index when iterating slice_rows
-    // core_h : indicates which core_h that we accessing right now in the row_idx-th 
+    // core_h : 
     // elem_idx indicates elements that we want to access based on the BLOCK_SIZE
-    integer row_idx, core_h, elem_idx;     
+    integer nv_idx, block_id;
+    integer row_idx, nh_idx;
+    integer elem_idx;     
     integer base_col_idx;
-    reg [WIDTH-1:0] temp_val;
+    integer out_base;
+    integer elem_offset;
+    integer mem_pos, out_pos;
 
     // FSM state register
     always @(posedge clk) begin
@@ -100,7 +107,9 @@ module b2r_converter #(
 
             STATE_SLICE_RD:
             begin
-                state_next = ((ram_read_addr  >= SLICE_ROWS - 1) && (slice_load_counter_d >= SLICE_ROWS - 1)) ? STATE_OUTPUT : STATE_SLICE_RD;
+                //state_next = ((ram_read_addr  >= SLICE_ROWS - 1) && (slice_load_counter_d >= SLICE_ROWS - 1)) ? STATE_OUTPUT : STATE_SLICE_RD;
+                //state_next = (ram_read_addr  == SLICE_ROWS + counter_row - slice_load_counter) ? STATE_OUTPUT : STATE_SLICE_RD;
+                state_next = ((ram_read_addr  == SLICE_ROWS + counter_row - slice_load_counter) && (slice_load_counter_d >= SLICE_ROWS - 1)) ? STATE_OUTPUT : STATE_SLICE_RD;
             end
 
             STATE_OUTPUT:
@@ -139,7 +148,7 @@ module b2r_converter #(
                 ram_we          <= 1;
                 ram_write_addr  <= counter;
                 //ram_din         <= in_data;
-                //ram_din_d       <= ram_din;
+                ram_din_d       <= ram_din;
             end
         end
     end
@@ -174,7 +183,7 @@ module b2r_converter #(
                     STATE_SLICE_RD: 
                     begin
                         //ram_read_addr <= counter_row + slice_load_counter;
-                        slice_row[slice_load_counter_d] <= ram_dout;
+                        slice_row[slice_load_counter] <= ram_dout;
 
                         if (slice_load_counter == SLICE_ROWS - 1) begin
                             if ((slice_load_counter_d + (counter_row_index * SLICE_ROWS)) == ram_read_addr ) begin
@@ -197,13 +206,26 @@ module b2r_converter #(
                     STATE_OUTPUT:
                     begin
                         if (slice_ready) begin
+                            // Calculate indices
+                            nv_idx = counter_out / BLOCKS_PER_V_CORE;
+                            block_id = counter_out % BLOCKS_PER_V_CORE;
                             for (row_idx = 0; row_idx < SLICE_ROWS; row_idx = row_idx + 1) begin
-                                for (core_h = 0; core_h < NUM_CORES_H; core_h = core_h + 1) begin
-                                    for (elem_idx = 0; elem_idx < BLOCK_SIZE; elem_idx = elem_idx + 1) begin
-                                        base_col_idx = (core_h * CHUNK_SIZE) + (counter_out * BLOCK_SIZE) + elem_idx;
-                                        temp_val = slice_row[row_idx][base_col_idx*WIDTH +: WIDTH];
-                                        out_data[((row_idx * NUM_CORES_H * BLOCK_SIZE + core_h * BLOCK_SIZE + elem_idx + 1) * WIDTH) - 1 -: WIDTH] <= temp_val;
+                                for (nh_idx = 0; nh_idx < NUM_CORES_H; nh_idx = nh_idx + 1) begin
+                                    // Calculate memory addresses
+                                    base_col_idx = (nh_idx * CHUNK_SIZE * NUM_CORES_V) + (nv_idx * CHUNK_SIZE) + (block_id * BLOCK_SIZE);
+                                    
+                                    // Calculate output position
+                                    out_base = (row_idx * NUM_CORES_H * BLOCK_SIZE + nh_idx * BLOCK_SIZE) * WIDTH;
+                                    
+                                    // Copy BLOCK_SIZE elements
+                                    for (elem_offset = 0; elem_offset < BLOCK_SIZE; elem_offset = elem_offset + 1) begin
+                                        mem_pos = (base_col_idx + elem_offset) * WIDTH;
+                                        out_pos = out_base + elem_offset * WIDTH;
+                                        
+                                        out_data[out_pos +: WIDTH] <= slice_row[row_idx][mem_pos +: WIDTH];
                                     end
+                                    
+                                    
                                 end
                             end
 
@@ -242,8 +264,9 @@ module b2r_converter #(
         .we(ram_we),
         .write_addr(ram_write_addr),
         .read_addr(ram_read_addr),
-        .din(ram_din),
+        .din(ram_din_d),
         .dout(ram_dout)
     );
 
 endmodule
+
