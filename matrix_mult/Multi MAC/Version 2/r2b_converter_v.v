@@ -10,7 +10,6 @@ module r2b_converter_v #(
     parameter CHUNK_SIZE  = 4,
     parameter ROW         = 2754, 
     parameter COL         = 256,
-    parameter NUM_CORES_H = 1,
     parameter NUM_CORES_V = 2
 ) (
     input  wire                          clk,
@@ -26,7 +25,7 @@ module r2b_converter_v #(
 );
     // Local parameters
     localparam SLICE_ROWS       = BLOCK_SIZE * NUM_CORES_V;         // Indicates how many input rows (in core mode) that needed to produce one output
-    localparam CHUNKS_PER_ROW   = COL/(BLOCK_SIZE * NUM_CORES_H);   // Indicates how many chunks within one core in one input row (in core mode),
+    localparam CHUNKS_PER_ROW   = COL/(BLOCK_SIZE);   // Indicates how many chunks within one core in one input row (in core mode),
     localparam ROW_DIV          = ROW/(SLICE_ROWS);                 // Indicates how many iterations in rows based on the vertical cores
     localparam RAM_DEPTH        = ROW;
     localparam RAM_DATA_WIDTH   = WIDTH * COL;
