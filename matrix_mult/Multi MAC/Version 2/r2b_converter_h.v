@@ -1,175 +1,192 @@
 // r2b_converter_h.v
-// Row to block converter for
-// Reorders row-major input into horizontal BLOCK_SIZE × CHUNK_SIZE chunks (2x4 = 4 elements)
-// The direction is horizontal
+// Generic row-to-block converter (horizontal traversal)
+// Supports arbitrary ROW, COL, NUM_CORES_H
 
 module r2b_converter_h #(
     parameter WIDTH         = 16,
     parameter FRAC_WIDTH    = 8,
     parameter ROW           = 256,   
     parameter COL           = 64,    
-    parameter BLOCK_SIZE    = 2,     // rows per vertical block
-    parameter CHUNK_SIZE    = 4,     // columns per vertical block
-    parameter NUM_CORES     = 2,
-    parameter RAM_DEPTH     = ROW,
-    parameter RAM_DATA_WIDTH= WIDTH * COL,
-    parameter OUTPUT_WIDTH  = WIDTH * BLOCK_SIZE * (CHUNK_SIZE / 2)
+    parameter BLOCK_SIZE    = 2,     // Rows per block
+    parameter CHUNK_SIZE    = 4,     // Columns per chunk
+    parameter NUM_CORES_H   = 1      // Number of horizontal cores
 ) (
-    input  wire                     clk,
-    input  wire                     rst_n,
-    input  wire                     en,
-    input  wire                     in_valid,
-    input  wire [WIDTH*COL-1:0]     in_n2r_buffer,
-    output reg  [OUTPUT_WIDTH-1:0] out_n2r_buffer,
-    output wire                     slice_last,
-    output wire                     buffer_done,
-    output reg                     output_ready
+    input  wire                           clk,
+    input  wire                           rst_n,
+    input  wire                           en,
+    input  wire                           in_valid,
+    input  wire [WIDTH*COL-1:0]           in_n2r_buffer,
+    output wire [WIDTH*BLOCK_SIZE*CHUNK_SIZE*NUM_CORES_H-1:0] out_n2r_buffer,
+    output wire                           slice_last,
+    output wire                           buffer_done,
+    output wire                           output_ready
 );
 
+    // Local parameters
+    localparam SLICE_ROWS       = BLOCK_SIZE;               // Rows per slice
+    localparam CHUNKS_PER_SLICE = COL / CHUNK_SIZE;         // Chunks per slice
+    localparam TOTAL_SLICES     = ROW / BLOCK_SIZE;         // Total vertical slices
+    localparam RAM_DEPTH        = ROW;
+    localparam RAM_DATA_WIDTH   = WIDTH * COL;
+    localparam OUTPUT_WIDTH     = WIDTH * BLOCK_SIZE * CHUNK_SIZE * NUM_CORES_H;
+    
     // FSM States
-    localparam STATE_IDLE      = 2'd0;
-    localparam STATE_FILL      = 2'd1;
-    localparam STATE_SLICE     = 2'd2;
-    localparam STATE_DONE      = 2'd3;
-    integer j;
-
-    reg [1:0] state_reg, state_next;
-
-    // Memory
-    wire                        ram_we;
-    reg [$clog2(ROW)-1:0]       ram_write_addr;
-    reg [$clog2(ROW)-1:0]       ram_read_addr0, ram_read_addr1;
-    reg [RAM_DATA_WIDTH-1:0]    ram_din;
-    //reg [RAM_DATA_WIDTH-1:0]    ram_din_d;
-    wire [RAM_DATA_WIDTH-1:0]   ram_dout0, ram_dout1;
-
-    // Row counter for fill
-    reg [$clog2(ROW):0] row_counter;
-
-    // Output slice indexing
-    localparam TOTAL_BLOCKS = ROW / BLOCK_SIZE;
-    localparam COL_GROUPS   = COL / BLOCK_SIZE;
-
-    reg [$clog2(TOTAL_BLOCKS):0] block_row_index;  // for vertical groups (rows)
-    reg [$clog2(TOTAL_BLOCKS):0] block_row_index_d;
-    reg [$clog2(COL_GROUPS):0]   block_col_index;  // for vertical groups (columns)
-    reg [$clog2(COL_GROUPS):0]   block_col_index_d; 
-
-    wire [RAM_DATA_WIDTH-1:0] row0_data, row1_data;
+    localparam STATE_IDLE       = 3'd0;
+    localparam STATE_FILL       = 3'd1;
+    localparam STATE_SLICE_RD = 3'd2;
+    localparam STATE_OUTPUT     = 3'd3;
+    localparam STATE_DONE       = 3'd4;
+    
+    // State registers
+    reg [2:0] state_reg, state_next;
+    
+    // RAM signals
+    reg ram_we;
+    reg [$clog2(RAM_DEPTH)-1:0] ram_write_addr;
+    reg [$clog2(RAM_DEPTH)-1:0] ram_read_addr;
+    reg [RAM_DATA_WIDTH-1:0] ram_din;
+    wire [RAM_DATA_WIDTH-1:0] ram_dout;
+    
+    // Counters
+    reg [$clog2(ROW)-1:0] row_counter;
+    reg [$clog2(SLICE_ROWS)-1:0] slice_load_counter;
+    reg [$clog2(TOTAL_SLICES)-1:0] slice_counter;
+    reg [$clog2(CHUNKS_PER_SLICE)-1:0] chunk_counter;
+    
+    // Buffers
+    reg [RAM_DATA_WIDTH-1:0] slice_buffer [0:SLICE_ROWS-1];
     reg slice_ready;
+    wire all_slices_done;
+    
+    // Assign outputs
+    assign output_ready = (state_reg == STATE_OUTPUT);
+    assign buffer_done  = (state_reg == STATE_DONE);
+    assign slice_last   = all_slices_done && (chunk_counter == CHUNKS_PER_SLICE - 1);
+    assign all_slices_done = (slice_counter == TOTAL_SLICES - 1);
+    
+    // Output generation
+    generate
+        genvar r, c, core;
+        for (r = 0; r < BLOCK_SIZE; r = r + 1) begin: row_out
+            for (core = 0; core < NUM_CORES_H; core = core + 1) begin: core_out
+                for (c = 0; c < CHUNK_SIZE; c = c + 1) begin: col_out
+                    localparam out_idx = (
+                        r * (NUM_CORES_H * CHUNK_SIZE) + 
+                        core * CHUNK_SIZE + c
+                    ) * WIDTH;
+                    
+                    localparam in_idx = (
+                        (chunk_counter * NUM_CORES_H + core) * CHUNK_SIZE + c
+                    ) * WIDTH;
+                    
+                    assign out_n2r_buffer[out_idx +: WIDTH] = 
+                        slice_buffer[r][in_idx +: WIDTH];
+                end
+            end
+        end
+    endgenerate
 
-    // FSM
+    // FSM state register
     always @(posedge clk) begin
-        if (!rst_n)
-            state_reg <= STATE_IDLE;
-        else
-            state_reg <= state_next;
+        if (!rst_n) state_reg <= STATE_IDLE;
+        else state_reg <= state_next;
     end
 
+    // FSM next state logic
     always @(*) begin
+        state_next = state_reg;
         case (state_reg)
-            STATE_IDLE:  state_next = en ? STATE_FILL : STATE_IDLE;
-            STATE_FILL:  state_next = ((ram_write_addr == ROW - 1) && ( row_counter == ROW - 1)) ? STATE_SLICE : STATE_FILL;
-            STATE_SLICE: state_next = ((block_row_index_d == TOTAL_BLOCKS - 1) && (block_col_index_d == COL_GROUPS - 1)) ? STATE_DONE : STATE_SLICE;
-            STATE_DONE:  state_next = (!rst_n) ? STATE_IDLE : STATE_DONE;
-            default:     state_next = STATE_IDLE;
+            STATE_IDLE: 
+                if (en) state_next = STATE_FILL;
+            
+            STATE_FILL: 
+                if (row_counter == ROW - 1 && in_valid) 
+                    state_next = STATE_SLICE_RD;
+            
+            STATE_SLICE_RD: 
+                if (slice_load_counter == SLICE_ROWS - 1) 
+                    state_next = STATE_OUTPUT;
+            
+            STATE_OUTPUT: 
+                if (chunk_counter == CHUNKS_PER_SLICE - 1) begin
+                    if (all_slices_done) state_next = STATE_DONE;
+                    else state_next = STATE_SLICE_RD;
+                end
+            
+            STATE_DONE: 
+                if (!en) state_next = STATE_IDLE;
         endcase
     end
 
-    // RAM Write
-    always @(posedge clk) begin
-        if (en) begin
-            ram_din <= in_n2r_buffer;
-            if (state_reg == STATE_FILL && in_valid) begin
-                ram_write_addr <= row_counter;
-                //ram_din < in_n2r_buffer;
-                //ram_din_d <= ram_din;
-            end
-        end
-    end
-
-    // Row Counter (during FILL)
+    // RAM write logic
     always @(posedge clk) begin
         if (!rst_n) begin
             row_counter <= 0;
-        end else if (state_reg == STATE_FILL && in_valid && en) begin
+            ram_we <= 0;
+        end else if (state_reg == STATE_FILL && in_valid) begin
+            ram_din <= in_n2r_buffer;
+            ram_we <= 1;
+            ram_write_addr <= row_counter;
+            
             if (row_counter < ROW - 1)
                 row_counter <= row_counter + 1;
-        end
-    end
-
-    // Slice control logic
-    always @(posedge clk) begin
-        output_ready <= (slice_ready && state_reg == STATE_SLICE);
-        if (!rst_n) begin
-            block_row_index <= 0;
-            block_col_index <= 0;
-            slice_ready     <= 0;
+            else
+                row_counter <= 0;
         end else begin
-            if (state_reg == STATE_SLICE && en) begin
-                slice_ready <= 1;
-
-                // Prepare for next block
-                if (block_row_index == TOTAL_BLOCKS - 1) begin
-                    block_row_index <= 0;
-                    if (block_col_index == COL_GROUPS -1) begin
-                        block_col_index <= 0;
-                    end else begin
-                        block_col_index <= block_col_index + 1;
-                    end
-                end else begin
-                    block_row_index <= block_row_index + 1;
-                end
-
-            end else begin
-                slice_ready <= 0;
-            end
+            ram_we <= 0;
         end
     end
 
-    // Output vertical block (2 rows × 4 columns)
+    // Slice loading logic
     always @(posedge clk) begin
-        if (en) begin
-            block_col_index_d <= block_col_index;
-            block_row_index_d <= block_row_index;
-            if (state_reg == STATE_SLICE) begin
-                for (j = 0; j < BLOCK_SIZE; j = j + 1) begin
-                    out_n2r_buffer[(2*(BLOCK_SIZE - 1 - j)+0)*WIDTH +: WIDTH] <= ram_dout1[(RAM_DATA_WIDTH - 1 - (block_col_index_d*BLOCK_SIZE + j)*WIDTH) -: WIDTH];
-                    out_n2r_buffer[(2*(BLOCK_SIZE - 1 - j)+1)*WIDTH +: WIDTH] <= ram_dout0[(RAM_DATA_WIDTH - 1 - (block_col_index_d*BLOCK_SIZE + j)*WIDTH) -: WIDTH];
+        if (!rst_n) begin
+            slice_load_counter <= 0;
+            slice_counter <= 0;
+            slice_ready <= 0;
+        end else begin
+            case (state_reg)
+                STATE_SLICE_RD: begin
+                    ram_read_addr <= slice_counter * SLICE_ROWS + slice_load_counter;
+                    slice_buffer[slice_load_counter] <= ram_dout;
+                    
+                    if (slice_load_counter < SLICE_ROWS - 1) begin
+                        slice_load_counter <= slice_load_counter + 1;
+                    end else begin
+                        slice_load_counter <= 0;
+                        slice_ready <= 1;
+                    end
                 end
-            end
+                
+                STATE_OUTPUT: begin
+                    if (slice_ready) begin
+                        if (chunk_counter < CHUNKS_PER_SLICE - 1) begin
+                            chunk_counter <= chunk_counter + 1;
+                        end else begin
+                            chunk_counter <= 0;
+                            slice_ready <= 0;
+                            slice_counter <= slice_counter + 1;
+                        end
+                    end
+                end
+                
+                default: begin
+                    slice_ready <= 0;
+                end
+            endcase
         end
     end
 
-    // Assign read addresses (row pair)
-    always @(*) begin
-        if (state_reg == STATE_SLICE && en) begin
-            ram_read_addr0 = block_row_index * BLOCK_SIZE + 0;
-            ram_read_addr1 = block_row_index * BLOCK_SIZE + 1;
-        end
-    end
-
-    assign ram_we = en;
-    //assign ram_din = in_n2r_buffer;
-    //assign ram_write_addr = row_counter;
-    //assign slice_ready = (state_reg == STATE_SLICE);
-    //assign output_ready = slice_ready;
-    assign slice_last   = slice_ready && (state_reg == STATE_DONE);
-    assign buffer_done  = (state_reg == STATE_DONE);
-
-    // RAM Instance (dual read ports emulated via ping-pong if needed)
-    ram_1w2r #(
+    // RAM instantiation
+    ram_1w1r #(
         .DATA_WIDTH(RAM_DATA_WIDTH),
         .DEPTH(RAM_DEPTH)
     ) weight_buffer_ram (
         .clk(clk),
         .we(ram_we),
         .write_addr(ram_write_addr),
-        .read_addr0(ram_read_addr0),
-        .read_addr1(ram_read_addr1),
+        .read_addr(ram_read_addr),
         .din(ram_din),
-        .dout0(ram_dout0),
-        .dout1(ram_dout1)
+        .dout(ram_dout)
     );
 
 endmodule
