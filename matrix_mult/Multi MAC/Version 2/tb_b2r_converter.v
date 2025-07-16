@@ -4,11 +4,11 @@ module tb_b2r_converter;
 
     parameter WIDTH         = 16;
     parameter FRAC_WIDTH    = 8;
-    parameter ROW           = 8;
-    parameter COL           = 6;
+    parameter ROW           = 12;
+    parameter COL           = 12;
     parameter BLOCK_SIZE    = 2;
     parameter CHUNK_SIZE    = 4;
-    parameter NUM_CORES_H   = 2;
+    parameter NUM_CORES_H   = 3;
     parameter NUM_CORES_V   = 2;
 
     localparam ELEM_PER_INPUT = CHUNK_SIZE * NUM_CORES_H * NUM_CORES_V;
@@ -62,31 +62,36 @@ module tb_b2r_converter;
         // Reset
         #15;
         rst_n = 1;
-        #20 en = 1;
+        #30 en = 1;
 
         // Fill matrix with incrementing Q(WIDTH-FRAC_WIDTH).(FRAC_WIDTH) values
         for (i = 0; i < TOTAL_ELEM; i = i + 1)
             test_input[i] = i << FRAC_WIDTH;
+            
+        #30 in_valid <= 1;
 
         // Stream input 1 per clock
         idx = 0;
         for (i = 0; i < (TOTAL_ELEM / ELEM_PER_INPUT); i = i + 1) begin
             @(posedge clk);
-            in_valid <= 1;
+            //in_valid <= 1;
             for (j = 0; j < ELEM_PER_INPUT; j = j + 1) begin
                 in_data[(j+1)*WIDTH-1 -: WIDTH] = test_input[idx];
                 idx = idx + 1;
             end
-            @(posedge clk);
+            //@(posedge clk);
             //in_valid <= 0;
         end
+        #10;
         in_valid <= 0;
+        
+        #1000;
 
         // Wait for completion
-        /*wait (buffer_done);
-        $display("==== All rows emitted ====");
-        repeat (5) @(posedge clk);
-        $finish; */
+        //wait (buffer_done);
+        //$display("==== All rows emitted ====");
+        //repeat (5) @(posedge clk);
+        //$finish;
     end
 
     // Output monitor
@@ -102,3 +107,4 @@ module tb_b2r_converter;
     end
 
 endmodule
+
