@@ -185,7 +185,7 @@ module r2b_converter_v #(
                     begin
                         if (slice_ready) begin
                             for (i = 0; i < SLICE_ROWS; i = i+1) begin
-                                out_data[(SLICE_ROWS - 1 - i)*32 +: 32] <= slice_row[i][(RAM_DATA_WIDTH - 1 - 32*counter_out) -: 32];
+                                out_data[(SLICE_ROWS - 1 - i)*(WIDTH*2) +: (WIDTH*2)] <= slice_row[i][(RAM_DATA_WIDTH - 1 - (WIDTH*2)*counter_out) -: (WIDTH*2)];
                             end
 
                             if (counter_out == CHUNKS_PER_ROW - 1) begin
