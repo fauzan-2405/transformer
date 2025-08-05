@@ -118,7 +118,7 @@ module r2b_converter_w #(
                 for (col = 0; col < COLS_PER_CORE; col=col+1) begin
                     col_idx = base_col + core * COLS_PER_CORE + col;
                     for (row = 0; row < BLOCK_SIZE; row=row+1) begin
-                        integer out_idx = (core * CHUNK_SIZE) + (col * BLOCK_SIZE) + row;
+                        out_idx = (core * CHUNK_SIZE) + (col * BLOCK_SIZE) + row;
                         if (row == 0) begin
                             out_data[out_idx*WIDTH +: WIDTH] = ram_dout0[col_idx*WIDTH +: WIDTH];
                         end else begin
