@@ -49,6 +49,9 @@ module r2b_converter_w #(
     reg [$clog2(RAM_DEPTH)-1:0] ram_read_addr0, ram_read_addr1;
     wire [RAM_DATA_WIDTH-1:0] ram_dout0, ram_dout1;
 
+    // Integers
+    integer base_col, core, col, col_idx, row, out_idx;
+
     // FSM
     always @(posedge clk) begin
         if (!rst_n) state_reg <= STATE_IDLE;
@@ -72,7 +75,7 @@ module r2b_converter_w #(
     end
 
     // Row counter for fill
-    always @(posedge clk or negedge rst_n) begin
+    always @(posedge clk) begin
         if (!rst_n) row_counter <= 0;
         else if (state_reg == STATE_FILL && in_valid)
             row_counter <= (row_counter == ROW-1) ? 0 : row_counter + 1;
@@ -85,7 +88,7 @@ module r2b_converter_w #(
     end
 
     // Block processing counters
-    always @(posedge clk or negedge rst_n) begin
+    always @(posedge clk) begin
         if (!rst_n) begin
             block_row_index <= 0;
             block_col_index <= 0;
@@ -110,11 +113,11 @@ module r2b_converter_w #(
     // Output generation
     always @(posedge clk) begin
         if (state_reg == STATE_PROCESS) begin
-            integer base_col = block_col_index * CHUNK_WIDTH;
-            for (int core = 0; core < NUM_CORES_H; core++) begin
-                for (int col = 0; col < COLS_PER_CORE; col++) begin
-                    integer col_idx = base_col + core * COLS_PER_CORE + col;
-                    for (int row = 0; row < BLOCK_SIZE; row++) begin
+            base_col = block_col_index * CHUNK_WIDTH;
+            for (core = 0; core < NUM_CORES_H; core = core+1) begin
+                for (col = 0; col < COLS_PER_CORE; col=col+1) begin
+                    col_idx = base_col + core * COLS_PER_CORE + col;
+                    for (row = 0; row < BLOCK_SIZE; row=row+1) begin
                         integer out_idx = (core * CHUNK_SIZE) + (col * BLOCK_SIZE) + row;
                         if (row == 0) begin
                             out_data[out_idx*WIDTH +: WIDTH] = ram_dout0[col_idx*WIDTH +: WIDTH];
@@ -128,7 +131,7 @@ module r2b_converter_w #(
     end
 
     // Control signals
-    always @(posedge clk or negedge rst_n) begin
+    always @(posedge clk) begin
         if (!rst_n) begin
             output_ready <= 0;
             slice_done <= 0;
