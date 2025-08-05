@@ -39,6 +39,7 @@ module r2b_converter_w #(
     // Control registers
     reg [2:0] state_reg, state_next;
     reg [$clog2(ROW)-1:0] ram_write_addr;
+    reg [$clog2(ROW)-1:0] ram_write_addr_d;
     reg [$clog2(TOTAL_BLOCKS)-1:0] block_row_index;
     reg [$clog2(COL_GROUPS)-1:0] block_col_index;
     reg [$clog2(ROW)-1:0] row_counter;
@@ -46,6 +47,7 @@ module r2b_converter_w #(
 
     // RAM signals
     wire ram_we;
+    reg [RAM_DATA_WIDTH-1:0] ram_din;
     reg [$clog2(RAM_DEPTH)-1:0] ram_read_addr0, ram_read_addr1;
     wire [RAM_DATA_WIDTH-1:0] ram_dout0, ram_dout1;
 
@@ -61,7 +63,7 @@ module r2b_converter_w #(
     always @(*) begin
         case (state_reg)
             STATE_IDLE:  state_next = en ? STATE_FILL : STATE_IDLE;
-            STATE_FILL:  state_next = (row_counter == ROW-1) ? STATE_PROCESS : STATE_FILL;
+            STATE_FILL:  state_next = ((row_counter == ROW) && (ram_write_addr_d == ROW - 1)) ? STATE_PROCESS : STATE_FILL;
             STATE_PROCESS: begin
                 if ((block_row_index == TOTAL_BLOCKS-1) && 
                     (block_col_index == COL_GROUPS-1)) 
@@ -78,12 +80,14 @@ module r2b_converter_w #(
     always @(posedge clk) begin
         if (!rst_n) row_counter <= 0;
         else if (state_reg == STATE_FILL && in_valid)
-            row_counter <= (row_counter == ROW-1) ? 0 : row_counter + 1;
+            row_counter <= (row_counter == ROW) ? 0 : row_counter + 1;
     end
 
     // RAM write
-    assign ram_we = (state_reg == STATE_FILL) && in_valid;
+    assign ram_we = (state_reg == STATE_FILL) || in_valid;
     always @(posedge clk) begin
+        ram_din <= in_data;
+        ram_write_addr_d <= ram_write_addr;
         if (ram_we) ram_write_addr <= row_counter;
     end
 
@@ -156,7 +160,7 @@ module r2b_converter_w #(
         .write_addr(ram_write_addr),
         .read_addr0(ram_read_addr0),
         .read_addr1(ram_read_addr1),
-        .din(in_data),
+        .din(ram_din),
         .dout0(ram_dout0),
         .dout1(ram_dout1)
     );
