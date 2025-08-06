@@ -14,7 +14,7 @@ module r2b_converter_w #(
     input  wire [WIDTH*COL-1:0]     in_data,
     output reg  [WIDTH*CHUNK_SIZE*NUM_CORES_H-1:0] out_data,
     output reg                      slice_done,
-    output wire                     slice_last,
+    //output wire                     slice_last,
     output wire                     buffer_done,
     output reg                      output_ready
 );
@@ -41,7 +41,9 @@ module r2b_converter_w #(
     reg [$clog2(ROW)-1:0] ram_write_addr;
     reg [$clog2(ROW)-1:0] ram_write_addr_d;
     reg [$clog2(TOTAL_BLOCKS)-1:0] block_row_index;
+    reg [$clog2(TOTAL_BLOCKS)-1:0] block_row_index_d;
     reg [$clog2(COL_GROUPS)-1:0] block_col_index;
+    reg [$clog2(COL_GROUPS)-1:0] block_col_index_d;
     reg [$clog2(ROW)-1:0] row_counter;
     reg slice_ready;
 
@@ -65,8 +67,8 @@ module r2b_converter_w #(
             STATE_IDLE:  state_next = en ? STATE_FILL : STATE_IDLE;
             STATE_FILL:  state_next = ((row_counter == ROW) && (ram_write_addr_d == ROW - 1)) ? STATE_PROCESS : STATE_FILL;
             STATE_PROCESS: begin
-                if ((block_row_index == TOTAL_BLOCKS-1) && 
-                    (block_col_index == COL_GROUPS-1)) 
+                if ((block_row_index_d == TOTAL_BLOCKS-1) && 
+                    (block_col_index_d == COL_GROUPS-1)) 
                     state_next = STATE_DONE;
                 else 
                     state_next = STATE_PROCESS;
@@ -95,12 +97,17 @@ module r2b_converter_w #(
     always @(posedge clk) begin
         if (!rst_n) begin
             block_row_index <= 0;
+            block_row_index_d <= 0;
             block_col_index <= 0;
+            block_col_index_d <= 0;
         end
         else if (state_reg == STATE_PROCESS) begin
+            block_col_index_d <= block_col_index;
+            block_row_index_d <= block_row_index;
             if (block_row_index == TOTAL_BLOCKS-1) begin
                 block_row_index <= 0;
                 block_col_index <= (block_col_index == COL_GROUPS-1) ? 0 : block_col_index + 1;
+                //block_col_index_d <= block_col_index;
             end
             else begin
                 block_row_index <= block_row_index + 1;
@@ -128,7 +135,7 @@ module r2b_converter_w #(
         end
         else if (state_reg == STATE_PROCESS) begin
             //base_col = block_col_index * CHUNK_WIDTH;
-            base_col = (COL_GROUPS - 1 - block_col_index) * CHUNK_WIDTH;
+            base_col = (COL_GROUPS - 1 - block_col_index_d) * CHUNK_WIDTH;
             for (core = 0; core < NUM_CORES_H; core = core+1) begin
                 for (col = 0; col < COLS_PER_CORE; col=col+1) begin
                     col_idx = base_col + core * COLS_PER_CORE + col;
@@ -158,7 +165,7 @@ module r2b_converter_w #(
         end
     end
 
-    assign slice_last = (block_col_index == COL_GROUPS-1) && slice_done;
+    //assign slice_last = (block_col_index == COL_GROUPS-1) && slice_done;
     assign buffer_done = (state_reg == STATE_DONE);
 
     // 1w2r RAM instantiation
