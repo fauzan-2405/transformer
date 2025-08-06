@@ -110,23 +110,34 @@ module r2b_converter_w #(
 
     // RAM read addresses
     always @(*) begin
-        ram_read_addr0 = block_row_index * BLOCK_SIZE;
-        ram_read_addr1 = block_row_index * BLOCK_SIZE + 1;
+        if (state_reg == STATE_PROCESS) begin
+            ram_read_addr0 <= block_row_index * BLOCK_SIZE;
+            ram_read_addr1 <= block_row_index * BLOCK_SIZE + 1;
+        end
     end
 
     // Output generation
     always @(posedge clk) begin
-        if (state_reg == STATE_PROCESS) begin
-            base_col = block_col_index * CHUNK_WIDTH;
+        if (!rst_n) begin
+            base_col <= 0;
+            core <= 0; 
+            col <= 0; 
+            col_idx <= 0; 
+            row <= 0; 
+            out_idx <= 0;
+        end
+        else if (state_reg == STATE_PROCESS) begin
+            //base_col = block_col_index * CHUNK_WIDTH;
+            base_col = (COL_GROUPS - 1 - block_col_index) * CHUNK_WIDTH;
             for (core = 0; core < NUM_CORES_H; core = core+1) begin
                 for (col = 0; col < COLS_PER_CORE; col=col+1) begin
                     col_idx = base_col + core * COLS_PER_CORE + col;
                     for (row = 0; row < BLOCK_SIZE; row=row+1) begin
                         out_idx = (core * CHUNK_SIZE) + (col * BLOCK_SIZE) + row;
                         if (row == 0) begin
-                            out_data[out_idx*WIDTH +: WIDTH] = ram_dout0[col_idx*WIDTH +: WIDTH];
-                        end else begin
                             out_data[out_idx*WIDTH +: WIDTH] = ram_dout1[col_idx*WIDTH +: WIDTH];
+                        end else begin
+                            out_data[out_idx*WIDTH +: WIDTH] = ram_dout0[col_idx*WIDTH +: WIDTH];
                         end
                     end
                 end
