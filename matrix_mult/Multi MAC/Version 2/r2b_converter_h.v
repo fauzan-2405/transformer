@@ -45,7 +45,7 @@ module r2b_converter_w #(
     reg [$clog2(COL_GROUPS)-1:0] block_col_index;
     reg [$clog2(COL_GROUPS)-1:0] block_col_index_d;
     reg [$clog2(ROW)-1:0] row_counter;
-    reg slice_ready;
+    reg out_ready;
 
     // RAM signals
     wire ram_we;
@@ -155,13 +155,15 @@ module r2b_converter_w #(
     // Control signals
     always @(posedge clk) begin
         if (!rst_n) begin
+            out_ready <= 0;
             output_ready <= 0;
             slice_done <= 0;
         end
         else begin
-            output_ready <= (state_reg == STATE_PROCESS);
+            out_ready <= (state_reg == STATE_PROCESS);
+            output_ready <= out_ready && ~buffer_done;
             slice_done <= (state_reg == STATE_PROCESS) && 
-                         (block_row_index == TOTAL_BLOCKS-1);
+                         (block_row_index_d == TOTAL_BLOCKS-1);
         end
     end
 
