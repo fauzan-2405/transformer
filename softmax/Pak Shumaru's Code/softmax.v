@@ -127,25 +127,21 @@ module softmax #(
     assign lg2 = X2_in - ln_out;
     assign lg3 = X3_in - ln_out;
     assign lg4 = X4_in - ln_out;
-    exp #(.WIDTH(WIDTH))
-    exp_5
-    (.X(lg1),
-    .Y(Y1)
+    exp #(.WIDTH(WIDTH)) exp_5
+        (.X(lg1),
+        .Y(Y1)
     ); 
-    exp #(.WIDTH(WIDTH))
-    exp_6
-    (.X(lg2),
-    .Y(Y2)
+    exp #(.WIDTH(WIDTH)) exp_6
+        (.X(lg2),
+        .Y(Y2)
     ); 
-    exp #(.WIDTH(WIDTH))
-    exp_7
-    (.X(lg3),
-    .Y(Y3)
+    exp #(.WIDTH(WIDTH)) exp_7
+        (.X(lg3),
+        .Y(Y3)
     ); 
-    exp #(.WIDTH(WIDTH))
-    exp_8
-    (.X(lg4),
-    .Y(Y4)
+    exp #(.WIDTH(WIDTH)) exp_8
+        (.X(lg4),
+        .Y(Y4)
     ); 
 
 endmodule
