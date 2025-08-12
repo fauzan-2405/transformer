@@ -1,8 +1,8 @@
-//
 
-module top_softmax #(
-    parameter WIDTH     = 32,
-    parameter FRAC_BIT  = 16
+module softmax #(
+    parameter WIDTH         = 32,
+    parameter FRAC_WIDTH    = 16,
+    parameter TOTAL_ELEMEN  = 4
 )  (
     input wire clk,
     input wire rst_n, 
@@ -102,27 +102,24 @@ module top_softmax #(
     assign done_out = done;
      //====input dari norm X =======================================
     
-    exp #(.WIDTH(WIDTH))
-    exp_1
-    (.X(X1_in),
-    .Y(exp1)
+    exp #(.WIDTH(WIDTH)) exp_1
+        (.X(X1_in),
+        .Y(exp1)
     );
-    exp #(.WIDTH(WIDTH))
-    exp_2
-    (.X(X2_in),
-    .Y(exp2)
+    exp #(.WIDTH(WIDTH)) exp_2
+        (.X(X2_in),
+        .Y(exp2)
     );
-    exp #(.WIDTH(WIDTH))
-    exp_3
-    (.X(X3_in),
-    .Y(exp3)
+    exp #(.WIDTH(WIDTH)) exp_3
+        (.X(X3_in),
+        .Y(exp3)
     );
-    exp #(.WIDTH(WIDTH))
-    exp_4
-    (.X(X4_in),
-    .Y(exp4)
+    exp #(.WIDTH(WIDTH)) exp_4
+        (.X(X4_in),
+        .Y(exp4)
     );    
     assign sum_exp = exp1+exp2+exp3+exp4;
+    
     lnu LNU (.x_in(sum_exp),
              .ln_out(ln_out));
              
