@@ -12,7 +12,7 @@
 // Notes:
 // - LUT_A and LUT_C are implemented once via functions (shared definition).
 // - Each lane computes its own index (tiny logic).
-// - Flattened I/O: MS chunk is element 0 (matches your earlier convention).
+// - Flattened I/O: MS chunk is element 0.
 
 module exp_vec #(
     parameter integer WIDTH       = 32,
@@ -228,7 +228,7 @@ module exp_vec #(
                 // guard in case AMULT_SHIFT > FRAC
                 pick_shift_val = {{(AMULT_SHIFT){1'b0}}};
             end else begin
-                pick_shift_val = Acoef[top:bot];
+                pick_shift_val = Acoef[FRAC-1:FRAC-AMULT_SHIFT];
             end
         end
     endfunction
@@ -254,22 +254,20 @@ module exp_vec #(
             assign mult_exact = P_full[(FRAC+WIDTH-1):FRAC]; // >> FRAC
 
             // Approximate multiply path (optional)
-            generate
-                if (USE_AMULT != 0) begin : USE_AMULT_G
-                    assign shift_val_i = pick_shift_val(A_i);
-                    amult #(
-                        .WIDTH(WIDTH),
-                        .SHIFT(AMULT_SHIFT)
-                    ) AMULT_I (
-                        // .CLK(), // combinational version as in your code
-                        .DAT_IN(X[i]),
-                        .SHIFT_VAL(shift_val_i),
-                        .DAT_OUT(mult_approx)
-                    );
-                end else begin : NO_AMULT_G
-                    assign mult_approx = {WIDTH{1'b0}}; // unused
-                end
-            endgenerate
+            if (USE_AMULT != 0) begin : USE_AMULT_G
+                assign shift_val_i = pick_shift_val(A_i);
+                amult #(
+                    .WIDTH(WIDTH),
+                    .SHIFT(AMULT_SHIFT)
+                ) AMULT_I (
+                    // .CLK(), // combinational version as in your code
+                    .DAT_IN(X[i]),
+                    .SHIFT_VAL(shift_val_i),
+                    .DAT_OUT(mult_approx)
+                );
+            end else begin : NO_AMULT_G
+                assign mult_approx = {WIDTH{1'b0}}; // unused
+            end
 
             // Select multiply result and add C
             wire signed [WIDTH-1:0] Y_i = (USE_AMULT != 0) ? (mult_approx + C_i)
