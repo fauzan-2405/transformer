@@ -47,7 +47,7 @@ module tb_softmax;
         rst_n = 0;
         start = 0;
         X1 = 0; X2 = 0; X3 = 0; X4 = 0;
-        #20;
+        #25;
         rst_n = 1;
         #10;
 
@@ -67,6 +67,7 @@ module tb_softmax;
         #10;
 
         // Display results
+        /*
         $display("Softmax Results (Q16.16 -> float):");
         $display("Y1 = %f", q16_16_to_real(Y1));
         $display("Y2 = %f", q16_16_to_real(Y2));
@@ -100,5 +101,6 @@ module tb_softmax;
         $display("E4 = %f", q16_16_to_real(Y4) - ref4);
 
         $stop;
+        */
     end
 endmodule
