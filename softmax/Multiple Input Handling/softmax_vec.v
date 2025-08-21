@@ -65,23 +65,29 @@ module softmax_vec #(
     reg [2:0] state_reg, state_next;
 
     // Counters and registers
-    reg [ADDRE-1:0] e_count;                     // For counting the total of element that has been processed in S_LOAD
-    reg [ADDRW-1:0] ram_read_addr1, ram_read_addr2;
-    reg [ADDRW-1:0] ram_write_addr;
+    reg [ADDRE-1:0] e_count;                    // For counting the total of element that has been processed in S_LOAD
     reg signed [WIDTH-1:0] xi;                  // Each of the element (Xi)
     reg signed [WIDTH-1:0] max_val;             // Max value of Xi (Xi max)
     // Registers used to pack-unpack
     reg signed [WIDTH-1:0] X_norm_0 [0:TILE_SIZE-1];
     reg signed [WIDTH-1:0] X_norm_1 [0:TILE_SIZE-1];
     reg signed [SUM_WIDTH-1:0] sum_exp;
-    reg [TILE_SIZE*WIDTH-1:0] exp_in_flat;      // Input data from RAM to exp_vec()
-    wire [TILE_SIZE*WIDTH-1:0] exp_out_flat;    // Output data from exp_vec()
+    reg [RAM_DATA_WIDTH-1:0] exp_in_flat0;      // Input data from RAM to exp_vec(): Flattened Xi - max_value
+    reg [RAM_DATA_WIDTH-1:0] exp_in_flat1;    
+    reg [RAM_DATA_WIDTH-1:0] xi_min_maxvalue [0:RAM_DEPTH-1];     // Registers to hold flattened xi - max_value
+    wire [RAM_DATA_WIDTH-1:0] exp_out_flat0;    // Output data from exp_vec()
+    wire [RAM_DATA_WIDTH-1:0] exp_out_flat1;
 
     // Integer for counting
     integer i, j;
+    // Integer for msb n lsb
+    integer msb, lsb;
 
-    // RAM
-    // Maybe add the TDPRAM in here?
+    // ----------------- RAM ----------------
+    reg [ADDRW-1:0] ram_read_addr0, ram_read_addr1;
+    reg [ADDRW-1:0] ram_write_addr;
+    reg [RAM_DATA_WIDTH-1:0] ram_dout0;
+    reg [RAM_DATA_WIDTH-1:0] ram_dout1;
     ram_1w2r #(
         .DATA_WIDTH(RAM_DATA_WIDTH),
         .DEPTH(RAM_DEPTH)
@@ -89,27 +95,43 @@ module softmax_vec #(
         .clk(clk),
         .we(tile_in_valid),
         .write_addr(ram_write_addr),
-        .read_addr0(),
-        .read_addr1(),
+        .read_addr0(ram_read_addr0),
+        .read_addr1(ram_read_addr1),
         .din(X_tile_in),
-        .dout0(), // should be to EXP_0
-        .dout1()  // should be to EXP_1
+        .dout0(ram_dout0), 
+        .dout1(ram_dout1)  
     );
     
-    // exp_vec unit
+    // ----------------- EXP FUNCTION UNIT ----------------
+    // Pack X_norm_0 and 1 to exp_in_flat0 and exp_in_flat1
+    // and assign exp_in_flat0 & 1 to xi_min_maxvalue 
+    always @(*) begin
+        for (i=0; i < TILE_SIZE; i = i+1) begin
+            msb = (TILE_SIZE-1-i)*WIDTH + (WIDTH-1);
+            lsb = (TILE_SIZE-1-i)*WIDTH;
+            exp_in_flat0 = X_norm_0[msb:lsb];
+            exp_in_flat1 = X_norm_1[msb:lsb];
+        end
+        for (j=0; j < RAM_DEPTH/2; j = j+1) begin
+            xi_min_maxvalue[j*2]    = exp_in_flat0[i]; // Even addresses
+            xi_min_maxvalue[j*2+1]  = exp_in_flat1[i]; // Odd addresses
+        end
+    end
+
+    // exp function unit to calculate exp(xi-max_value)
     exp_vec #(
         .WIDTH(WIDTH), .FRAC(FRAC_WIDTH), .TILE_SIZE(TILE_SIZE), .USE_AMULT(USE_AMULT)
     ) EXP_0 (
-        X_flat(), .Y_flat()
+        X_flat(exp_in_flat0), .Y_flat(exp_out_flat0)
     );
 
     exp_vec #(
         .WIDTH(WIDTH), .FRAC(FRAC_WIDTH), .TILE_SIZE(TILE_SIZE), .USE_AMULT(USE_AMULT)
     ) EXP_1 (
-        X_flat(), .Y_flat()
+        X_flat(exp_in_flat1), .Y_flat(exp_out_flat1)
     );
 
-    // LNU Scalar
+    // ----------------- LNU UNIT ----------------
     // Range reduction regs => ln(sum_exp) = ln(m) + k*ln(2)
     wire signed [WIDTH-1:0] ln_m;
     reg signed [WIDTH-1:0] m_norm;    
@@ -122,7 +144,7 @@ module softmax_vec #(
         x_in(), .y_out()
     );
 
-    // FSM Next State
+    // ----------------- FSM NEXT STATE ----------------
     always @(*) begin
         case (state_reg) 
             S_IDLE: begin
@@ -131,23 +153,26 @@ module softmax_vec #(
 
             S_LOAD: // Pass 0: Store tiles and track max
             begin
-                if (e_count >= TOTAL_ELEMENTS) ? S_PASS_1A: S_LOAD;
+                state_next = (e_count >= TOTAL_ELEMENTS) ? S_PASS_1A: S_LOAD;
             end
 
-            S_PASS_1A: // Pass 1: Read from the RAM and calculate the exp
+            S_PASS_1A: // Pass 1A: Read from the RAM and calculate the exp
             begin
+                state_next = ((ram_read_addr0 >= RAM_DEPTH -1) && (ram_read_addr1 >= RAM_DEPTH)) ? S_PASS_1B : S_PASS_1A;
             end
+
+            S_PASS_1B: // Pass 1B: Read from the 
         endcase
 
     end
 
-    // FSM Sequential
+    // ----------------- FSM SEQUENTIAL ----------------
     always @(posedge clk) begin
         if (!rst_n) begin
             state_reg       <= S_IDLE;
             e_count         <= {ADDRE{1'b0}};
+            ram_read_addr0  <= {ADDRW{1'b0}};
             ram_read_addr1  <= {ADDRW{1'b0}};
-            ram_read_addr2  <= {ADDRW{1'b0}};
             ram_write_addr  <= {ADDRW{1'b0}};
             max_val         <= 32'sh8000_0000; // Very negative
             sum_exp         <= {SUM_WIDTH{1'b0}};
@@ -156,6 +181,12 @@ module softmax_vec #(
             ln_sum          <= {WIDTH(1'b0)};
             m_norm          <= {WIDTH(1'b0)};
             k_shift         <= 16'd0;
+            exp_in_flat0    <= {WIDTH*TILE_SIZE-1(1'b0)};
+            exp_in_flat1    <= {WIDTH*TILE_SIZE-1(1'b0)};
+            for (i = 0; i < TILE_SIZE; i = i + 1) begin
+                X_norm_0[i] <= {WIDTH{1'b0}};
+                X_norm_1[i] <= {WIDTH{1'b0}};
+            end
         end else if (en) begin
             state_reg <= state_next;
             case (state_reg)
@@ -164,15 +195,15 @@ module softmax_vec #(
                     done            <= 0;
                     if (start) begin
                         e_count     <= {ADDRE{1'b0}};
-                        ram_read_addr1  <= {ADDRW{1'b0}};
-                        ram_read_addr2  <= {ADDRW{1'b0}};
+                        ram_read_addr0  <= {ADDRW{1'b0}};
+                        ram_read_addr1  <= 1; // 1 because we want the RAM to access different addres than ram_read_addr0
                         ram_write_addr  <= {ADDRW{1'b0}};
                         max_val     <= 32'sh8000_0000; // Very negative
                         sum_exp     <= {SUM_WIDTH{1'b0}};
                     end
                 end
 
-                S_LOAD: begin
+                S_LOAD: begin       // Pass 0: Store tiles and track max 
                     if (tile_in_valid) begin
                         for (i = 0; i < TILE_SIZE; i = i+1) begin
                             if (e_count < TOTAL_ELEMENTS) begin
@@ -185,10 +216,25 @@ module softmax_vec #(
                     end
                 end
 
-                S_PASS_1A: begin
-                    
-
+                S_PASS_1A: begin    // Pass 1A: Read from the RAM and calculate the exp
+                    for (j=0; j < RAM_DEPTH/2; j = j + 1) begin
+                        if (ram_read_addr0 < RAM_DEPTH -1) && (ram_read_addr1 < RAM_DEPTH) begin
+                            ram_read_addr0 <= ram_read_addr0 + (j*2); // Even address
+                            ram_read_addr1 <= ram_read_addr1 + (j*2 + 1); // Odd address
+                            for (i=0; i < TILE_SIZE; i = i +1) begin
+                                X_norm_0[i] <= slice_flat(ram_dout0, i) - max_val;
+                                X_norm_1[i] <= slice_flat(ram_dout1, i) - max_val;
+                            end
+                        end else begin
+                            ram_read_addr0  <= {ADDRW{1'b0}};
+                            ram_read_addr1  <= 1; // 1 because we want the RAM to access different addres than ram_read_addr0
+                        end
+                    end 
                 end
+
+                S_PASS_1B: 
+
+
             endcase
         end
 
