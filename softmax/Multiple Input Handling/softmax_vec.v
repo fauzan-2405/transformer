@@ -1,3 +1,4 @@
+// softmax_vec.v 
 
 module softmax_vec #(
     parameter WIDTH          = 32,
@@ -21,18 +22,6 @@ module softmax_vec #(
 
     output reg                           done
 );
-    // Function to do log2 
-    /*
-    function integer clog2;
-        input integer value;
-        integer i;
-        begin
-            clog2 = 0;
-            for (i = value-1; i>0; i = i >> 1)
-            clog2 = clog2 + 1;
-        end
-    endfunction */
-
     // Function to slice the x_flat
     function [WIDTH-1:0] slice_flat;
         input [WIDTH*TILE_SIZE-1:0] x_flat;
@@ -48,7 +37,7 @@ module softmax_vec #(
     // Local Parameters
     localparam [WIDTH-1:0] LN2_Q    = 32'h0000B172; // ~0.693147 in Q16.16
     localparam ADDRE                = $clog2(TOTAL_ELEMENTS);               // to count elements
-    localparam SUM_WIDTH            = WIDTH +16; // sum_exp width size
+    localparam SUM_WIDTH            = WIDTH + $clog2(TOTAL_ELEMENTS + 1); // sum_exp width size
     localparam RAM_DATA_WIDTH       = WIDTH * TILE_SIZE;
     localparam RAM_DEPTH            = TOTAL_ELEMENTS / TILE_SIZE;
     localparam ADDRW                = $clog2(RAM_DEPTH)                     // to count words (tiles)
@@ -62,28 +51,26 @@ module softmax_vec #(
     localparam S_DONE       = 3'd5;
 
     reg [2:0] state_reg, state_next;
-
+ 
     // Counters and registers
-    reg [ADDRE-1:0] e_count;                    // For counting the total of element that has been processed in S_LOAD
-    reg signed [WIDTH-1:0] xi;                  // Each of the element (Xi)
-    reg signed [WIDTH-1:0] max_val;             // Max value of Xi (Xi max)
+    reg [ADDRE:0] e_loaded;                     // How many elements loaded into RAM
+    reg [ADDRE:0] e_read;                       // How many elements consumed in pass1 (for sum)
+    reg [ADDRE:0] e_accumulated;                // optional tracker while accumulating
 
-    // Integer for counting
-    integer i, j;
-    // Integer for msb n lsb
-    integer msb, lsb;
+    reg signed [WIDTH-1:0] max_val;             // Max value of Xi (Xi max)
 
     // ----------------- RAM ----------------
     reg [ADDRW-1:0] ram_read_addr0, ram_read_addr1;
     reg [ADDRW-1:0] ram_write_addr;
-    reg [RAM_DATA_WIDTH-1:0] ram_dout0;
-    reg [RAM_DATA_WIDTH-1:0] ram_dout1;
+    wire [RAM_DATA_WIDTH-1:0] ram_dout0;
+    wire [RAM_DATA_WIDTH-1:0] ram_dout1;
+
     ram_1w2r #(
         .DATA_WIDTH(RAM_DATA_WIDTH),
         .DEPTH(RAM_DEPTH)
     ) temp_buffer_ram (
         .clk(clk),
-        .we(tile_in_valid),
+        .we(tile_in_valid && (state_reg == S_LOAD)),
         .write_addr(ram_write_addr),
         .read_addr0(ram_read_addr0),
         .read_addr1(ram_read_addr1),
@@ -94,41 +81,15 @@ module softmax_vec #(
     
     // ----------------- EXP FUNCTION UNIT ----------------
     // Registers used to pack-unpack
-    reg signed [SUM_WIDTH-1:0] sum_exp;
-    reg signed [WIDTH-1:0] X_norm_0 [0:TILE_SIZE-1];    // Unflattened xi - max_value
+    reg signed [WIDTH-1:0] X_norm_0 [0:TILE_SIZE-1];            // Unflattened xi - max_value
     reg signed [WIDTH-1:0] X_norm_1 [0:TILE_SIZE-1];
     reg [RAM_DATA_WIDTH-1:0] exp_in_flat0;              // Input data from RAM to exp_vec(): Flattened Xi - max_value
     reg [RAM_DATA_WIDTH-1:0] exp_in_flat1;    
     reg [RAM_DATA_WIDTH-1:0] xi_min_maxvalue [0:RAM_DEPTH-1];     // Registers to hold flattened xi - max_value
-    wire [RAM_DATA_WIDTH-1:0] exp_out_flat0;                    // Output data from exp_vec()
+    wire [RAM_DATA_WIDTH-1:0] exp_out_flat0;            // Output data from exp_vec()
     wire [RAM_DATA_WIDTH-1:0] exp_out_flat1;
     reg signed [WIDTH-1:0] exp_out_nflat0 [0:TILE_SIZE-1];      // Unflattened exp(xi-max_value) result
     reg signed [WIDTH-1:0] exp_out_nflat1 [0:TILE_SIZE-1];
-
-    // Pack X_norm_0 and 1 to exp_in_flat0 and exp_in_flat1
-    // and assign exp_in_flat0 & 1 to xi_min_maxvalue 
-    always @(*) begin
-        for (i=0; i < TILE_SIZE; i = i+1) begin
-            msb = (TILE_SIZE-1-i)*WIDTH + (WIDTH-1);
-            lsb = (TILE_SIZE-1-i)*WIDTH;
-            exp_in_flat0 = X_norm_0[msb:lsb];
-            exp_in_flat1 = X_norm_1[msb:lsb];
-        end
-        for (j=0; j < RAM_DEPTH/2; j = j+1) begin
-            xi_min_maxvalue[j*2]    = exp_in_flat0[i]; // Even addresses
-            xi_min_maxvalue[j*2+1]  = exp_in_flat1[i]; // Odd addresses
-        end
-    end
-
-    // Unpack the exp_out_flat0 and 1
-    always @(*) begin
-        for (i=0; i< TILE_SIZE; i = i+1) begin
-            msb = (TILE_SIZE-1-i)*WIDTH + (WIDTH-1);
-            lsb = (TILE_SIZE-1-i)*WIDTH;
-            exp_in_flat0 = X_norm_0[msb:lsb];
-            exp_in_flat1 = X_norm_1[msb:lsb];
-        end
-    end
 
     // exp function unit to calculate exp(xi-max_value)
     exp_vec #(
@@ -143,7 +104,39 @@ module softmax_vec #(
         X_flat(exp_in_flat1), .Y_flat(exp_out_flat1)
     );
 
+    // Unpack exp outputs (exp_out_flat) into arrays (exp_out_nflat)
+    genvar ui;
+    generate
+        for (ui = 0; ui < TILE_SIZE; ui = ui+1) begin
+            localparam integer MSB = (TILE_SIZE-1-ui)*WIDTH + (WIDTH-1);
+            localparam integer LSB = (TILE_SIZE-1-ui)*WIDTH;
+            assign exp_out_nflat0[ui] = exp_out_flat0[MSB:LSB];
+            assign exp_out_nflat1[ui] = exp_out_flat1[MSB:LSB];
+        end
+    endgenerate
+
+    // ----------------- SUM_EXP CALCULATIONS ----------------
+    reg [SUM_WIDTH-1:0] sum_exp;
+    reg [SUM_WIDTH-1:0] sum_tile0;
+    reg [SUM_WIDTH-1:0] sum_tile1;
+
+    // Sum-of-elements within a tile
+    integer si;
+    reg [SUM_WIDTH-1:0] acc0, acc1;
+    always @(*) begin
+        acc0 = {SUM_WIDTH{1'b0}};
+        acc1 = {SUM_WIDTH{1'b0}};
+        for (si =0; si < TILE_SIZE; si = si+1) begin
+            acc0 = acc0 + {{(SUM_WIDTH-WIDTH){exp_out_nflat0[si][WIDTH-1]}}, exp_out_nflat0[si]};
+            acc1 = acc1 + {{(SUM_WIDTH-WIDTH){exp_out_nflat1[si][WIDTH-1]}}, exp_out_nflat1[si]};
+        end
+    end
+
+    assign sum_tile0 = acc0;
+    assign sum_tile1 = acc1;
+
     // ----------------- LNU UNIT ----------------
+    // TODO
     // Range reduction regs => ln(sum_exp) = ln(m) + k*ln(2)
     wire signed [WIDTH-1:0] ln_m;
     reg signed [WIDTH-1:0] m_norm;    
@@ -158,6 +151,7 @@ module softmax_vec #(
 
     // ----------------- FSM NEXT STATE ----------------
     always @(*) begin
+        state_next = state_reg;
         case (state_reg) 
             S_IDLE: begin
                 state_next = (en && start) ? S_LOAD : STATE_IDLE;
@@ -165,12 +159,12 @@ module softmax_vec #(
 
             S_LOAD: // Pass 0: Store tiles and track max
             begin
-                state_next = (e_count >= TOTAL_ELEMENTS) ? S_PASS_1: S_LOAD;
+                state_next = (e_loaded >= TOTAL_ELEMENTS) ? S_PASS_1: S_LOAD;
             end
 
-            S_PASS_1: // Pass 1: Read from the RAM and calculate the exp
+            S_PASS_1: // Pass 1: Read from the RAM, calculate the exp, and sum exp
             begin
-                state_next = ((ram_read_addr0 >= RAM_DEPTH -1) && (ram_read_addr1 >= RAM_DEPTH)) ? S_PASS_1B : S_PASS_1;
+                state_next = (e_read >= TOTAL_ELEMENTS) ? S_PASS_1 : S_PASS_LN;
             end
 
             S_LN: // Pass 2: Read from the 
@@ -179,22 +173,32 @@ module softmax_vec #(
     end
 
     // ----------------- FSM SEQUENTIAL ----------------
+    integer i;
+    integer msb, lsb;
+
     always @(posedge clk) begin
         if (!rst_n) begin
             state_reg       <= S_IDLE;
-            e_count         <= {ADDRE{1'b0}};
+            e_loaded        <= {ADDRE{1'b0}};
+            e_read          <= {ADDRE{1'b0}};
+            e_accumulated   <= {ADDRE{1'b0}};
+
             ram_read_addr0  <= {ADDRW{1'b0}};
-            ram_read_addr1  <= {ADDRW{1'b0}};
-            ram_write_addr  <= {ADDRW{1'b0}};
+            ram_read_addr1  <= {ADDRW{1'b0}}; // even
+            ram_write_addr  <= (RAM_DEPTH>1) ? {{(ADDRW-1){1'b0}},1'b1} : {ADDRW{1'b0}}; // odd 1
+
             max_val         <= 32'sh8000_0000; // Very negative
             sum_exp         <= {SUM_WIDTH{1'b0}};
+
             tile_out_valid  <= 0;
             done            <= 0;
-            ln_sum          <= {WIDTH(1'b0)};
+
+            ln_sum          <= {WIDTH(1'b0)}; // TODO
             m_norm          <= {WIDTH(1'b0)};
             k_shift         <= 16'd0;
-            exp_in_flat0    <= {WIDTH*TILE_SIZE-1(1'b0)};
-            exp_in_flat1    <= {WIDTH*TILE_SIZE-1(1'b0)};
+
+            exp_in_flat0    <= {RAM_DATA_WIDTH(1'b0)};
+            exp_in_flat1    <= {RAM_DATA_WIDTH(1'b0)};
             for (i = 0; i < TILE_SIZE; i = i + 1) begin
                 X_norm_0[i] <= {WIDTH{1'b0}};
                 X_norm_1[i] <= {WIDTH{1'b0}};
@@ -202,55 +206,81 @@ module softmax_vec #(
         end else if (en) begin
             state_reg <= state_next;
             case (state_reg)
-                S_IDLE: begin
-                    tile_out_valid  <= 0;
-                    done            <= 0;
-                    if (start) begin
-                        e_count     <= {ADDRE{1'b0}};
-                        ram_read_addr0  <= {ADDRW{1'b0}};
-                        ram_read_addr1  <= 1; // 1 because we want the RAM to access different addres than ram_read_addr0
-                        ram_write_addr  <= {ADDRW{1'b0}};
-                        max_val     <= 32'sh8000_0000; // Very negative
-                        sum_exp     <= {SUM_WIDTH{1'b0}};
-                    end
-                end
 
                 S_LOAD: begin       // Pass 0: Store tiles and track max 
-                    if (tile_in_valid) begin
+                    // Write tile into RAM while looking for the max_value
+                    if (tile_in_valid && (e_loaded < TOTAL_ELEMENTS)) begin
                         for (i = 0; i < TILE_SIZE; i = i+1) begin
-                            if (e_count < TOTAL_ELEMENTS) begin
-                                xi      <= slice_flat(X_tile_in, i)
-                                if (xi > max_val) max_val <= xi;
+                            if ((e_loaded + i) < TOTAL_ELEMENTS) begin
+                                // Element i of this tile
+                                if (slice_flat(X_tile_in, i) > max_val) begin
+                                    max_val <= slice_flat(X_tile_in, i);
+                                end
                             end
-                            e_count <= e_count + i;
                         end
+                        // Increment element and write address
+                        e_loaded       <= e_loaded + ((e_loaded + TILE_SIZE <= TOTAL_ELEMENTS) ? TILE_SIZE
+                                                     : (TOTAL_ELEMENTS - e_loaded));
                         ram_write_addr <= ram_write_addr + 1;
-                    end else begin
-                        e_count <= 0; // Reset the e_count because it will be used again when calculating the sum_exp
+                    end
+
+                    // Reset all before S_PASS1
+                    if (e_loaded >= TOTAL_ELEMENTS) begin
+                        e_read             <= {ADDRE+1{1'b0}};
+                        ram_read_addr_even <= {ADDRW{1'b0}}; // 0
+                        ram_read_addr_odd  <= (RAM_DEPTH>1) ? {{(ADDRW-1){1'b0}},1'b1} : {ADDRW{1'b0}};
+                        sum_exp            <= {SUM_WIDTH{1'b0}};
                     end
                 end
 
                 S_PASS_1: begin    // Pass 1: Calculate the exp and sum_exp
-                    // Calculate each xi-max_value and then pass it to exp function
-                    for (j=0; j < RAM_DEPTH/2; j = j + 1) begin
-                        if (ram_read_addr0 < RAM_DEPTH -1) && (ram_read_addr1 < RAM_DEPTH) begin
-                            ram_read_addr0 <= ram_read_addr0 + (j*2); // Even address
-                            ram_read_addr1 <= ram_read_addr1 + (j*2 + 1); // Odd address
-                            for (i=0; i < TILE_SIZE; i = i +1) begin
-                                X_norm_0[i] <= slice_flat(ram_dout0, i) - max_val;
-                                X_norm_1[i] <= slice_flat(ram_dout1, i) - max_val;
-                            end
-                        end else begin
-                            ram_read_addr0  <= {ADDRW{1'b0}};
-                            ram_read_addr1  <= 1; // 1 because we want the RAM to access different addres than ram_read_addr0
-                        end
+                    // Calculate each xi-max_value
+                    for (i=0; i < TILE_SIZE; i = i +1) begin
+                        X_norm_0[i] <= slice_flat(ram_dout0, i) - max_val;
+                        X_norm_1[i] <= slice_flat(ram_dout1, i) - max_val;
+                    end
+
+                    // Pack into exp_in_flat
+                    for (i = 0; i < TILE_SIZE; i=i+1) begin
+                        msb = (TILE_SIZE-1-idx)*WIDTH + (WIDTH-1);
+                        lsb = (TILE_SIZE-1-idx)*WIDTH;
+                        exp_in_flat0[msb:lsb] <= X_norm_0[i];
+                        exp_in_flat1[msb:lsb] <= X_norm_1[i];
                     end
 
                     // Read exp outputs and accumulate sum
-                    for (i = 0; i < TILE_SIZE; i = i+1) begin
-                        if (e_count < TOTAL_ELEMENTS) begin
-                            // Do sum_exp calculations
+                    begin: ACCUMULATE
+                        integer valid_count, take_even, take_odd, k;
+                        valid_count = (TOTAL_ELEMENTS > e_read) ? (TOTAL_ELEMENTS - e_read) : 0;
+                        // Split accross even and odd
+                        if (valid_count >= 2*TILE_SIZE) begin
+                            take_even = TILE_SIZE;
+                            take_odd  = TILE_SIZE;
+                        end else if (valid_count >) TILE_SIZE begin
+                            take_even = TILE_SIZE;
+                            take_odd  = valid_count - TILE_SIZE;
+                        end else begin
+                            take_even = valid_count;
+                            take_odd  = 0;
                         end
+
+                        // Add even first
+                        for (k=0; k < take_even; k = k+1) begin
+                            sum_exp <= sum_exp + {{(SUM_WIDTH-WIDTH){exp_even[k][WIDTH-1]}}, exp_even[k]};
+                        end
+                        // then odd
+                        for (k = 0; k < take_odd; k = k + 1) begin
+                            sum_exp <= sum_exp + {{(SUM_WIDTH-WIDTH){exp_odd[k][WIDTH-1]}}, exp_odd[k]};
+                        end
+
+                        // advance read counters/addresses
+                        e_read <= e_read + take_even + take_odd;
+
+                        // Bump even/odd tile addresses if we actually consumed a full tile from each
+                        if (take_even == TILE_SIZE)
+                            ram_read_addr_even <= ram_read_addr_even + 2; // next even
+                        if (take_odd == TILE_SIZE)
+                            ram_read_addr_odd  <= ram_read_addr_odd  + 2; // next odd
                     end
                 end
 
