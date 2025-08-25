@@ -138,9 +138,17 @@ module softmax_vec #(
     // ----------------- LNU UNIT ----------------
     // Range reduction regs => ln(sum_exp) = ln(m) + k*ln(2)  
     reg signed [WIDTH-1:0] ln_sum_out;
+    reg signed [WIDTH-1:0] ln_sum_reg;
 
     lnu_range_adapter_1to8 #(.WIDTH(WIDTH), .FRAC(FRAC_WIDTH))
         LNU (.x_sum_exp(sum_exp), .y_ln_out(ln_sum_out));
+
+    // ----------------- PASS 2 SUPPORT ----------------
+    reg out_phase;
+    reg [RAM_DATA_WIDTH-1:0] y_tile0;
+    reg [RAM_DATA_WIDTH-1:0] y_tile1;
+    reg [ADDRE-1:0] e_streamed;
+    integer oi, omsb, olsb;
 
     // ----------------- FSM NEXT STATE ----------------
     always @(*) begin
@@ -167,7 +175,7 @@ module softmax_vec #(
 
             S_PASS_2:
             begin
-                state_next
+                state_next = (e_streamed >= TOTAL_ELEMENTS) ? S_DONE : S_PASS_2;
             end
         endcase
 
@@ -284,13 +292,87 @@ module softmax_vec #(
                 end
 
                 S_LN: begin         // LN: Calculate the natural logarithmic
-                    // For now, there is nothing to write on this because it purely combinational
+                    ln_sum_reg   <= ln_sum_out;
+                    e_streamed   <= {ADDRE+1{1'b0}};
+                    out_phase    <= 1'b0;
+                    ram_read_addr0 <= {ADDRW{1'b0}};
+                    ram_read_addr1  <= (RAM_DEPTH>1) ? {{(ADDRW-1){1'b0}},1'b1} : {ADDRW{1'b0}};
+                    tile_out_valid <= 1'b0;
                 end
 
-                S_PASS_2: begin     // Pass_2: Calculate each exp(Xi - max_value -)
+                S_PASS_2: begin     // Pass_2: Calculate each exp(Xi - max_value -ln(sum_exp))
+                    integer remain;     // How many outputs remain?
+                    integer take_even, take_odd;
+                    remain = (TOTAL_ELEMENTS > e_streamed) ? (TOTAL_ELEMENTS - e_streamed) : 0;
+
+                    // Decide how many to take from each side this "fetch"
+                    if (remain >= 2*TILE_SIZE) begin
+                        take_even = TILE_SIZE;
+                        take_odd  = TILE_SIZE;
+                    end else if (remain > TILE_SIZE) begin
+                        take_even = TILE_SIZE;
+                        take_odd  = remain - TILE_SIZE;
+                    end else begin
+                        take_even = remain;
+                        take_odd  = 0;
+                    end
+
+                    // First, form inputs to exp for EVEN/ODD tiles: (Xi - max_val - ln_sum_reg)
+                    for (i = 0; i < TILE_SIZE; i = i + 1) begin
+                        X_norm_0[i] <= slice_flat(ram_dout0, i) - max_val - ln_sum_reg; // even
+                        X_norm_1[i] <= slice_flat(ram_dout1, i) - max_val - ln_sum_reg; // odd
+                    end
+
+                    // Second, pack those X_norm
+                    for (i = 0; i < TILE_SIZE; i = i+1) begin
+                        omsb = (TILE_SIZE-1-i)*WIDTH + (WIDTH-1);
+                        olsb = (TILE_SIZE-1-i)*WIDTH;
+                        exp_in_flat0[omsb:olsb] <= X_norm_0;
+                        exp_in_flat1[omsb:olsb] <= X_norm_1;
+                    end
+
+                    // Third, save it into registers
+                    y_tile0 <= exp_out_flat0;
+                    y_tile1 <= exp_out_flat1;
+
+                    // Fourth, mask off invalid elements in partial tiles (zero the unused lanes)
+                    if (take_even < TILE_SIZE) begin
+                        for (k = take_even; k < TILE_SIZE; k = k + 1) begin
+                            omsb = (TILE_SIZE-1-k)*WIDTH + (WIDTH-1);
+                            olsb = (TILE_SIZE-1-k)*WIDTH;
+                            y_tile0[omsb:olsb] <= {WIDTH{1'b0}};
+                        end
+                    end
+                    if (take_odd < TILE_SIZE) begin
+                        for (k = take_odd; k < TILE_SIZE; k = k + 1) begin
+                            omsb = (TILE_SIZE-1-k)*WIDTH + (WIDTH-1);
+                            olsb = (TILE_SIZE-1-k)*WIDTH;
+                            y_tile1[omsb:olsb] <= {WIDTH{1'b0}};
+                        end
+                    end
+
+                    // Fifth, emit per-tile stream:
+                    if (remain != 0) begin
+                        if (out_phase == 0) begin
+                            Y_tile_out      <= y_tile0;
+                            tile_out_valid  <= 1;
+                            e_streamed      <= e_streamed + take_even;
+                            out_phase       <= (take_odd != 0) ? 1'b1 : 1'b0; // if odd valid then emit it next
+                            if (take_odd == 0) begin
+                                // If no odd to emit, we finished this pair; advance addresses now
+                                if (take_even == TILE_SIZE) ram_read_addr0 <= ram_read_addr0 + 2;
+                                if (take_odd  == TILE_SIZE) ram_read_addr1 <= ram_read_addr1 + 2;
+                            end
+                        end else begin
+                            Y_tile_out      <= y_tile1;
+                            tile_out_valid  <= 1'b1;
+                            e_streamed      <= e_streamed + take_odd;
+                            out_phase       <= 1'b0;
+                            if (take_even == TILE_SIZE) ram_read_addr0 <= ram_read_addr0 + 2; // next even
+                            if (take_odd  == TILE_SIZE) ram_read_addr1 <= ram_read_addr1 + 2; // next odd
+                        end
+                    end
                 end
-
-
             endcase
         end
 
