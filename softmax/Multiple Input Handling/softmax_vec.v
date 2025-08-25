@@ -40,7 +40,7 @@ module softmax_vec #(
     localparam SUM_WIDTH            = WIDTH + $clog2(TOTAL_ELEMENTS + 1); // sum_exp width size
     localparam RAM_DATA_WIDTH       = WIDTH * TILE_SIZE;
     localparam RAM_DEPTH            = TOTAL_ELEMENTS / TILE_SIZE;
-    localparam ADDRW                = $clog2(RAM_DEPTH)                     // to count words (tiles)
+    localparam ADDRW                = $clog2(RAM_DEPTH);                     // to count words (tiles)
 
     // FSM States
     localparam S_IDLE       = 3'd0;
@@ -136,25 +136,18 @@ module softmax_vec #(
     assign sum_tile1 = acc1;
 
     // ----------------- LNU UNIT ----------------
-    // TODO
-    // Range reduction regs => ln(sum_exp) = ln(m) + k*ln(2)
-    wire signed [WIDTH-1:0] ln_m;
-    reg signed [WIDTH-1:0] m_norm;    
-    reg signed [WIDTH-1:0] ln_sum;
-    reg signed [15:0]      k_shift;
+    // Range reduction regs => ln(sum_exp) = ln(m) + k*ln(2)  
+    reg signed [WIDTH-1:0] ln_sum_out;
 
-    lnu_scalar #(
-        .WIDTH(WIDTH), .FRAC(FRAC_WIDTH)
-    ) LNU_0 (
-        x_in(), .y_out()
-    );
+    lnu_range_adapter_1to8 #(.WIDTH(WIDTH), .FRAC(FRAC_WIDTH))
+        LNU (.x_sum_exp(sum_exp), .y_ln_out(ln_sum_out));
 
     // ----------------- FSM NEXT STATE ----------------
     always @(*) begin
         state_next = state_reg;
         case (state_reg) 
             S_IDLE: begin
-                state_next = (en && start) ? S_LOAD : STATE_IDLE;
+                state_next = (en && start) ? S_LOAD : S_IDLE;
             end
 
             S_LOAD: // Pass 0: Store tiles and track max
@@ -164,10 +157,18 @@ module softmax_vec #(
 
             S_PASS_1: // Pass 1: Read from the RAM, calculate the exp, and sum exp
             begin
-                state_next = (e_read >= TOTAL_ELEMENTS) ? S_PASS_1 : S_PASS_LN;
+                state_next = (e_read >= TOTAL_ELEMENTS) ? S_LN : S_PASS_1;
             end
 
-            S_LN: // Pass 2: Read from the 
+            S_LN: // LN: Calculate the ln(sum_exp)
+            begin
+                state_next = S_PASS_2;
+            end
+
+            S_PASS_2:
+            begin
+                state_next
+            end
         endcase
 
     end
@@ -193,9 +194,7 @@ module softmax_vec #(
             tile_out_valid  <= 0;
             done            <= 0;
 
-            ln_sum          <= {WIDTH(1'b0)}; // TODO
-            m_norm          <= {WIDTH(1'b0)};
-            k_shift         <= 16'd0;
+            ln_sum_out      <= {WIDTH(1'b0)}; 
 
             exp_in_flat0    <= {RAM_DATA_WIDTH(1'b0)};
             exp_in_flat1    <= {RAM_DATA_WIDTH(1'b0)};
@@ -224,11 +223,11 @@ module softmax_vec #(
                         ram_write_addr <= ram_write_addr + 1;
                     end
 
-                    // Reset all before S_PASS1
+                    // Reset all before S_PASS_1
                     if (e_loaded >= TOTAL_ELEMENTS) begin
                         e_read             <= {ADDRE+1{1'b0}};
-                        ram_read_addr_even <= {ADDRW{1'b0}}; // 0
-                        ram_read_addr_odd  <= (RAM_DEPTH>1) ? {{(ADDRW-1){1'b0}},1'b1} : {ADDRW{1'b0}};
+                        ram_read_addr0     <= {ADDRW{1'b0}}; // 0
+                        ram_read_addr1     <= (RAM_DEPTH>1) ? {{(ADDRW-1){1'b0}},1'b1} : {ADDRW{1'b0}};
                         sum_exp            <= {SUM_WIDTH{1'b0}};
                     end
                 end
@@ -242,8 +241,8 @@ module softmax_vec #(
 
                     // Pack into exp_in_flat
                     for (i = 0; i < TILE_SIZE; i=i+1) begin
-                        msb = (TILE_SIZE-1-idx)*WIDTH + (WIDTH-1);
-                        lsb = (TILE_SIZE-1-idx)*WIDTH;
+                        msb = (TILE_SIZE-1-i)*WIDTH + (WIDTH-1);
+                        lsb = (TILE_SIZE-1-i)*WIDTH;
                         exp_in_flat0[msb:lsb] <= X_norm_0[i];
                         exp_in_flat1[msb:lsb] <= X_norm_1[i];
                     end
@@ -266,11 +265,11 @@ module softmax_vec #(
 
                         // Add even first
                         for (k=0; k < take_even; k = k+1) begin
-                            sum_exp <= sum_exp + {{(SUM_WIDTH-WIDTH){exp_even[k][WIDTH-1]}}, exp_even[k]};
+                            sum_exp <= sum_exp + {{(SUM_WIDTH-WIDTH){exp_out_nflat0[k][WIDTH-1]}}, exp_out_nflat0[k]};
                         end
                         // then odd
                         for (k = 0; k < take_odd; k = k + 1) begin
-                            sum_exp <= sum_exp + {{(SUM_WIDTH-WIDTH){exp_odd[k][WIDTH-1]}}, exp_odd[k]};
+                            sum_exp <= sum_exp + {{(SUM_WIDTH-WIDTH){exp_out_nflat1[k][WIDTH-1]}}, exp_out_nflat1[k]};
                         end
 
                         // advance read counters/addresses
@@ -278,13 +277,17 @@ module softmax_vec #(
 
                         // Bump even/odd tile addresses if we actually consumed a full tile from each
                         if (take_even == TILE_SIZE)
-                            ram_read_addr_even <= ram_read_addr_even + 2; // next even
+                            ram_read_addr0 <= ram_read_addr0 + 2; // next even
                         if (take_odd == TILE_SIZE)
-                            ram_read_addr_odd  <= ram_read_addr_odd  + 2; // next odd
+                            ram_read_addr1  <= ram_read_addr1  + 2; // next odd
                     end
                 end
 
-                S_LN: begin       // LN: Calculate the natural logarithmic
+                S_LN: begin         // LN: Calculate the natural logarithmic
+                    // For now, there is nothing to write on this because it purely combinational
+                end
+
+                S_PASS_2: begin     // Pass_2: Calculate each exp(Xi - max_value -)
                 end
 
 
