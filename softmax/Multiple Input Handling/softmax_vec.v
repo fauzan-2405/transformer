@@ -250,7 +250,7 @@ module softmax_vec #(
 
                     // Read exp outputs and accumulate sum
                     begin: ACCUMULATE
-                        integer valid_count, take_even, take_odd, k;
+                        integer valid_count, take_even, take_odd, k; // valid count = how many elements left to process in total
                         valid_count = (TOTAL_ELEMENTS > e_read) ? (TOTAL_ELEMENTS - e_read) : 0;
                         // Split accross even and odd
                         if (valid_count >= 2*TILE_SIZE) begin
