@@ -26,11 +26,8 @@ module softmax_vec #(
     function [WIDTH-1:0] slice_flat;
         input [WIDTH*TILE_SIZE-1:0] x_flat;
         input integer idx;
-        integer msb,lsb;
         begin
-            msb = (TILE_SIZE-1-idx)*WIDTH + (WIDTH-1);
-            lsb = (TILE_SIZE-1-idx)*WIDTH;
-            slice_flat = x_flat[msb:lsb];
+            slice_flat = x_flat[(TILE_SIZE-1-idx)*WIDTH +: WIDTH];
         end
     endfunction
 
@@ -95,13 +92,13 @@ module softmax_vec #(
     exp_vec #(
         .WIDTH(WIDTH), .FRAC(FRAC_WIDTH), .TILE_SIZE(TILE_SIZE), .USE_AMULT(USE_AMULT)
     ) EXP_0 (
-        X_flat(exp_in_flat0), .Y_flat(exp_out_flat0)
+        .X_flat(exp_in_flat0), .Y_flat(exp_out_flat0)
     );
 
     exp_vec #(
         .WIDTH(WIDTH), .FRAC(FRAC_WIDTH), .TILE_SIZE(TILE_SIZE), .USE_AMULT(USE_AMULT)
     ) EXP_1 (
-        X_flat(exp_in_flat1), .Y_flat(exp_out_flat1)
+        .X_flat(exp_in_flat1), .Y_flat(exp_out_flat1)
     );
 
     // Unpack exp outputs (exp_out_flat) into arrays (exp_out_nflat)
@@ -132,8 +129,10 @@ module softmax_vec #(
         end
     end
 
-    assign sum_tile0 = acc0;
-    assign sum_tile1 = acc1;
+    always @(*) begin
+        assign sum_tile0 = acc0;
+        assign sum_tile1 = acc1;
+    end
 
     // ----------------- LNU UNIT ----------------
     // Range reduction regs => ln(sum_exp) = ln(m) + k*ln(2)  
@@ -182,8 +181,8 @@ module softmax_vec #(
     end
 
     // ----------------- FSM SEQUENTIAL ----------------
-    integer i;
-    integer msb, lsb;
+    integer i, k;
+    integer remain, take_even, take_odd;
 
     always @(posedge clk) begin
         if (!rst_n) begin
@@ -202,10 +201,10 @@ module softmax_vec #(
             tile_out_valid  <= 0;
             done            <= 0;
 
-            ln_sum_out      <= {WIDTH(1'b0)}; 
+            ln_sum_out      <= {WIDTH{1'b0}}; 
 
-            exp_in_flat0    <= {RAM_DATA_WIDTH(1'b0)};
-            exp_in_flat1    <= {RAM_DATA_WIDTH(1'b0)};
+            exp_in_flat0    <= {RAM_DATA_WIDTH{1'b0}};
+            exp_in_flat1    <= {RAM_DATA_WIDTH{1'b0}};
             for (i = 0; i < TILE_SIZE; i = i + 1) begin
                 X_norm_0[i] <= {WIDTH{1'b0}};
                 X_norm_1[i] <= {WIDTH{1'b0}};
@@ -249,10 +248,8 @@ module softmax_vec #(
 
                     // Pack into exp_in_flat
                     for (i = 0; i < TILE_SIZE; i=i+1) begin
-                        msb = (TILE_SIZE-1-i)*WIDTH + (WIDTH-1);
-                        lsb = (TILE_SIZE-1-i)*WIDTH;
-                        exp_in_flat0[msb:lsb] <= X_norm_0[i];
-                        exp_in_flat1[msb:lsb] <= X_norm_1[i];
+                        exp_in_flat0[(TILE_SIZE-1-idx)*WIDTH +: WIDTH] <= X_norm_0[i];
+                        exp_in_flat1[(TILE_SIZE-1-idx)*WIDTH +: WIDTH] <= X_norm_1[i];
                     end
 
                     // Read exp outputs and accumulate sum
@@ -263,7 +260,7 @@ module softmax_vec #(
                         if (valid_count >= 2*TILE_SIZE) begin
                             take_even = TILE_SIZE;
                             take_odd  = TILE_SIZE;
-                        end else if (valid_count >) TILE_SIZE begin
+                        end else if (valid_count > TILE_SIZE)  begin
                             take_even = TILE_SIZE;
                             take_odd  = valid_count - TILE_SIZE;
                         end else begin
@@ -301,8 +298,8 @@ module softmax_vec #(
                 end
 
                 S_PASS_2: begin     // Pass_2: Calculate each exp(Xi - max_value -ln(sum_exp))
-                    integer remain;     // How many outputs remain?
-                    integer take_even, take_odd;
+                    //integer remain;     // How many outputs remain?
+                    //integer take_even, take_odd;
                     remain = (TOTAL_ELEMENTS > e_streamed) ? (TOTAL_ELEMENTS - e_streamed) : 0;
 
                     // Decide how many to take from each side this "fetch"
@@ -325,10 +322,8 @@ module softmax_vec #(
 
                     // Second, pack those X_norm
                     for (i = 0; i < TILE_SIZE; i = i+1) begin
-                        omsb = (TILE_SIZE-1-i)*WIDTH + (WIDTH-1);
-                        olsb = (TILE_SIZE-1-i)*WIDTH;
-                        exp_in_flat0[omsb:olsb] <= X_norm_0;
-                        exp_in_flat1[omsb:olsb] <= X_norm_1;
+                        exp_in_flat0[(TILE_SIZE-1-i)*WIDTH +: WIDTH] <= X_norm_0[i];
+                        exp_in_flat1[(TILE_SIZE-1-i)*WIDTH +: WIDTH] <= X_norm_1[i];
                     end
 
                     // Third, save it into registers
@@ -338,16 +333,12 @@ module softmax_vec #(
                     // Fourth, mask off invalid elements in partial tiles (zero the unused lanes)
                     if (take_even < TILE_SIZE) begin
                         for (k = take_even; k < TILE_SIZE; k = k + 1) begin
-                            omsb = (TILE_SIZE-1-k)*WIDTH + (WIDTH-1);
-                            olsb = (TILE_SIZE-1-k)*WIDTH;
-                            y_tile0[omsb:olsb] <= {WIDTH{1'b0}};
+                            y_tile0[(TILE_SIZE-1-k)*WIDTH +: WIDTH] <= {WIDTH{1'b0}};
                         end
                     end
                     if (take_odd < TILE_SIZE) begin
                         for (k = take_odd; k < TILE_SIZE; k = k + 1) begin
-                            omsb = (TILE_SIZE-1-k)*WIDTH + (WIDTH-1);
-                            olsb = (TILE_SIZE-1-k)*WIDTH;
-                            y_tile1[omsb:olsb] <= {WIDTH{1'b0}};
+                            y_tile1[(TILE_SIZE-1-k)*WIDTH +: WIDTH] <= {WIDTH{1'b0}};
                         end
                     end
 
