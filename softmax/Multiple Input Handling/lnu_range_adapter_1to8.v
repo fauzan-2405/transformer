@@ -19,13 +19,17 @@ module lnu_range_adapter_1to8 #(
     
     // Leading one detector
     integer i;
+    reg found;
     reg [$clog2(SUMW)-1:0] lead_one_pos;
     always @(*) begin
+        found = 0;
         lead_one_pos = 0;
         for (i = SUMW-1; i >= 0; i = i-1) begin
-            if (x_clamped[i]) begin
-                lead_one_pos = i;
-                disable for; // break after first one
+            if (!found) begin
+                if (x_clamped[i]) begin
+                    lead_one_pos = i;
+                    found = 1; // break after first one
+                end
             end
         end
     end
