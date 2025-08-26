@@ -85,8 +85,8 @@ module softmax_vec #(
     reg [RAM_DATA_WIDTH-1:0] xi_min_maxvalue [0:RAM_DEPTH-1];     // Registers to hold flattened xi - max_value
     wire [RAM_DATA_WIDTH-1:0] exp_out_flat0;            // Output data from exp_vec()
     wire [RAM_DATA_WIDTH-1:0] exp_out_flat1;
-    reg signed [WIDTH-1:0] exp_out_nflat0 [0:TILE_SIZE-1];      // Unflattened exp(xi-max_value) result
-    reg signed [WIDTH-1:0] exp_out_nflat1 [0:TILE_SIZE-1];
+    wire signed [WIDTH-1:0] exp_out_nflat0 [0:TILE_SIZE-1];      // Unflattened exp(xi-max_value) result
+    wire signed [WIDTH-1:0] exp_out_nflat1 [0:TILE_SIZE-1];
 
     // exp function unit to calculate exp(xi-max_value)
     exp_vec #(
@@ -147,7 +147,25 @@ module softmax_vec #(
     reg [RAM_DATA_WIDTH-1:0] y_tile0;
     reg [RAM_DATA_WIDTH-1:0] y_tile1;
     reg [ADDRE-1:0] e_streamed;
-    integer oi, omsb, olsb;
+    integer oi;
+    integer i, k;
+    integer remain, take_even, take_odd;
+    reg [RAM_DATA_WIDTH-1:0] masked_y_tile0, masked_y_tile1;
+    
+    always @(*) begin
+        masked_y_tile0 = exp_out_flat0;
+        masked_y_tile1 = exp_out_flat1;
+        if (take_even < TILE_SIZE) begin
+            for (k = take_even; k < TILE_SIZE; k = k+1) begin
+                masked_y_tile0[(TILE_SIZE-1-k)*WIDTH +: WIDTH] = {WIDTH{1'b0}};
+            end
+        end
+        if (take_odd < TILE_SIZE) begin
+            for (k = take_odd; k < TILE_SIZE; k = k+1) begin
+                masked_y_tile1[(TILE_SIZE-1-k)*WIDTH +: WIDTH] = {WIDTH{1'b0}};
+            end
+        end
+    end
 
     // ----------------- FSM NEXT STATE ----------------
     always @(*) begin
@@ -176,14 +194,16 @@ module softmax_vec #(
             begin
                 state_next = (e_streamed >= TOTAL_ELEMENTS) ? S_DONE : S_PASS_2;
             end
+
+            S_DONE:
+            begin
+                state_next = (en && start) ? S_LOAD : S_IDLE;
+            end
         endcase
 
     end
 
     // ----------------- FSM SEQUENTIAL ----------------
-    integer i, k;
-    integer remain, take_even, take_odd;
-
     always @(posedge clk) begin
         if (!rst_n) begin
             state_reg       <= S_IDLE;
@@ -248,8 +268,8 @@ module softmax_vec #(
 
                     // Pack into exp_in_flat
                     for (i = 0; i < TILE_SIZE; i=i+1) begin
-                        exp_in_flat0[(TILE_SIZE-1-idx)*WIDTH +: WIDTH] <= X_norm_0[i];
-                        exp_in_flat1[(TILE_SIZE-1-idx)*WIDTH +: WIDTH] <= X_norm_1[i];
+                        exp_in_flat0[(TILE_SIZE-1-i)*WIDTH +: WIDTH] <= X_norm_0[i];
+                        exp_in_flat1[(TILE_SIZE-1-i)*WIDTH +: WIDTH] <= X_norm_1[i];
                     end
 
                     // Read exp outputs and accumulate sum
@@ -327,22 +347,10 @@ module softmax_vec #(
                     end
 
                     // Third, save it into registers
-                    y_tile0 <= exp_out_flat0;
-                    y_tile1 <= exp_out_flat1;
+                    y_tile0 <= masked_y_tile0;
+                    y_tile1 <= masked_y_tile1;
 
-                    // Fourth, mask off invalid elements in partial tiles (zero the unused lanes)
-                    if (take_even < TILE_SIZE) begin
-                        for (k = take_even; k < TILE_SIZE; k = k + 1) begin
-                            y_tile0[(TILE_SIZE-1-k)*WIDTH +: WIDTH] <= {WIDTH{1'b0}};
-                        end
-                    end
-                    if (take_odd < TILE_SIZE) begin
-                        for (k = take_odd; k < TILE_SIZE; k = k + 1) begin
-                            y_tile1[(TILE_SIZE-1-k)*WIDTH +: WIDTH] <= {WIDTH{1'b0}};
-                        end
-                    end
-
-                    // Fifth, emit per-tile stream:
+                    // Fourth, emit per-tile stream:
                     if (remain != 0) begin
                         if (out_phase == 0) begin
                             Y_tile_out      <= y_tile0;
@@ -363,6 +371,11 @@ module softmax_vec #(
                             if (take_odd  == TILE_SIZE) ram_read_addr1 <= ram_read_addr1 + 2; // next odd
                         end
                     end
+                end
+
+                S_DONE: begin
+                    done <= 1;
+                    tile_out_valid <= 0;
                 end
             endcase
         end
