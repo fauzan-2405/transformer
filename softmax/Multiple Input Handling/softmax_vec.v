@@ -82,7 +82,7 @@ module softmax_vec #(
     reg signed [WIDTH-1:0] X_norm_1 [0:TILE_SIZE-1];
     reg [RAM_DATA_WIDTH-1:0] exp_in_flat0;              // Input data from RAM to exp_vec(): Flattened Xi - max_value
     reg [RAM_DATA_WIDTH-1:0] exp_in_flat1;    
-    reg [RAM_DATA_WIDTH-1:0] xi_min_maxvalue [0:RAM_DEPTH-1];     // Registers to hold flattened xi - max_value
+    //reg [RAM_DATA_WIDTH-1:0] xi_min_maxvalue [0:RAM_DEPTH-1];     // Registers to hold flattened xi - max_value
     wire [RAM_DATA_WIDTH-1:0] exp_out_flat0;            // Output data from exp_vec()
     wire [RAM_DATA_WIDTH-1:0] exp_out_flat1;
     wire signed [WIDTH-1:0] exp_out_nflat0 [0:TILE_SIZE-1];      // Unflattened exp(xi-max_value) result
@@ -136,7 +136,7 @@ module softmax_vec #(
 
     // ----------------- LNU UNIT ----------------
     // Range reduction regs => ln(sum_exp) = ln(m) + k*ln(2)  
-    reg signed [WIDTH-1:0] ln_sum_out;
+    wire signed [WIDTH-1:0] ln_sum_out;
     reg signed [WIDTH-1:0] ln_sum_reg;
 
     lnu_range_adapter_1to8 #(.WIDTH(WIDTH), .FRAC(FRAC_WIDTH))
@@ -211,17 +211,28 @@ module softmax_vec #(
             e_read          <= {ADDRE{1'b0}};
             e_accumulated   <= {ADDRE{1'b0}};
 
-            ram_read_addr0  <= {ADDRW{1'b0}};
-            ram_read_addr1  <= {ADDRW{1'b0}}; // even
-            ram_write_addr  <= (RAM_DEPTH>1) ? {{(ADDRW-1){1'b0}},1'b1} : {ADDRW{1'b0}}; // odd 1
+            ram_write_addr  <= {ADDRW{1'b0}};
+            ram_read_addr0  <= {ADDRW{1'b0}}; // even
+            ram_read_addr1  <= (RAM_DEPTH>1) ? {{(ADDRW-1){1'b0}},1'b1} : {ADDRW{1'b0}}; // odd 1
 
             max_val         <= 32'sh8000_0000; // Very negative
             sum_exp         <= {SUM_WIDTH{1'b0}};
+            sum_tile0       <= {SUM_WIDTH{1'b0}};
+            sum_tile1       <= {SUM_WIDTH{1'b0}};
+
+            acc0            <= {SUM_WIDTH{1'b0}};
+            acc1            <= {SUM_WIDTH{1'b0}};
 
             tile_out_valid  <= 0;
+            out_phase       <= 0;
             done            <= 0;
 
-            ln_sum_out      <= {WIDTH{1'b0}}; 
+            ln_sum_reg      <= {WIDTH{1'b0}}; 
+            y_tile0         <= {RAM_DATA_WIDTH{1'b0}};
+            y_tile1         <= {RAM_DATA_WIDTH{1'b0}};
+            e_streamed      <= {ADDRE{1'b0}};
+            masked_y_tile0  <= {RAM_DATA_WIDTH{1'b0}};
+            masked_y_tile1  <= {RAM_DATA_WIDTH{1'b0}};
 
             exp_in_flat0    <= {RAM_DATA_WIDTH{1'b0}};
             exp_in_flat1    <= {RAM_DATA_WIDTH{1'b0}};
