@@ -50,7 +50,7 @@ module softmax_vec #(
     reg [2:0] state_reg, state_next;
  
     // Counters and registers
-    reg [ADDRE:0] e_loaded;                     // How many elements loaded into RAM
+    reg [ADDRE:0] e_loaded, e_loaded_next;                     // How many elements loaded into RAM
     reg [ADDRE:0] e_read;                       // How many elements consumed in pass1 (for sum)
     reg [ADDRE:0] e_accumulated;                // optional tracker while accumulating
 
@@ -170,6 +170,11 @@ module softmax_vec #(
     // ----------------- FSM NEXT STATE ----------------
     always @(*) begin
         state_next = state_reg;
+        e_loaded_next = e_loaded;
+        if (tile_in_valid && (state_reg == S_LOAD)) begin
+            e_loaded_next = e_loaded + ((e_loaded + TILE_SIZE <= TOTAL_ELEMENTS) ?
+                                        TILE_SIZE : (TOTAL_ELEMENTS - e_loaded));
+        end
         case (state_reg) 
             S_IDLE: begin
                 state_next = (en && start) ? S_LOAD : S_IDLE;
@@ -208,6 +213,7 @@ module softmax_vec #(
         if (!rst_n) begin
             state_reg       <= S_IDLE;
             e_loaded        <= {ADDRE{1'b0}};
+            e_loaded_next   <= {ADDRE{1'b0}};
             e_read          <= {ADDRE{1'b0}};
             e_accumulated   <= {ADDRE{1'b0}};
 
@@ -242,6 +248,7 @@ module softmax_vec #(
             end
         end else if (en) begin
             state_reg <= state_next;
+            e_loaded  <= e_loaded_next;
             case (state_reg)
 
                 S_LOAD: begin       // Pass 0: Store tiles and track max 
@@ -256,8 +263,8 @@ module softmax_vec #(
                             end
                         end
                         // Increment element and write address
-                        e_loaded       <= e_loaded + ((e_loaded + TILE_SIZE <= TOTAL_ELEMENTS) ? TILE_SIZE
-                                                     : (TOTAL_ELEMENTS - e_loaded));
+                        /*e_loaded       <= e_loaded + ((e_loaded + TILE_SIZE <= TOTAL_ELEMENTS) ? TILE_SIZE
+                                                    : (TOTAL_ELEMENTS - e_loaded)); */
                         ram_write_addr <= ram_write_addr + 1;
                     end
 
