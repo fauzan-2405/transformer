@@ -1,4 +1,5 @@
 // softmax_vec.v 
+// if TOTAL_ELEMENTS % TILE_SIZE != 0 then we will assume the last tile that contains last elements will be padded to zero
 
 module softmax_vec #(
     parameter WIDTH          = 32,
@@ -23,7 +24,7 @@ module softmax_vec #(
     output reg                           done
 );
     // Function to slice the x_flat
-    function [WIDTH-1:0] slice_flat;
+    function signed [WIDTH-1:0] slice_flat;
         input [WIDTH*TILE_SIZE-1:0] x_flat;
         input integer idx;
         begin
@@ -36,7 +37,7 @@ module softmax_vec #(
     localparam ADDRE                = $clog2(TOTAL_ELEMENTS);               // to count elements
     localparam SUM_WIDTH            = WIDTH + $clog2(TOTAL_ELEMENTS + 1); // sum_exp width size
     localparam RAM_DATA_WIDTH       = WIDTH * TILE_SIZE;
-    localparam RAM_DEPTH            = TOTAL_ELEMENTS / TILE_SIZE;
+    localparam RAM_DEPTH            = (TOTAL_ELEMENTS + TILE_SIZE - 1) / TILE_SIZE;
     localparam ADDRW                = $clog2(RAM_DEPTH);                     // to count words (tiles)
 
     // FSM States
@@ -48,9 +49,10 @@ module softmax_vec #(
     localparam S_DONE       = 3'd5;
 
     reg [2:0] state_reg, state_next;
+    integer i, k;
  
     // Counters and registers
-    reg [ADDRE:0] e_loaded, e_loaded_next;                     // How many elements loaded into RAM
+    reg [ADDRE:0] e_loaded, e_loaded_next;      // How many elements loaded into RAM
     reg [ADDRE:0] e_read;                       // How many elements consumed in pass1 (for sum)
     reg [ADDRE:0] e_accumulated;                // optional tracker while accumulating
 
@@ -88,6 +90,21 @@ module softmax_vec #(
     wire signed [WIDTH-1:0] exp_out_nflat0 [0:TILE_SIZE-1];      // Unflattened exp(xi-max_value) result
     wire signed [WIDTH-1:0] exp_out_nflat1 [0:TILE_SIZE-1];
 
+    // Updating the X_norm and pack it into exp_in_flat
+    always @(*) begin
+        // Calculate each xi-max_value
+        for (i=0; i < TILE_SIZE; i = i +1) begin
+            X_norm_0[i] <= slice_flat(ram_dout0, i) - max_val;
+            X_norm_1[i] <= slice_flat(ram_dout1, i) - max_val;
+        end
+
+        // Pack into exp_in_flat
+        for (i = 0; i < TILE_SIZE; i=i+1) begin
+            exp_in_flat0[(TILE_SIZE-1-i)*WIDTH +: WIDTH] <= X_norm_0[i];
+            exp_in_flat1[(TILE_SIZE-1-i)*WIDTH +: WIDTH] <= X_norm_1[i];
+        end
+    end
+    
     // exp function unit to calculate exp(xi-max_value)
     exp_vec #(
         .WIDTH(WIDTH), .FRAC(FRAC_WIDTH), .TILE_SIZE(TILE_SIZE), .USE_AMULT(USE_AMULT)
@@ -148,7 +165,6 @@ module softmax_vec #(
     reg [RAM_DATA_WIDTH-1:0] y_tile1;
     reg [ADDRE-1:0] e_streamed;
     integer oi;
-    integer i, k;
     integer remain, take_even, take_odd;
     reg [RAM_DATA_WIDTH-1:0] masked_y_tile0, masked_y_tile1;
     
@@ -218,8 +234,8 @@ module softmax_vec #(
             e_accumulated   <= {ADDRE{1'b0}};
 
             ram_write_addr  <= {ADDRW{1'b0}};
-            ram_read_addr0  <= {ADDRW{1'b0}}; // even
-            ram_read_addr1  <= (RAM_DEPTH>1) ? {{(ADDRW-1){1'b0}},1'b1} : {ADDRW{1'b0}}; // odd 1
+            //ram_read_addr0  <= {ADDRW{1'b0}}; // even
+            //ram_read_addr1  <= (RAM_DEPTH>1) ? {{(ADDRW-1){1'b0}},1'b1} : {ADDRW{1'b0}}; // odd 1
 
             max_val         <= 32'sh8000_0000; // Very negative
             sum_exp         <= {SUM_WIDTH{1'b0}};
@@ -279,6 +295,7 @@ module softmax_vec #(
 
                 S_PASS_1: begin    // Pass 1: Calculate the exp and sum_exp
                     // Calculate each xi-max_value
+                    /*
                     for (i=0; i < TILE_SIZE; i = i +1) begin
                         X_norm_0[i] <= slice_flat(ram_dout0, i) - max_val;
                         X_norm_1[i] <= slice_flat(ram_dout1, i) - max_val;
@@ -288,7 +305,7 @@ module softmax_vec #(
                     for (i = 0; i < TILE_SIZE; i=i+1) begin
                         exp_in_flat0[(TILE_SIZE-1-i)*WIDTH +: WIDTH] <= X_norm_0[i];
                         exp_in_flat1[(TILE_SIZE-1-i)*WIDTH +: WIDTH] <= X_norm_1[i];
-                    end
+                    end */
 
                     // Read exp outputs and accumulate sum
                     begin: ACCUMULATE
