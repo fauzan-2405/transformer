@@ -164,7 +164,7 @@ module softmax_vec #(
     wire signed [WIDTH-1:0] ln_sum_out;
     reg signed [WIDTH-1:0] ln_sum_reg;
 
-    lnu_range_adapter_1to8 #(.WIDTH(WIDTH), .FRAC(FRAC_WIDTH))
+    lnu_range_adapter_1to8 #(.WIDTH(WIDTH), .FRAC(FRAC_WIDTH), .SUM_WIDTH(SUM_WIDTH))
         LNU (.x_sum_exp(sum_exp), .y_ln_out(ln_sum_out));
 
     // ----------------- PASS 2 SUPPORT ----------------

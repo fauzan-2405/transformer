@@ -3,9 +3,10 @@
 
 module lnu_range_adapter_1to8 #(
     parameter WIDTH = 32,
-    parameter FRAC  = 16
+    parameter FRAC  = 16,
+    parameter SUM_WIDTH = 20
 ) (
-    input wire [WIDTH+16-1:0] x_sum_exp,
+    input wire [SUM_WIDTH-1:0] x_sum_exp,
     output wire [WIDTH-1:0] y_ln_out
 );
     // Constants
