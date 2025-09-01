@@ -130,7 +130,8 @@ module softmax_vec #(
     end
 
     // ----------------- SUM_EXP CALCULATIONS ----------------
-    reg [SUM_WIDTH-1:0] sum_exp;
+    reg [SUM_WIDTH-1:0] sum_exp, sum_exp_d;
+    reg minus;
     //reg [SUM_WIDTH-1:0] sum_tile0;
     //reg [SUM_WIDTH-1:0] sum_tile1;
 
@@ -144,9 +145,10 @@ module softmax_vec #(
             acc0 = acc0 + {{(SUM_WIDTH-WIDTH){exp_out_nflat0[si][WIDTH-1]}}, exp_out_nflat0[si]};
             acc1 = acc1 + {{(SUM_WIDTH-WIDTH){exp_out_nflat1[si][WIDTH-1]}}, exp_out_nflat1[si]};
         end
-
+        //sum_tile0 = acc0 + acc1;
+        
         if (state_reg_d == S_PASS_1) begin
-            if (ram_read_addr1 - ram_read_addr0 == 1'd1) begin
+            if (minus) begin
                 sum_exp = sum_exp + acc0 + acc1;
             end else begin
                 sum_exp = sum_exp + acc0;
@@ -165,7 +167,7 @@ module softmax_vec #(
     reg signed [WIDTH-1:0] ln_sum_reg;
 
     lnu_range_adapter_1to8 #(.WIDTH(WIDTH), .FRAC(FRAC_WIDTH), .SUM_WIDTH(SUM_WIDTH))
-        LNU (.x_sum_exp(sum_exp), .y_ln_out(ln_sum_out));
+        LNU (.x_sum_exp(sum_exp_d), .y_ln_out(ln_sum_out));
 
     // ----------------- PASS 2 SUPPORT ----------------
     reg out_phase;
@@ -271,6 +273,7 @@ module softmax_vec #(
 
             max_val         <= 32'sh8000_0000; // Very negative
             sum_exp         <= {SUM_WIDTH{1'b0}};
+            sum_exp_d       <= {SUM_WIDTH{1'b0}};
             //sum_tile0       <= {SUM_WIDTH{1'b0}};
             //sum_tile1       <= {SUM_WIDTH{1'b0}};
 
@@ -340,6 +343,8 @@ module softmax_vec #(
 
                 S_PASS_1: begin    // Pass 1: Calculate the exp and sum_exp
                     ln_sum_reg   <= ln_sum_out;
+                    minus        <= (ram_read_addr1 == ram_read_addr0 + 1);
+                    sum_exp_d    <= sum_exp_d + sum_exp;
                     //sum_exp <= sum_exp + acc0 + acc1;
                     // Calculate each xi-max_value
                     /*
