@@ -85,7 +85,6 @@ module softmax_vec #(
     reg signed [WIDTH-1:0] X_norm_1 [0:TILE_SIZE-1];
     reg [RAM_DATA_WIDTH-1:0] exp_in_flat0;              // Input data from RAM to exp_vec(): Flattened Xi - max_value
     reg [RAM_DATA_WIDTH-1:0] exp_in_flat1;    
-    //reg [RAM_DATA_WIDTH-1:0] xi_min_maxvalue [0:RAM_DEPTH-1];     // Registers to hold flattened xi - max_value
     wire [RAM_DATA_WIDTH-1:0] exp_out_flat0;            // Output data from exp_vec()
     wire [RAM_DATA_WIDTH-1:0] exp_out_flat1;
     reg signed [WIDTH-1:0] exp_out_nflat0 [0:TILE_SIZE-1];      // Unflattened exp(xi-max_value) result
@@ -383,7 +382,7 @@ module softmax_vec #(
                         //take_odd  = TILE_SIZE;
                     end else begin
                         take_even = remain;
-                        take_odd  = 0;
+                        take_odd  = remain; // or 0
                         //take_even = 0;
                         //take_odd  = remain;
                     end
