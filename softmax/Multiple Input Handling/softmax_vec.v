@@ -53,7 +53,7 @@ module softmax_vec #(
     integer i, k;
  
     // Counters and registers
-    reg [ADDRE:0] e_loaded, e_loaded_next;                     // How many elements loaded into RAM
+    reg [ADDRE:0] e_loaded;                     // How many elements loaded into RAM
     reg [ADDRE:0] e_read;                       // How many elements consumed in pass1 (for sum)
     reg [ADDRE:0] e_accumulated;                // optional tracker while accumulating
 
@@ -206,11 +206,11 @@ module softmax_vec #(
     // ----------------- FSM NEXT STATE ----------------
     always @(*) begin
         state_next = state_reg;
-        e_loaded_next = e_loaded;
+        /*e_loaded_next = e_loaded;
         if (tile_in_valid && (state_reg == S_LOAD)) begin
             e_loaded_next = e_loaded + ((e_loaded + TILE_SIZE <= TOTAL_ELEMENTS) ?
                                         TILE_SIZE : TOTAL_ELEMENTS - e_loaded);
-        end
+        end */
         case (state_reg) 
             S_IDLE: begin
                 state_next = (en && start) ? S_LOAD : S_IDLE;
@@ -242,7 +242,7 @@ module softmax_vec #(
             
             S_DONE: 
             begin
-                state_next = (en && start) ? S_LOAD : S_IDLE;
+                state_next = (!rst_n) ? S_LOAD : S_IDLE;
             end
         endcase
 
@@ -254,7 +254,7 @@ module softmax_vec #(
             state_reg       <= S_IDLE;
             state_reg_d     <= S_IDLE;
             e_loaded        <= {ADDRE{1'b0}};
-            e_loaded_next   <= {ADDRE{1'b0}};
+            //e_loaded_next   <= {ADDRE{1'b0}};
             e_read          <= {ADDRE{1'b0}};
             e_accumulated   <= {ADDRE{1'b0}};
 
@@ -292,7 +292,7 @@ module softmax_vec #(
         end else if (en) begin
             state_reg   <= state_next;
             state_reg_d <= state_reg;
-            e_loaded    <= e_loaded_next;
+            //e_loaded    <= e_loaded_next;
             out_phase_d <= out_phase;   
             
             case (state_reg)
@@ -308,8 +308,8 @@ module softmax_vec #(
                             end
                         end
                         // Increment element and write address
-                        /*e_loaded       <= e_loaded + ((e_loaded + TILE_SIZE <= TOTAL_ELEMENTS) ? TILE_SIZE
-                                                     : (TOTAL_ELEMENTS - e_loaded));*/
+                        e_loaded       <= e_loaded + ((e_loaded + TILE_SIZE <= TOTAL_ELEMENTS) ? TILE_SIZE
+                                                     : (TOTAL_ELEMENTS - e_loaded));
                         ram_write_addr <= ram_write_addr + 1;
                     end
 
