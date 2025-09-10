@@ -1,6 +1,6 @@
 // softmax_vec.v 
 // if TOTAL_ELEMENTS % TILE_SIZE != 0 then we will assume the last tile that contains last elements will be padded to zero
-// Uncomment A/B if using masked <- search this comment and uncomment it if you wanna use masked output
+//
 
 module softmax_vec #(
     parameter WIDTH          = 32,
@@ -188,7 +188,7 @@ module softmax_vec #(
             */
             
             // First, form inputs to exp for EVEN/ODD tiles: (Xi - max_val - ln_sum_reg)
-            for (i = 0; i < TILE_SIZE; i = i + 1) begin
+            /*for (i = 0; i < TILE_SIZE; i = i + 1) begin
                 X_norm_0[i] <= slice_flat(ram_dout0, i) - max_val - ln_sum_out; // even
                 X_norm_1[i] <= slice_flat(ram_dout1, i) - max_val - ln_sum_out; // odd
             end
@@ -197,7 +197,7 @@ module softmax_vec #(
             for (i = 0; i < TILE_SIZE; i = i+1) begin
                 exp_in_flat0[(TILE_SIZE-1-i)*WIDTH +: WIDTH] <= X_norm_0[i];
                 exp_in_flat1[(TILE_SIZE-1-i)*WIDTH +: WIDTH] <= X_norm_1[i];
-            end
+            end*/
         end
         
         /* Uncomment A if using masked
@@ -225,8 +225,8 @@ module softmax_vec #(
             begin
                 if (e_loaded == TOTAL_ELEMENTS-TILE_SIZE) begin
                     state_next = S_PASS_1;
-                    ram_read_addr0     <= {ADDRW{1'b0}}; // 0
-                    ram_read_addr1     <= (RAM_DEPTH>1) ? {{(ADDRW-1){1'b0}},1'b1} : {ADDRW{1'b0}};
+                    //ram_read_addr0     <= {ADDRW{1'b0}}; // 0
+                    //ram_read_addr1     <= (RAM_DEPTH>1) ? {{(ADDRW-1){1'b0}},1'b1} : {ADDRW{1'b0}};
                 end
             end
 
@@ -242,7 +242,7 @@ module softmax_vec #(
 
             S_PASS_2:
             begin
-                state_next = ((e_streamed >= TOTAL_ELEMENTS) && (remain == 0)) ? S_DONE : S_PASS_2;
+                state_next = (remain == 0) ? S_DONE : S_PASS_2;
             end
             
             S_DONE: 
@@ -264,8 +264,8 @@ module softmax_vec #(
             e_accumulated   <= {ADDRE{1'b0}};
 
             ram_write_addr  <= {ADDRW{1'b0}};
-            //ram_read_addr0  <= {ADDRW{1'b0}}; // even
-            //ram_read_addr1  <= (RAM_DEPTH>1) ? {{(ADDRW-1){1'b0}},1'b1} : {ADDRW{1'b0}}; // odd 1
+            ram_read_addr0  <= {ADDRW{1'b0}}; // even
+            ram_read_addr1  <= (RAM_DEPTH>1) ? {{(ADDRW-1){1'b0}},1'b1} : {ADDRW{1'b0}}; // odd 1
 
             max_val         <= 32'sh8000_0000; // Very negative
             minus           <= 0;
@@ -304,39 +304,102 @@ module softmax_vec #(
             out_phase_d <= out_phase;
             minus_d     <= minus;
             
-            // RAM read addresses before moving on to S_PASS_1
-            if (state_next == S_PASS_1) begin
-                ram_read_addr0     <= {ADDRW{1'b0}}; // 0
-                ram_read_addr1     <= (RAM_DEPTH>1) ? {{(ADDRW-1){1'b0}},1'b1} : {ADDRW{1'b0}};
-                valid_count = (TOTAL_ELEMENTS > e_read) ? (TOTAL_ELEMENTS - e_read) : 0;
-                // Split accross even and odd
-                if (valid_count >= 2*TILE_SIZE) begin
-                    take_even = TILE_SIZE;
-                    take_odd  = TILE_SIZE;
-                end else if (valid_count > TILE_SIZE) begin
-                    take_even = TILE_SIZE;
-                    take_odd  = valid_count - TILE_SIZE;
-                end else begin
-                    take_even = valid_count;
-                    take_odd  = 0;
+            case (state_next)
+                S_PASS_1: begin
+                    // RAM read addresses before moving on to S_PASS_1
+                    ram_read_addr0     <= {ADDRW{1'b0}}; // 0
+                    ram_read_addr1     <= (RAM_DEPTH>1) ? {{(ADDRW-1){1'b0}},1'b1} : {ADDRW{1'b0}};
+                    valid_count = (TOTAL_ELEMENTS > e_read) ? (TOTAL_ELEMENTS - e_read) : 0;
+                    // Split accross even and odd
+                    if (valid_count >= 2*TILE_SIZE) begin
+                        take_even = TILE_SIZE;
+                        take_odd  = TILE_SIZE;
+                    end else if (valid_count > TILE_SIZE) begin
+                        take_even = TILE_SIZE;
+                        take_odd  = valid_count - TILE_SIZE;
+                    end else begin
+                        take_even = valid_count;
+                        take_odd  = 0;
+                    end
+    
+                    // advance read counters/addresses
+                    e_read <= e_read + take_even + take_odd;
+    
+                    // Bump even/odd tile addresses if we actually consumed a full tile from each
+                    if (take_even == TILE_SIZE)
+                        if (ram_read_addr0 + 2 <= (TOTAL_ELEMENTS / TILE_SIZE)) ram_read_addr0 <= ram_read_addr0 + 2; // next even
+                    if (take_odd == TILE_SIZE)
+                        if (ram_read_addr1 + 2 < (TOTAL_ELEMENTS / TILE_SIZE)) ram_read_addr1  <= ram_read_addr1  + 2; // next odd
+                        
+                    minus        <= (ram_read_addr1 == ram_read_addr0+1);
                 end
+                
+                S_PASS_2: begin
+                    //ram_read_addr0     <= {ADDRW{1'b0}}; // 0
+                    //ram_read_addr1     <= (RAM_DEPTH>1) ? {{(ADDRW-1){1'b0}},1'b1} : {ADDRW{1'b0}};
+                    remain = (TOTAL_ELEMENTS > e_streamed) ? (TOTAL_ELEMENTS - e_streamed) : 0;
 
-                // advance read counters/addresses
-                e_read <= e_read + take_even + take_odd;
+                    // Decide how many to take from each side this "fetch"
+                    if (remain >= 2*TILE_SIZE) begin
+                        take_even <= TILE_SIZE;
+                        take_odd  <= TILE_SIZE;
+                    end else if (remain > TILE_SIZE) begin
+                        take_even <= TILE_SIZE;
+                        take_odd  <= remain - TILE_SIZE;
+                    end else begin
+                        take_even <= remain;
+                        take_odd  <= remain;
+                    end
 
-                // Bump even/odd tile addresses if we actually consumed a full tile from each
-                if (take_even == TILE_SIZE)
-                    if (ram_read_addr0 + 2 <= (TOTAL_ELEMENTS / TILE_SIZE)) ram_read_addr0 <= ram_read_addr0 + 2; // next even
-                if (take_odd == TILE_SIZE)
-                    if (ram_read_addr1 + 2 < (TOTAL_ELEMENTS / TILE_SIZE)) ram_read_addr1  <= ram_read_addr1  + 2; // next odd
+                    if (take_even == TILE_SIZE)
+                        if (ram_read_addr0 + 2 <= (TOTAL_ELEMENTS / TILE_SIZE)) ram_read_addr0 <= ram_read_addr0 + 2; // next even
+                    if (take_odd == TILE_SIZE)
+                        if (ram_read_addr1 + 2 < (TOTAL_ELEMENTS / TILE_SIZE)) ram_read_addr1  <= ram_read_addr1  + 2; // next odd\ 
                     
-                minus        <= (ram_read_addr1 == ram_read_addr0+1);
-                /*if (minus) begin
-                    sum_exp <= sum_exp + acc0 + acc1;
-                end else begin
-                    sum_exp <= sum_exp + acc0;
-                end*/
-            end   
+                    // Emit per-tile stream:
+                    //if (remain != 0) begin
+                    if (out_phase == 0) begin
+                        //Y_tile_out      <= masked_y_tile1;
+                        e_streamed      <= e_streamed + take_even;
+                        
+                        if (state_reg_d == S_PASS_2) begin
+                            //Y_tile_out      <= masked_y_tile1; Uncomment A/B if using masked
+                            Y_tile_out      <= exp_out_flat1;
+                            tile_out_valid  <= 1'b1;
+                            //out_phase       <= (take_odd != 0) ? 1'b1 : 1'b0; // if odd valid then emit it next
+                            //e_streamed      <= e_streamed + take_even;
+                        end    
+                        
+                        out_phase       <= (take_even != 0) ? 1'b1 : 1'b0; // if odd valid then emit it next
+                        //out_phase       <= 1'b1;
+                        /*if (take_odd == 0) begin
+                            // If no odd to emit, we finished this pair; advance addresses now
+                            if (take_even == TILE_SIZE)
+                                if (ram_read_addr0 + 2 <= (TOTAL_ELEMENTS / TILE_SIZE)) ram_read_addr0 <= ram_read_addr0 + 2; // next even
+                            if (take_odd == TILE_SIZE)
+                                if (ram_read_addr1 + 2 < (TOTAL_ELEMENTS / TILE_SIZE)) ram_read_addr1  <= ram_read_addr1  + 2; // next odd\
+                        end*/
+                    end else begin
+                        //Y_tile_out      <= masked_y_tile0;
+                        e_streamed      <= e_streamed + take_odd;
+                        
+                        if (state_reg_d == S_PASS_2)begin
+                            //Y_tile_out      <= masked_y_tile0; Uncomment A/B if using masked
+                            Y_tile_out      <= exp_out_flat0;
+                            tile_out_valid  <= 1'b1;
+                            //out_phase       <= 1'b0;
+                            //e_streamed      <= e_streamed + take_odd;
+                        end
+                        
+                        out_phase       <= 1'b0;
+                        /*if (take_even == TILE_SIZE)
+                            if (ram_read_addr0 + 2 <= (TOTAL_ELEMENTS / TILE_SIZE)) ram_read_addr0 <= ram_read_addr0 + 2; // next even
+                        if (take_odd == TILE_SIZE)
+                            if (ram_read_addr1 + 2 < (TOTAL_ELEMENTS / TILE_SIZE)) ram_read_addr1  <= ram_read_addr1  + 2; // next odd*/
+                    end
+                end
+            endcase
+           
             
             case (state_reg)
                 S_LOAD: begin       // Pass 0: Store tiles and track max 
@@ -424,13 +487,18 @@ module softmax_vec #(
                 S_LN: begin         // LN: Calculate the natural logarithmic
                     e_streamed   <= {ADDRE+1{1'b0}};
                     out_phase    <= 1'b0;
-                    ram_read_addr0 <= {ADDRW{1'b0}};
-                    ram_read_addr1  <= (RAM_DEPTH>1) ? {{(ADDRW-1){1'b0}},1'b1} : {ADDRW{1'b0}};
+                    //ram_read_addr0 <= 1;
+                    //ram_read_addr1  <= 2;
                     tile_out_valid <= 1'b0;
                 end
 
                 S_PASS_2: begin     // Pass_2: Calculate each exp(Xi - max_value -ln(sum_exp))
-                    remain = (TOTAL_ELEMENTS > e_streamed) ? (TOTAL_ELEMENTS - e_streamed) : 0;
+                    for (i = 0; i < TILE_SIZE; i = i+1) begin
+                        exp_in_flat0[(TILE_SIZE-1-i)*WIDTH +: WIDTH] <= slice_flat(ram_dout0, i) - max_val - ln_sum_out;
+                        exp_in_flat1[(TILE_SIZE-1-i)*WIDTH +: WIDTH] <= slice_flat(ram_dout1, i) - max_val - ln_sum_out;
+                    end
+                                       
+                    /*remain = (TOTAL_ELEMENTS > e_streamed) ? (TOTAL_ELEMENTS - e_streamed) : 0;
 
                     // Decide how many to take from each side this "fetch"
                     if (remain >= 2*TILE_SIZE) begin
@@ -446,7 +514,7 @@ module softmax_vec #(
                         take_odd  = remain;
                         //take_even = 0;
                         //take_odd  = remain;
-                    end
+                    end 
                     
                     // Emit per-tile stream:
                     //if (remain != 0) begin
@@ -488,7 +556,7 @@ module softmax_vec #(
                             if (ram_read_addr0 + 2 <= (TOTAL_ELEMENTS / TILE_SIZE)) ram_read_addr0 <= ram_read_addr0 + 2; // next even
                         if (take_odd == TILE_SIZE)
                             if (ram_read_addr1 + 2 < (TOTAL_ELEMENTS / TILE_SIZE)) ram_read_addr1  <= ram_read_addr1  + 2; // next odd
-                    end
+                    end */
                     //end
                     if (state_next == S_DONE) begin
                         tile_out_valid  <= 0;
@@ -519,5 +587,4 @@ module softmax_vec #(
     
 
 endmodule
-
 
