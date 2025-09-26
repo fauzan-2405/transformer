@@ -1,7 +1,7 @@
-// matmul_linear_proj.v
-// Used to do linear projection for Q, K, and V
+// multi_matmul.v
+// Used to wrap multi matmul module
 
-module matmul_linear_proj #(
+module multi_matmul #(
     parameter siuuuu = 2
 ) (
     input clk,
