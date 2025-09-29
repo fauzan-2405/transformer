@@ -20,11 +20,11 @@ module multi_matmul #(
     input [(WIDTH_A*CHUNK_SIZE*NUM_CORES_A)-1:0] input_w, // shared accross modules
     input [(WIDTH_B*CHUNK_SIZE*NUM_CORES_B*TOTAL_MODULES)-1:0] input_n,
 
-    output accumulator_done, systolic_finish,
+    output acc_done_modules, systolic_finish_modules,
     output [(WIDTH_OUT*CHUNK_SIZE*NUM_CORES_A*NUM_CORES_B*TOTAL_MODULES)-1:0] out_multi_matmul
 );
     // Local wires
-    wire [TOTAL_MODULES-1:0] acc_done_modules, systolic_finish_modules;
+    wire [TOTAL_MODULES-1:0] acc_done_array, systolic_finish_array;
     
     genvar i;
     generate
@@ -55,13 +55,13 @@ module multi_matmul #(
             ) matmul_module_inst (
                 .clk(clk), .en(en), .rst_n(rst_n), .reset_acc(reset_acc),
                 .input_w(input_w), .input_n(input_n_slice), // The first one is the MSB
-                .accumulator_done(acc_done_modules[i]), .systolic_finish(systolic_finish_modules[i]),
+                .accumulator_done(acc_done_array[i]), .systolic_finish(systolic_finish_array[i]),
                 .out_top(out_slice) // The first one is the MSB
             );
         end
     endgenerate
 
-    assign accumulator_done = &acc_done_modules;
-    assign systolic_finish  = &systolic_finish_modules;
+    assign acc_done_modules = &acc_done_modules;
+    assign systolic_finish_modules  = &systolic_finish_modules;
 
 endmodule
