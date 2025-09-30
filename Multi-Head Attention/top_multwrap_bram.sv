@@ -193,8 +193,117 @@ module top_multwrap_bram #(
         .doutb()
     );
 
+    // *** Matmul wrapper ***********************************************************
+    multi_matmul_wrapper #(
+        .WIDTH_A(WIDTH_A),
+        .FRAC_WIDTH_A(FRAC_WIDTH_A),
+        .WIDTH_B(WIDTH_B),
+        .FRAC_WIDTH_B(FRAC_WIDTH_B),
+        .WIDTH_OUT(WIDTH_OUT),
+        .FRAC_WIDTH_OUT(FRAC_WIDTH_OUT),
+        .BLOCK_SIZE(BLOCK_SIZE),
+        .CHUNK_SIZE(CHUNK_SIZE),
+        .INNER_DIMENSION(INNER_DIMENSION),
+        .NUM_CORES_A(NUM_CORES_A),
+        .NUM_CORES_B(NUM_CORES_B)
+    ) 
+    multi_matmul_wrapper_inst (
+
+    );
+
     // *** Controller **********************************************************
     // Create the mux here
+    // *** Main Controller **********************************************************
+    
+    reg [WIDTH_OUT-1:0] counter, counter_row, counter_col, flag;
+    reg counter_acc_done;
+
+    // Main controller logic
+    always @(posedge clk) begin
+        if (~rst_n) begin
+            top_start <= 0;
+            counter <= 0;
+            counter_row <=0;
+            counter_col <=0;
+            counter_acc_done <= 0;
+            internal_rst_n <=0;
+            internal_reset_acc <=0;
+            accumulator_done_top_d <=0;
+            flag <=0;
+            in_a_enb <=0;
+            in_b_enb <=0;
+            in_a_enb_d <=0;
+            in_b_enb_d <=0;
+            in_a_addrb <=0;
+            in_b_addrb <=0;
+            out_bram <=0;
+        end
+        else begin
+            accumulator_done_top_d <= accumulator_done_top; // Assigninig the delayed version 
+            in_a_enb_d <= in_a_enb;
+            in_b_enb_d <= in_b_enb;
+            counter_acc_done <= 0; // Assign this to zero every clock cycle
+            
+            // Port B Controller
+            //if (start || ((in_b_wea) && (in_a_wea))) begin
+            if (start) begin
+                in_b_enb <=1;
+                in_a_enb <=1;
+                top_start <= 1;
+            end
+
+            // Internal Reset Control
+            if (start) begin
+                internal_rst_n <= ~systolic_finish_top;
+            end
+
+            if (systolic_finish_top) begin
+                internal_reset_acc <= ~accumulator_done_top;
+            end
+
+            // Counter Update
+            if (systolic_finish_top) begin
+                // counter indicates the matrix C element iteration
+                if (counter == ((INNER_DIMENSION/BLOCK_SIZE) - 1)) begin // Please solve this later!
+                //if (counter == ((NUM_CORES_A*BLOCK_SIZE) - 1)) begin // Change between these two
+                    counter <=0;
+                end
+                else begin
+                    counter <= counter + 1;
+                end
+                // Address controller
+                in_a_addrb <= counter + (INNER_DIMENSION/BLOCK_SIZE)*counter_row;
+                in_b_addrb <= counter + (INNER_DIMENSION/BLOCK_SIZE)*counter_col;
+                //in_a_addrb <= counter + (NUM_CORES_A*BLOCK_SIZE)*counter_row;
+                //in_b_addrb <= counter + (NUM_CORES_B*BLOCK_SIZE)*counter_col;
+            end
+
+            // Column/Row Update
+            if (accumulator_done_top_rising) begin
+                // counter_row indicates the i-th row of the matrix C that we are working right now
+                // counter_col indicates the i-th column of the matrix C that we are working right now
+
+                // Check if we already at the end of the MAT C column
+                if (counter_col == (COL_SIZE_MAT_C - 1)) begin
+                    counter_col <= 0;
+                    counter_row <= counter_row + 1;
+                end else begin
+                    counter_col <= counter_col + 1;
+                end
+
+                // Assigning the output
+                out_bram <= out_core;
+
+                counter_acc_done <= 1;
+
+                // Flag assigning for 'done' variable
+                if (flag != MAX_FLAG) begin
+                    flag <= flag + 1;   
+                end
+            end
+        end
+    end
+
 
     
     
