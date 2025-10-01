@@ -18,7 +18,7 @@ module multi_matmul_wrapper #(
     parameter NUM_CORES_A = 4
 ) (
     input logic clk, rst_n, en, reset_acc,
-    input logic [(WIDTH_A*CHUNK_SIZE*NUM_CORES_A)-1:0] input_bram [TOTAL_INPUT_W],
+    input logic [(WIDTH_A*CHUNK_SIZE*NUM_CORES_A)-1:0] in_bram [TOTAL_INPUT_W],
     input logic [(WIDTH_B*CHUNK_SIZE*NUM_CORES_B*TOTAL_MODULES)-1:0] input_n,
 
     output logic acc_done_wrap, systolic_finish_wrap,
