@@ -5,47 +5,90 @@ module top_multwrap_bram #(
     parameter TOTAL_INPUT_W = 2,
     parameter TOTAL_MODULES = 4
 ) (
-    import linear_proj_pkg::*;
     input logic clk, rst_n,
     input logic en_module,
 
     // For Input Matrix BRAM
     input logic in_mat_ena,
     input logic in_mat_wea,
-    input [ADDR_WIDTH_A-1:0] in_mat_wr_addra,
-    input [WIDTH_A*CHUNK_SIZE*NUM_CORES_A-1:0] in_mat_dina,
+    input logic [ADDR_WIDTH_A-1:0] in_mat_wr_addra,
+    input logic [WIDTH_A*CHUNK_SIZE*NUM_CORES_A-1:0] in_mat_dina,
 
     input logic in_mat_enb,
     input logic in_mat_web,
-    input [ADDR_WIDTH_A-1:0] in_mat_wr_addrb,
-    input [WIDTH_A*CHUNK_SIZE*NUM_CORES_A-1:0] in_mat_dinb,
+    input logic [ADDR_WIDTH_A-1:0] in_mat_wr_addrb,
+    input logic [WIDTH_A*CHUNK_SIZE*NUM_CORES_A-1:0] in_mat_dinb,
 
     // For Weight Matrix BRAM
     input logic w_mat_ena,
     input logic w_mat_wea,
-    input [ADDR_WIDTH_B-1:0] w_mat_wr_addra,
-    input [WIDTH_B*CHUNK_SIZE*NUM_CORES_B*TOTAL_MODULES-1:0] w_mat_dina,
+    input logic [ADDR_WIDTH_B-1:0] w_mat_wr_addra,
+    input logic [WIDTH_B*CHUNK_SIZE*NUM_CORES_B*TOTAL_MODULES-1:0] w_mat_dina,
 
     input logic w_mat_enb,
     input logic w_mat_web,
-    input [ADDR_WIDTH_B-1:0] w_mat_wr_addrb,
-    input [WIDTH_B*CHUNK_SIZE*NUM_CORES_B*TOTAL_MODULES-1:0] w_mat_dinb,
+    input logic [ADDR_WIDTH_B-1:0] w_mat_wr_addrb,
+    input logic [WIDTH_B*CHUNK_SIZE*NUM_CORES_B*TOTAL_MODULES-1:0] w_mat_dinb,
 
     output logic done, out_valid,
-    output [(WIDTH_OUT*CHUNK_SIZE*NUM_CORES_A*NUM_CORES_B*TOTAL_MODULES)-1:0] out_multi_matmul [TOTAL_INPUT_W]
+    output logic [(WIDTH_OUT*CHUNK_SIZE*NUM_CORES_A*NUM_CORES_B*TOTAL_MODULES)-1:0] out_multi_matmul [TOTAL_INPUT_W]
 );
-    // Local Parameters
-    localparam ROW_SIZE_MAT_C = A_OUTER_DIMENSION / (BLOCK_SIZE * NUM_CORES_A * TOTAL_INPUT_W); 
-    localparam COL_SIZE_MAT_C = B_OUTER_DIMENSION / (BLOCK_SIZE * NUM_CORES_B * TOTAL_MODULES); 
-    localparam MAX_FLAG = (ROW_SIZE_MAT_C * COL_SIZE_MAT_C);
+    import linear_proj_pkg::*;
+
+    // *** Logic and Local Parameter ***********************************************************
+    localparam int ROW_SIZE_MAT_C = A_OUTER_DIMENSION / (BLOCK_SIZE * NUM_CORES_A * TOTAL_INPUT_W); 
+    localparam int COL_SIZE_MAT_C = B_OUTER_DIMENSION / (BLOCK_SIZE * NUM_CORES_B * TOTAL_MODULES); 
+    localparam int MAX_FLAG = (ROW_SIZE_MAT_C * COL_SIZE_MAT_C);
 
     localparam MEMORY_SIZE_A = INNER_DIMENSION*A_OUTER_DIMENSION*WIDTH_A;
     localparam MEMORY_SIZE_B = INNER_DIMENSION*B_OUTER_DIMENSION*WIDTH_B;
 
+    // BRAM address/control mux outputs (driven to XPM ports)
+    logic [ADDR_WIDTH_A-1:0] in_mat_addra_mux, in_mat_addrb_mux;
+    logic [ADDR_WIDTH_B-1:0] w_mat_addra_mux, w_mat_addrb_mux;
+    logic in_mat_wea_mux, in_mat_web_mux, in_mat_ena_mux, in_mat_enb_mux;
+    logic w_mat_wea_mux, w_mat_web_mux, w_mat_ena_mux, w_mat_enb_mux;
+
+    // Internal read address counters (controller-driven)
+    logic [ADDR_WIDTH_A-1:0] in_mat_rd_addra; // used when reading port A
+    logic [ADDR_WIDTH_A-1:0] in_mat_rd_addrb; // used when reading port B
+    logic [ADDR_WIDTH_B-1:0] w_mat_rd_addra;    // reading weights (we'll use only one BRAM port for read later)
+
+    // Hook up read results into multi_matmul_wrapper input array
+    // We'll map: in_bram[0] <= in_mat_douta (even rows), in_bram[1] <= in_mat_doutb (odd rows)
+    logic [WIDTH_A*CHUNK_SIZE*NUM_CORES_A-1:0] in_bram_internal [TOTAL_INPUT_W];
+    logic multi_en; // enable to multi_matmul_wrapper
+    
+
+    // *** Control Signals for mux ***********************************************************
+    // write_phase == 1: BRAM ports are in write mode (external ena/we* used)
+    // write_phase == 0: BRAM ports are in read mode (we* == 0)
+    logic write_phase;
+    
+    // For input matrix BRAM (in_mat)
+    assign in_mat_addra_mux = (write_phase) ? in_mat_wr_addra : in_mat_rd_addra;
+    assign in_mat_addrb_mux = (write_phase) ? in_mat_wr_addrb : in_mat_rd_addrb;
+
+    assign in_mat_wea_mux   = (write_phase) ? in_mat_wea : 1'b0;
+    assign in_mat_web_mux   = (write_phase) ? in_mat_web : 1'b0;
+
+    assign in_mat_ena_mux   = (write_phase) ? in_mat_ena : 1'b1; // For now, let's toggle it to 1 in read mode
+    assign in_mat_enb_mux   = (write_phase) ? in_mat_enb : 1'b1;
+
+    // For weight matrix BRAM (w_mat)
+    assign w_mat_addra_mux  = (write_phase) ? w_mat_wr_addra : w_mat_rd_addra;
+    assign w_mat_addrb_mux  = (write_phase) ? w_mat_wr_addrb : w_mat_rd_addrb;
+
+    assign w_mat_wea_mux   = (write_phase) ? w_mat_wea : 1'b0;
+    assign w_mat_web_mux   = (write_phase) ? w_mat_web : 1'b0;
+
+    assign w_mat_ena_mux   = (write_phase) ? w_mat_ena : 1'b1; 
+    assign w_mat_enb_mux   = (write_phase) ? w_mat_enb : 1'b1; 
+    
+
     // *** Input Matrix BRAM ***********************************************************
     // xpm_memory_tdpram: True Dual Port RAM
     // Xilinx Parameterized Macro, version 2018.3
-    logic [ADDR_WIDTH_A-1:0] in_mat_rd_addra, in_mat_rd_addrb; 
     logic [WIDTH_A*CHUNK_SIZE*NUM_CORES_A-1:0] in_mat_douta, in_mat_doutb;
 
     xpm_memory_tdpram
@@ -121,7 +164,6 @@ module top_multwrap_bram #(
     // *** Input Weight BRAM **********************************************************
     // xpm_memory_tdpram: True Dual Port RAM
     // Xilinx Parameterized Macro, version 2018.3
-    logic [ADDR_WIDTH_B-1:0] w_mat_rd_addra, w_mat_rd_addrb; 
     logic [WIDTH_B*CHUNK_SIZE*NUM_CORES_B*TOTAL_MODULES-1:0] w_mat_doutb;
 
     xpm_memory_tdpram
