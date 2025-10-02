@@ -58,9 +58,10 @@ module top_multwrap_bram #(
     // We'll map: in_bram[0] <= in_mat_douta (even rows), in_bram[1] <= in_mat_doutb (odd rows)
     logic [WIDTH_A*CHUNK_SIZE*NUM_CORES_A-1:0] in_bram_internal [TOTAL_INPUT_W];
     logic multi_en; // enable to multi_matmul_wrapper
-    
 
-    // *** Control Signals for mux ***********************************************************
+
+    // *** Control Signals for Mux ***********************************************************
+    // These signals will be connected to the BRAM
     // write_phase == 1: BRAM ports are in write mode (external ena/we* used)
     // write_phase == 0: BRAM ports are in read mode (we* == 0)
     logic write_phase;
@@ -144,18 +145,18 @@ module top_multwrap_bram #(
         // Port A module ports
         .clka(clk),
         .rsta(~rst_n),
-        .ena(in_mat_ena),
-        .wea(in_mat_wea), // Please toggle this to 1 when it's time to write and 0 when it's time to read
-        .addra(), // in_mat_rd_addra or in_mat_wr_addra
+        .ena(in_mat_ena_mux),
+        .wea(in_mat_wea_mux),
+        .addra(in_mat_addra_mux), // in_mat_rd_addra or in_mat_wr_addra
         .dina(in_mat_dina),
         .douta(in_mat_douta),
         
         // Port B module ports
         .clkb(clk),
         .rstb(~rst_n),
-        .enb(in_mat_enb),
-        .web(in_mat_web), // Please toggle this to 1 when it's time to write and 0 when it's time to read
-        .addrb(),  // please toggle between in_mat_rd_addrb or in_mat_wr_addrb
+        .enb(in_mat_enb_mux),
+        .web(in_mat_web_mux), 
+        .addrb(in_mat_addrb_mux),  // please toggle between in_mat_rd_addrb or in_mat_wr_addrb
         .dinb(in_mat_dinb),
         .doutb(in_mat_doutb)
     );
@@ -219,18 +220,18 @@ module top_multwrap_bram #(
         // Port A module ports
         .clka(clk),
         .rsta(~rst_n),
-        .ena(w_mat_ena), 
-        .wea(w_mat_wea), // Please toggle this to 1 when it's time to write and 0 when it's time to read
-        .addra(), // please toggle between w_mat_rd_addra or w_mat_wr_addra
+        .ena(w_mat_ena_mux), 
+        .wea(w_mat_wea_mux),
+        .addra(w_mat_addra_mux), // please toggle between w_mat_rd_addra or w_mat_wr_addra
         .dina(w_mat_dina),
         .douta(),
         
         // Port B module ports
         .clkb(clk),
         .rstb(~rst_n),
-        .enb(w_mat_enb),
-        .web(w_mat_web), // Please toggle this to 1 when it's time to write and 0 when it's time to read
-        .addrb(), // please toggle between w_mat_rd_addrb or w_mat_wr_addrb
+        .enb(w_mat_enb_mux),
+        .web(w_mat_web_mux), 
+        .addrb(w_mat_addrb_mux), // please toggle between w_mat_rd_addrb or w_mat_wr_addrb
         .dinb(w_mat_dinb),
         .doutb(w_mat_doutb) // For now, we only use port B to read
     );
