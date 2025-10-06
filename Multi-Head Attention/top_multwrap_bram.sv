@@ -1,12 +1,9 @@
 // top_multwrap_bram
 // This top module wraps multi_matmul_wrapper + bram for testing purposes
 
-module top_multwrap_bram #(
-    parameter TOTAL_INPUT_W = 2,
-    parameter TOTAL_MODULES = 4
-) (
+module top_multwrap_bram (
     input logic clk, rst_n,
-    input logic en_module,
+    input logic start,
 
     // For Input Matrix BRAM
     input logic in_mat_ena,
@@ -54,9 +51,6 @@ module top_multwrap_bram #(
     logic [ADDR_WIDTH_A-1:0] in_mat_rd_addrb; // used when reading port B
     logic [ADDR_WIDTH_B-1:0] w_mat_rd_addra;    // reading weights (we'll use only one BRAM port for read later)
 
-    // Hook up read results into multi_matmul_wrapper input array
-    // We'll map: in_bram[0] <= in_mat_douta (even rows), in_bram[1] <= in_mat_doutb (odd rows)
-    logic [WIDTH_A*CHUNK_SIZE*NUM_CORES_A-1:0] in_bram_internal [TOTAL_INPUT_W];
     logic multi_en; // enable to multi_matmul_wrapper
 
 
@@ -236,12 +230,25 @@ module top_multwrap_bram #(
         .doutb(w_mat_doutb) // For now, we only use port B to read
     );
 
+    // Hook up read results into multi_matmul_wrapper input array
+    // We'll map: in_bram[0] <= in_mat_douta (even rows), in_bram[1] <= in_mat_doutb (odd rows)
+    logic [WIDTH_A*CHUNK_SIZE*NUM_CORES_A-1:0] in_multi_matmul [TOTAL_INPUT_W];
+    genvar i;
+    generate
+        for (i = 0; i < TOTAL_INPUT_W; i = i + 1) begin
+            if (i == 0) assign in_multi_matmul[i] = in_mat_douta;
+            if (i == 1) assign in_multi_matmul[i] = in_mat_doutb;
+        end
+    endgenerate
+
+
     // *** Matmul wrapper ***********************************************************
-    reg internal_rst_n, internal_reset_acc;
-    logic acc_done_wrap_rising;
-    logic acc_done_wrap_d, acc_done_wrap; 
-    assign acc_done_wrap_rising = ~acc_done_wrap_d & acc_done_wrap;
+    logic internal_rst_n, internal_reset_acc;
     logic systolic_finish_wrap;
+    logic acc_done_wrap_rising;
+    logic acc_done_wrap_d, acc_done_wrap;
+    assign acc_done_wrap_rising = ~acc_done_wrap_d & acc_done_wrap;
+    logic en_module; // Toggle to ALWAYS HIGH after both BRAMs are filled
     
     multi_matmul_wrapper #(
         .WIDTH_A(WIDTH_A),
@@ -259,23 +266,22 @@ module top_multwrap_bram #(
         .NUM_CORES_B(NUM_CORES_B),
     ) 
     multi_matmul_wrapper_inst (
-        .clk(clk), .rst_n(internal_rst_n),
-        .en(), // toggle enable after BOTH Input and Weight BRAM are entirely filled
-        .reset_acc(internal_reset_acc),
-        // in_bram
-        .acc_done_wrap(acc_done_wrap), .systolic_finish_wrap(systolic_finish_wrap)
-        // out_multi_matmul
+        .clk(clk), .en(en_module), // toggle enable after BOTH Input and Weight BRAM are entirely filled
+        .rst_n(internal_rst_n), .reset_acc(internal_reset_acc),
+        .in_bram(in_multi_matmul),
+        .acc_done_wrap(acc_done_wrap), .systolic_finish_wrap(systolic_finish_wrap),
+        .out_multi_matmul(out_multi_matmul)
     );
 
     // *** Main Controller **********************************************************
     // Create the mux here to toggle the write enable port and write/read addresses for BRAMs
-
-    reg [WIDTH_OUT-1:0] counter, counter_row, counter_col, flag;
-    reg counter_acc_done;
+    logic [WIDTH_OUT-1:0] counter, counter_row, counter_col, flag;
+    logic counter_acc_done;
 
     // Main controller logic
     always @(posedge clk) begin
         if (~rst_n) begin
+            // Counter for controllers
             counter <= 0;
             counter_row <=0;
             counter_col <=0;
@@ -284,22 +290,34 @@ module top_multwrap_bram #(
             internal_reset_acc <=0;
             acc_done_wrap_d <=0;
             flag <=0;
-            // Initiliaze output to 0;
+            // Addresses
+            in_mat_rd_addra <= '0;
+            in_mat_rd_addrb <= '0;
+            w_mat_rd_addra  <= '0;
+            w_mat_rd_addrb  <= '0;
+            // Controllers
+            write_phase     <= 1'b1;
+            en_module       <= 1'b0;
+            internal_rst_n  <= 1'b0;
+            internal_reset_acc <= 1'b0;
+            // Output
+            out_multi_matmul <= '0;
         end
         else begin
-            acc_done_wrap_d <= acc_done_wrap; // Assigninig the delayed version 
-            in_a_enb_d <= in_a_enb;
-            in_b_enb_d <= in_b_enb;
+            acc_done_wrap_d  <= acc_done_wrap; // Assigninig the delayed version 
             counter_acc_done <= 0; // Assign this to zero every clock cycle
+            //in_a_enb_d <= in_a_enb;
+            //in_b_enb_d <= in_b_enb;
             
             // Port A & B Controller
-            if () begin // enable AFTER BOTH of BRAMs are filled is HIGH
-                // Control write enable of each BRAMs for both ports
+            if ((in_mat_wr_addra >= NUM_A_ELEMENTS-1) && (w_mat_wr_addra >= NUM_B_ELEMENTS-1)) begin // enable AFTER BOTH of BRAMs are filled is HIGH
+                en_module <= 1'b1;// Control write enable of each BRAMs for both ports
             end
 
             // Internal Reset Control
             if (en_module) begin
-                internal_rst_n <= ~systolic_finish_wrap;
+                write_phase     <= 1'b0;
+                internal_rst_n  <= ~systolic_finish_wrap;
             end
 
             if (systolic_finish_wrap) begin
@@ -320,7 +338,7 @@ module top_multwrap_bram #(
                 in_mat_rd_addrb <= counter + (INNER_DIMENSION/BLOCK_SIZE)*counter_row;
                 we_mat_rd_addrb <= counter + (INNER_DIMENSION/BLOCK_SIZE)*counter_col;
                 */
-                in_mat_rd_addra <= ... // same as the old one but port A used for even addresses (starting from 0)
+                in_mat_rd_addra <= counter + (INNER_DIMENSION/BLOCK_SIZE)*counter_row // same as the old one but port A used for even addresses (starting from 0)
                 in_mat_rd_addrb <= ... // and port B used for odd addresses (starting from 1)`
                 we_mat_rd_addrb = counter + (INNER_DIMENSION/BLOCK_SIZE)*counter_col;
             end
