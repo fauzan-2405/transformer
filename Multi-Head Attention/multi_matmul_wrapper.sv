@@ -48,7 +48,7 @@ module multi_matmul_wrapper #(
                 .rst_n(rst_n),
                 .en(en),
                 .reset_acc(reset_acc),
-                .input_w(input_bram[i]),               // per-instance west input
+                .input_w(in_bram[i]),               // per-instance west input
                 .input_n(input_n),                  // shared north input
                 .out_multi_matmul(out_multi_matmul[i]), // per-instance output
                 .accumulator_done(acc_done_array[i]),
