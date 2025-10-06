@@ -3,6 +3,12 @@
 import linear_proj_pkg::*;
 
 module tb_top_multwrap_bram;
+    localparam MEMORY_SIZE_A = INNER_DIMENSION*A_OUTER_DIMENSION*WIDTH_A;
+    localparam MEMORY_SIZE_B = INNER_DIMENSION*B_OUTER_DIMENSION*WIDTH_B;
+    localparam DATA_WIDTH_A  = WIDTH_A*CHUNK_SIZE*NUM_CORES_A;
+    localparam DATA_WIDTH_B  = WIDTH_B*CHUNK_SIZE*NUM_CORES_B*TOTAL_MODULES;
+    localparam int ADDR_WIDTH_A = $clog2(MEMORY_SIZE_A/DATA_WIDTH_A); 
+    localparam int ADDR_WIDTH_B = $clog2(MEMORY_SIZE_A/DATA_WIDTH_B); 
 
     // ************** Clock and Reset **************
     logic clk = 0;
