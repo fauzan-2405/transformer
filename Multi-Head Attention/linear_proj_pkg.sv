@@ -25,8 +25,9 @@ package linear_proj_pkg;
     
     parameter int NUM_A_ELEMENTS = ((I_OUTER_DIMENSION/BLOCK_SIZE)*(INNER_DIMENSION/BLOCK_SIZE))/(NUM_CORES_A*TOTAL_INPUT_W); // Total elements of Input if we converted the inputs based on the NUM_CORES
     parameter int NUM_B_ELEMENTS = ((W_OUTER_DIMENSION/BLOCK_SIZE)*(INNER_DIMENSION/BLOCK_SIZE))/(NUM_CORES_B*TOTAL_MODULES);
-    
-    parameter int ADDR_WIDTH_A = $clog2((INNER_DIMENSION*A_OUTER_DIMENSION*WIDTH_A)/(WIDTH_A*CHUNK_SIZE*NUM_CORES_A)), // Please check this out again
-    parameter int ADDR_WIDTH_B = $clog2((INNER_DIMENSION*B_OUTER_DIMENSION*WIDTH_B)/(WIDTH_B*CHUNK_SIZE*NUM_CORES_B))
+
+    parameter int ROW_SIZE_MAT_C = A_OUTER_DIMENSION / (BLOCK_SIZE * NUM_CORES_A * TOTAL_INPUT_W); 
+    parameter int COL_SIZE_MAT_C = B_OUTER_DIMENSION / (BLOCK_SIZE * NUM_CORES_B * TOTAL_MODULES); 
+    parameter int MAX_FLAG = (ROW_SIZE_MAT_C * COL_SIZE_MAT_C);
 
 endpackage
