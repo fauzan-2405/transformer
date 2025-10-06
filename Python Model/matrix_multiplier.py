@@ -1,3 +1,9 @@
+# This is used to produce random matrix multiplication
+# Files produced are matrix_*_core.mem, matrix_*_row.mem 
+# To clean it, use mem_processor.py
+# How to use
+# python matrix_multiplier.py --display float --integers --min_val 0 --max_val 100 --cores_a 1 --cores_b 1
+
 import numpy as np
 import os
 import argparse
@@ -276,12 +282,12 @@ def main():
     args = parser.parse_args()
     
     # Matrix dimensions
-    ROWS_A, COLS_A = 12, 6
+    ROWS_A, COLS_A = 8, 6
     COLS_B = 8
     
     # Fixed-point configurations (total_bits, fractional_bits, signed)
-    fp_config_A = (8, 4, True)   
-    fp_config_B = (8, 4, True)   
+    fp_config_A = (16, 8, True)   
+    fp_config_B = (16, 8, True)   
     fp_config_C = (16, 8, True)  
     
     processor = MatrixProcessor()
