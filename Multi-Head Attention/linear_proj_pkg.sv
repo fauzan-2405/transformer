@@ -1,4 +1,8 @@
-package matmul_pkg;
+// This package contains parameters used in linear projection operation
+// TODO: 
+// 1. Review the dimension of ADDR_WIDTH_* parameter
+
+package linear_proj_pkg;
     // Parameterization
     parameter int WIDTH_A        = 16;
     parameter int FRAC_WIDTH_A   = 8;
@@ -14,9 +18,15 @@ package matmul_pkg;
     parameter int B_OUTER_DIMENSION = 6;
     parameter int INNER_DIMENSION= 64;
     parameter int NUM_CORES_B    = 1;
-    parameter int NUM_CORES_A    = 4;
+    parameter int NUM_CORES_A    = 2;
+
+    parameter TOTAL_INPUT_W = 2,
+    parameter TOTAL_MODULES = 4
     
-    parameter int ADDR_WIDTH_A = $clog2((INNER_DIMENSION*A_OUTER_DIMENSION*WIDTH_A)/(WIDTH_A*CHUNK_SIZE*NUM_CORES_A)),
+    parameter int NUM_A_ELEMENTS = ((I_OUTER_DIMENSION/BLOCK_SIZE)*(INNER_DIMENSION/BLOCK_SIZE))/(NUM_CORES_A*TOTAL_INPUT_W); // Total elements of Input if we converted the inputs based on the NUM_CORES
+    parameter int NUM_B_ELEMENTS = ((W_OUTER_DIMENSION/BLOCK_SIZE)*(INNER_DIMENSION/BLOCK_SIZE))/(NUM_CORES_B*TOTAL_MODULES);
+    
+    parameter int ADDR_WIDTH_A = $clog2((INNER_DIMENSION*A_OUTER_DIMENSION*WIDTH_A)/(WIDTH_A*CHUNK_SIZE*NUM_CORES_A)), // Please check this out again
     parameter int ADDR_WIDTH_B = $clog2((INNER_DIMENSION*B_OUTER_DIMENSION*WIDTH_B)/(WIDTH_B*CHUNK_SIZE*NUM_CORES_B))
 
 endpackage
