@@ -1,3 +1,9 @@
+# This used to clean the inputted matrix_*_core.mem or matrix_*_row.mem 
+
+# How to use:
+# python mem_processor.py matrix_B_core.mem --total_bits 16 --frac_bits 8 --rows 6 --cols 8 --display float
+# python mem_processor.py matrix_A_row.mem --total_bits 16 --frac_bits 8 --rows 12 --cols 6 --display int
+
 import os
 import argparse
 import numpy as np
