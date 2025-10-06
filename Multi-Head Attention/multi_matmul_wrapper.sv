@@ -22,7 +22,7 @@ module multi_matmul_wrapper #(
     input logic [(WIDTH_B*CHUNK_SIZE*NUM_CORES_B*TOTAL_MODULES)-1:0] input_n,
 
     output logic acc_done_wrap, systolic_finish_wrap,
-    output [(WIDTH_OUT*CHUNK_SIZE*NUM_CORES_A*NUM_CORES_B*TOTAL_MODULES)-1:0] out_multi_matmul [TOTAL_INPUT_W]
+    output logic [(WIDTH_OUT*CHUNK_SIZE*NUM_CORES_A*NUM_CORES_B*TOTAL_MODULES)-1:0] out_multi_matmul [TOTAL_INPUT_W]
 );
     // Local wires
     logic [TOTAL_INPUT_W-1:0] acc_done_array, systolic_finish_array;
@@ -51,14 +51,23 @@ module multi_matmul_wrapper #(
                 .input_w(in_bram[i]),               // per-instance west input
                 .input_n(input_n),                  // shared north input
                 .out_multi_matmul(out_multi_matmul[i]), // per-instance output
-                .accumulator_done(acc_done_array[i]),
-                .systolic_finish(systolic_finish_array[i])
+                .acc_done_modules(acc_done_array[i]),
+                .systolic_finish_modules(systolic_finish_array[i])
             );
         end
     endgenerate
 
     assign acc_done_wrap = &acc_done_array;
     assign systolic_finish_wrap  = &systolic_finish_array;
+
+    always @(posedge clk) begin
+        if (~rst_n) begin
+            // Output
+            for (int i = 0; i < TOTAL_INPUT_W; i = i +1) begin
+                out_multi_matmul[i] <= '0;
+            end
+        end
+    end
 
 
 

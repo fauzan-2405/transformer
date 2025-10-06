@@ -300,11 +300,7 @@ module top_multwrap_bram #(
             write_phase     <= 1'b1;
             en_module       <= 1'b0;
             internal_rst_n  <= 1'b0;
-            internal_reset_acc <= 1'b0;
-            // Output
-            for (int i = 0; i < TOTAL_INPUT_W; i = i +1) begin
-                out_multi_matmul[i] <= '0;
-            end
+            internal_reset_acc <= 1'b0;           
         end
         else begin
             acc_done_wrap_d  <= acc_done_wrap; // Assigninig the delayed version 
