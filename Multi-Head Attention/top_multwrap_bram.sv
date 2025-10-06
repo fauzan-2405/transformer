@@ -3,7 +3,14 @@
 
 import linear_proj_pkg::*;
 
-module top_multwrap_bram (
+module top_multwrap_bram #(
+    localparam MEMORY_SIZE_A = INNER_DIMENSION*A_OUTER_DIMENSION*WIDTH_A;
+    localparam MEMORY_SIZE_B = INNER_DIMENSION*B_OUTER_DIMENSION*WIDTH_B;
+    localparam DATA_WIDTH_A  = WIDTH_A*CHUNK_SIZE*NUM_CORES_A;
+    localparam DATA_WIDTH_B  = WIDTH_B*CHUNK_SIZE*NUM_CORES_B*TOTAL_MODULES;
+    localparam int ADDR_WIDTH_A = $clog2(MEMORY_SIZE_A/DATA_WIDTH_A); 
+    localparam int ADDR_WIDTH_B = $clog2(MEMORY_SIZE_A/DATA_WIDTH_B); 
+) (
     input logic clk, rst_n,
     input logic start,
 
@@ -33,14 +40,6 @@ module top_multwrap_bram (
     output logic [(WIDTH_OUT*CHUNK_SIZE*NUM_CORES_A*NUM_CORES_B*TOTAL_MODULES)-1:0] out_multi_matmul [TOTAL_INPUT_W]
 );
 
-    // *** Logic and Local Parameter ***********************************************************
-    localparam MEMORY_SIZE_A = INNER_DIMENSION*A_OUTER_DIMENSION*WIDTH_A;
-    localparam MEMORY_SIZE_B = INNER_DIMENSION*B_OUTER_DIMENSION*WIDTH_B;
-    localparam DATA_WIDTH_A  = WIDTH_A*CHUNK_SIZE*NUM_CORES_A;
-    localparam DATA_WIDTH_B  = WIDTH_B*CHUNK_SIZE*NUM_CORES_B*TOTAL_MODULES;
-    localparam int ADDR_WIDTH_A = $clog2(MEMORY_SIZE_A/DATA_WIDTH_A); 
-    localparam int ADDR_WIDTH_B = $clog2(MEMORY_SIZE_A/DATA_WIDTH_B); 
-
     // BRAM address/control mux outputs (driven to XPM ports)
     logic [ADDR_WIDTH_A-1:0] in_mat_addra_mux, in_mat_addrb_mux;
     logic [ADDR_WIDTH_B-1:0] w_mat_addra_mux, w_mat_addrb_mux;
@@ -51,6 +50,7 @@ module top_multwrap_bram (
     logic [ADDR_WIDTH_A-1:0] in_mat_rd_addra; // used when reading port A
     logic [ADDR_WIDTH_A-1:0] in_mat_rd_addrb; // used when reading port B
     logic [ADDR_WIDTH_B-1:0] w_mat_rd_addra;    // reading weights (we'll use only one BRAM port for read later)
+    logic [ADDR_WIDTH_B-1:0] w_mat_rd_addrb;    // reading weights (we'll use only one BRAM port for read later)
 
     logic multi_en; // enable to multi_matmul_wrapper
 
@@ -264,7 +264,7 @@ module top_multwrap_bram (
         .TOTAL_INPUT_W(TOTAL_INPUT_W),
         .INNER_DIMENSION(INNER_DIMENSION),
         .NUM_CORES_A(NUM_CORES_A),
-        .NUM_CORES_B(NUM_CORES_B),
+        .NUM_CORES_B(NUM_CORES_B)
     ) 
     multi_matmul_wrapper_inst (
         .clk(clk), .en(en_module), // toggle enable after BOTH Input and Weight BRAM are entirely filled
@@ -302,7 +302,9 @@ module top_multwrap_bram (
             internal_rst_n  <= 1'b0;
             internal_reset_acc <= 1'b0;
             // Output
-            out_multi_matmul <= '0;
+            for (int i = 0; i < TOTAL_INPUT_W; i = i +1) begin
+                out_multi_matmul[i] <= '0;
+            end
         end
         else begin
             acc_done_wrap_d  <= acc_done_wrap; // Assigninig the delayed version 
@@ -340,13 +342,13 @@ module top_multwrap_bram (
                 in_mat_rd_addrb <= counter + (INNER_DIMENSION/BLOCK_SIZE)*counter_row;
                 we_mat_rd_addrb <= counter + (INNER_DIMENSION/BLOCK_SIZE)*counter_col;
                 */
-                in_mat_rd_addra <= counter + (INNER_DIMENSION/BLOCK_SIZE)*(counter_row*2) // same as the old one but port A used for even addresses (starting from 0)
-                in_mat_rd_addrb <= counter + (INNER_DIMENSION/BLOCK_SIZE)*(counter_row*2 + 1) // and port B used for odd addresses (starting from 1)`
-                we_mat_rd_addrb = counter + (INNER_DIMENSION/BLOCK_SIZE)*counter_col;
+                in_mat_rd_addra <= counter + (INNER_DIMENSION/BLOCK_SIZE)*(counter_row*2); // same as the old one but port A used for even addresses (starting from 0)
+                in_mat_rd_addrb <= counter + (INNER_DIMENSION/BLOCK_SIZE)*(counter_row*2 + 1); // and port B used for odd addresses (starting from 1)`
+                w_mat_rd_addrb = counter + (INNER_DIMENSION/BLOCK_SIZE)*counter_col;
             end
 
             // Column/Row Update
-            if (accumulator_done_top_rising) begin
+            if (acc_done_wrap_rising) begin
                 // counter_row indicates the i-th row of the matrix C that we are working right now
                 // counter_col indicates the i-th column of the matrix C that we are working right now
 
