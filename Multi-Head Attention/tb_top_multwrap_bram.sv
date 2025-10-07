@@ -70,8 +70,8 @@ module tb_top_multwrap_bram;
     );
 
     // ************** Memory Arrays **************
-    logic [WIDTH_A*CHUNK_SIZE*NUM_CORES_A-1:0] mem_A [0:(1<<ADDR_WIDTH_A)-1];
-    logic [WIDTH_B*CHUNK_SIZE*NUM_CORES_B*TOTAL_MODULES-1:0] mem_B [0:(1<<ADDR_WIDTH_B)-1];
+    logic [WIDTH_A*CHUNK_SIZE*NUM_CORES_A-1:0] mem_A [0:(NUM_A_ELEMENTS)-1];
+    logic [WIDTH_B*CHUNK_SIZE*NUM_CORES_B*TOTAL_MODULES-1:0] mem_B [0:(NUM_B_ELEMENTS)-1];
 
     // ************** Test Sequence **************
     initial begin
@@ -100,7 +100,7 @@ module tb_top_multwrap_bram;
         in_mat_ena = 1; in_mat_enb = 1;
         in_mat_wea = 1; in_mat_web = 1;
 
-        for (int i = 0; i < (1<<ADDR_WIDTH_A)/2; i++) begin
+        for (int i = 0; i < (NUM_A_ELEMENTS+1)/2; i++) begin
             @(posedge clk);
             // Port A writes even addresses
             in_mat_wr_addra = 2*i;
@@ -118,7 +118,7 @@ module tb_top_multwrap_bram;
         w_mat_ena = 1; w_mat_enb = 1;
         w_mat_wea = 1; w_mat_web = 1;
 
-        for (int j = 0; j < (1<<ADDR_WIDTH_B)/2; j++) begin
+        for (int j = 0; j < (NUM_B_ELEMENTS+1)/2; j++) begin
             @(posedge clk);
             // Port A writes even addresses
             w_mat_wr_addra = 2*j;
