@@ -9,7 +9,7 @@ module top_multwrap_bram #(
     localparam DATA_WIDTH_A  = WIDTH_A*CHUNK_SIZE*NUM_CORES_A,
     localparam DATA_WIDTH_B  = WIDTH_B*CHUNK_SIZE*NUM_CORES_B*TOTAL_MODULES,
     localparam int ADDR_WIDTH_A = $clog2(MEMORY_SIZE_A/DATA_WIDTH_A),
-    localparam int ADDR_WIDTH_B = $clog2(MEMORY_SIZE_A/DATA_WIDTH_B) 
+    localparam int ADDR_WIDTH_B = $clog2(MEMORY_SIZE_B/DATA_WIDTH_B) 
 ) (
     input logic clk, rst_n,
     input logic start,
@@ -41,10 +41,10 @@ module top_multwrap_bram #(
 );
 
     // BRAM address/control mux outputs (driven to XPM ports)
-    logic [ADDR_WIDTH_A-1:0] in_mat_addra_mux, in_mat_addrb_mux;
-    logic [ADDR_WIDTH_B-1:0] w_mat_addra_mux, w_mat_addrb_mux;
-    logic in_mat_wea_mux, in_mat_web_mux, in_mat_ena_mux, in_mat_enb_mux;
-    logic w_mat_wea_mux, w_mat_web_mux, w_mat_ena_mux, w_mat_enb_mux;
+    wire [ADDR_WIDTH_A-1:0] in_mat_addra_mux, in_mat_addrb_mux;
+    wire [ADDR_WIDTH_B-1:0] w_mat_addra_mux, w_mat_addrb_mux;
+    wire in_mat_wea_mux, in_mat_web_mux, in_mat_ena_mux, in_mat_enb_mux;
+    wire w_mat_wea_mux, w_mat_web_mux, w_mat_ena_mux, w_mat_enb_mux;
 
     // Internal read address counters (controller-driven)
     logic [ADDR_WIDTH_A-1:0] in_mat_rd_addra; // used when reading port A

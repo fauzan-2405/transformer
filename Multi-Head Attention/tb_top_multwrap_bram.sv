@@ -7,8 +7,8 @@ module tb_top_multwrap_bram;
     localparam MEMORY_SIZE_B = INNER_DIMENSION*B_OUTER_DIMENSION*WIDTH_B;
     localparam DATA_WIDTH_A  = WIDTH_A*CHUNK_SIZE*NUM_CORES_A;
     localparam DATA_WIDTH_B  = WIDTH_B*CHUNK_SIZE*NUM_CORES_B*TOTAL_MODULES;
-    localparam int ADDR_WIDTH_A = $clog2(MEMORY_SIZE_A/DATA_WIDTH_A); 
-    localparam int ADDR_WIDTH_B = $clog2(MEMORY_SIZE_A/DATA_WIDTH_B); 
+    localparam int ADDR_WIDTH_A = $clog2(MEMORY_SIZE_A/DATA_WIDTH_A);
+    localparam int ADDR_WIDTH_B = $clog2(MEMORY_SIZE_B/DATA_WIDTH_B);
 
     // ************** Clock and Reset **************
     logic clk = 0;
@@ -38,6 +38,9 @@ module tb_top_multwrap_bram;
     logic done, out_valid;
     logic [(WIDTH_OUT*CHUNK_SIZE*NUM_CORES_A*NUM_CORES_B*TOTAL_MODULES)-1:0] out_multi_matmul [TOTAL_INPUT_W];
 
+    reg [DATA_WIDTH_A-1:0] in_mat_dinb_d;
+    reg [DATA_WIDTH_B-1:0] w_mat_dinb_d;
+
     // ************** Instantiate DUT **************
     top_multwrap_bram dut (
         .clk(clk),
@@ -52,7 +55,7 @@ module tb_top_multwrap_bram;
         .in_mat_enb(in_mat_enb),
         .in_mat_web(in_mat_web),
         .in_mat_wr_addrb(in_mat_wr_addrb),
-        .in_mat_dinb(in_mat_dinb),
+        .in_mat_dinb(in_mat_dinb_d),
 
         .w_mat_ena(w_mat_ena),
         .w_mat_wea(w_mat_wea),
@@ -62,7 +65,7 @@ module tb_top_multwrap_bram;
         .w_mat_enb(w_mat_enb),
         .w_mat_web(w_mat_web),
         .w_mat_wr_addrb(w_mat_wr_addrb),
-        .w_mat_dinb(w_mat_dinb),
+        .w_mat_dinb(w_mat_dinb_d),
 
         .done(done),
         .out_valid(out_valid),
@@ -74,6 +77,11 @@ module tb_top_multwrap_bram;
     logic [WIDTH_B*CHUNK_SIZE*NUM_CORES_B*TOTAL_MODULES-1:0] mem_B [0:(NUM_B_ELEMENTS)-1];
 
     // ************** Test Sequence **************
+    always @(posedge clk) begin
+        in_mat_dinb_d = in_mat_dinb;
+        w_mat_dinb_d = w_mat_dinb;
+    end
+
     initial begin
         $display("[%0t] Starting Simulation...", $time);
 
@@ -124,8 +132,13 @@ module tb_top_multwrap_bram;
             w_mat_wr_addra = 2*j;
             w_mat_dina = mem_B[2*j];
             // Port B writes odd addresses
-            w_mat_wr_addrb = 2*j + 1;
-            w_mat_dinb = mem_B[2*j + 1];
+            if (2*j + 1 >= NUM_B_ELEMENTS) begin
+                w_mat_wr_addrb = NUM_B_ELEMENTS - 1 - 1;
+                w_mat_dinb = mem_B[NUM_B_ELEMENTS-1 - 1];
+            end else begin
+                w_mat_wr_addrb = 2*j + 1;
+                w_mat_dinb = mem_B[2*j + 1];
+            end
         end
         @(posedge clk);
         w_mat_wea = 0; w_mat_web = 0;
