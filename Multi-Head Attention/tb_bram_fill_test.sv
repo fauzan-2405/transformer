@@ -33,17 +33,20 @@ module tb_bram_fill_test;
     logic [DATA_WIDTH_A-1:0] in_read_a, in_read_b;
     logic [DATA_WIDTH_B-1:0] w_read_b;
 
+    reg [DATA_WIDTH_A-1:0] in_mat_dinb_d;
+    reg [DATA_WIDTH_B-1:0] w_mat_dinb_d;
+
     // Instantiate DUT
     bram_fill_test dut (
         .clk(clk), .rst_n(rst_n),
         .in_mat_ena(in_mat_ena), .in_mat_wea(in_mat_wea),
         .in_mat_wr_addra(in_mat_wr_addra), .in_mat_dina(in_mat_dina),
         .in_mat_enb(in_mat_enb), .in_mat_web(in_mat_web),
-        .in_mat_wr_addrb(in_mat_wr_addrb), .in_mat_dinb(in_mat_dinb),
+        .in_mat_wr_addrb(in_mat_wr_addrb), .in_mat_dinb(in_mat_dinb_d),
         .w_mat_ena(w_mat_ena), .w_mat_wea(w_mat_wea),
         .w_mat_wr_addra(w_mat_wr_addra), .w_mat_dina(w_mat_dina),
         .w_mat_enb(w_mat_enb), .w_mat_web(w_mat_web),
-        .w_mat_wr_addrb(w_mat_wr_addrb), .w_mat_dinb(w_mat_dinb),
+        .w_mat_wr_addrb(w_mat_wr_addrb), .w_mat_dinb(w_mat_dinb_d),
         .write_phase_done(write_phase_done),
         .in_read_a(in_read_a), .in_read_b(in_read_b), .w_read_b(w_read_b)
     );
@@ -51,6 +54,15 @@ module tb_bram_fill_test;
     // Local memories for test data
     logic [DATA_WIDTH_A-1:0] mem_A [0:NUM_A_ELEMENTS-1];
     logic [DATA_WIDTH_B-1:0] mem_B [0:NUM_B_ELEMENTS-1];
+
+    // Di delay karena  data ganjilnya engga bener
+    // Kaga bener karaena data untuk address 1 kaga ke write
+    // Address 1 malah keisi data di address 3
+    // Address 3 malah ngisi data di address 5, dst..
+    always @(posedge clk) begin
+        in_mat_dinb_d = in_mat_dinb;
+        w_mat_dinb_d = w_mat_dinb;
+    end
 
     initial begin
         $display("[%0t] Starting BRAM fill test...", $time);
@@ -61,7 +73,8 @@ module tb_bram_fill_test;
         rst_n = 0;
         {in_mat_ena,in_mat_enb,w_mat_ena,w_mat_enb} = 0;
         {in_mat_wea,in_mat_web,w_mat_wea,w_mat_web} = 0;
-        #30; rst_n = 1;
+        #35; rst_n = 1;
+        #10;
 
         // --- Fill Input BRAM ---
         $display("[%0t] Writing Input BRAM", $time);
@@ -101,6 +114,6 @@ module tb_bram_fill_test;
         end
 
         $display("[%0t] BRAM test complete.", $time);
-        #20; $finish;
+        //#20; $finish;
     end
 endmodule

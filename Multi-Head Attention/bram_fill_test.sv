@@ -48,20 +48,20 @@ module bram_fill_test #(
     assign write_phase_done = ~write_phase;
 
     // Address muxes
-    logic [ADDR_WIDTH_A-1:0] in_mat_addra_mux = (write_phase) ? in_mat_wr_addra : in_mat_rd_addra;
-    logic [ADDR_WIDTH_A-1:0] in_mat_addrb_mux = (write_phase) ? in_mat_wr_addrb : in_mat_rd_addrb;
-    logic [ADDR_WIDTH_B-1:0] w_mat_addra_mux  = (write_phase) ? w_mat_wr_addra : '0;
-    logic [ADDR_WIDTH_B-1:0] w_mat_addrb_mux  = (write_phase) ? w_mat_wr_addrb : w_mat_rd_addrb;
+    wire [ADDR_WIDTH_A-1:0] in_mat_addra_mux = (write_phase) ? in_mat_wr_addra : in_mat_rd_addra;
+    wire [ADDR_WIDTH_A-1:0] in_mat_addrb_mux = (write_phase) ? in_mat_wr_addrb : in_mat_rd_addrb;
+    wire [ADDR_WIDTH_B-1:0] w_mat_addra_mux  = (write_phase) ? w_mat_wr_addra : '0;
+    wire [ADDR_WIDTH_B-1:0] w_mat_addrb_mux  = (write_phase) ? w_mat_wr_addrb : w_mat_rd_addrb;
 
-    logic in_mat_wea_mux = (write_phase) ? in_mat_wea : 1'b0;
-    logic in_mat_web_mux = (write_phase) ? in_mat_web : 1'b0;
-    logic w_mat_wea_mux  = (write_phase) ? w_mat_wea  : 1'b0;
-    logic w_mat_web_mux  = (write_phase) ? w_mat_web  : 1'b0;
+    wire in_mat_wea_mux = (write_phase) ? in_mat_wea : 1'b0;
+    wire in_mat_web_mux = (write_phase) ? in_mat_web : 1'b0;
+    wire w_mat_wea_mux  = (write_phase) ? w_mat_wea  : 1'b0;
+    wire w_mat_web_mux  = (write_phase) ? w_mat_web  : 1'b0;
 
-    logic in_mat_ena_mux = (write_phase) ? in_mat_ena : 1'b1;
-    logic in_mat_enb_mux = (write_phase) ? in_mat_enb : 1'b1;
-    logic w_mat_ena_mux  = (write_phase) ? w_mat_ena  : 1'b1;
-    logic w_mat_enb_mux  = (write_phase) ? w_mat_enb  : 1'b1;
+    wire in_mat_ena_mux = (write_phase) ? in_mat_ena : 1'b1;
+    wire in_mat_enb_mux = (write_phase) ? in_mat_enb : 1'b1;
+    wire w_mat_ena_mux  = (write_phase) ? w_mat_ena  : 1'b1;
+    wire w_mat_enb_mux  = (write_phase) ? w_mat_enb  : 1'b1;
 
     // --- XPM memories ---
     logic [DATA_WIDTH_A-1:0] in_mat_douta, in_mat_doutb;
