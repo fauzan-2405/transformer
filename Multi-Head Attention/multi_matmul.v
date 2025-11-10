@@ -61,7 +61,7 @@ module multi_matmul #(
         end
     endgenerate
 
-    assign acc_done_modules = &acc_done_modules;
-    assign systolic_finish_modules  = &systolic_finish_modules;
+    assign acc_done_modules = &acc_done_array;
+    assign systolic_finish_modules  = &systolic_finish_array;
 
 endmodule

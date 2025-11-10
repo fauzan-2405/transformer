@@ -310,7 +310,7 @@ module top_multwrap_bram #(
             //in_b_enb_d <= in_b_enb;
             
             // Port A & B Controller
-            if ((in_mat_wr_addra >= NUM_A_ELEMENTS-1) && (w_mat_wr_addra >= NUM_B_ELEMENTS-1)) begin // enable AFTER BOTH of BRAMs are filled is HIGH
+            if ((in_mat_wr_addra >= NUM_A_ELEMENTS-1-1) && (w_mat_wr_addra >= NUM_B_ELEMENTS-1-1)) begin // enable AFTER BOTH of BRAMs are filled is HIGH
                 en_module <= 1'b1;// Control write enable of each BRAMs for both ports
             end
 
