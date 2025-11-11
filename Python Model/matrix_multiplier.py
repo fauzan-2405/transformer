@@ -282,8 +282,8 @@ def main():
     args = parser.parse_args()
     
     # Matrix dimensions
-    ROWS_A, COLS_A = 8, 6
-    COLS_B = 8
+    ROWS_A, COLS_A = 16, 12
+    COLS_B = 16
     
     # Fixed-point configurations (total_bits, fractional_bits, signed)
     fp_config_A = (16, 8, True)   
