@@ -232,7 +232,7 @@ module top_multwrap_bram #(
     );
 
     // Hook up read results into multi_matmul_wrapper input array
-    // We'll map: in_bram[0] <= in_mat_douta (even rows), in_bram[1] <= in_mat_doutb (odd rows)
+    // We'll map: input_w[0] <= in_mat_douta (even rows), input_w[1] <= in_mat_doutb (odd rows)
     logic [WIDTH_A*CHUNK_SIZE*NUM_CORES_A-1:0] in_multi_matmul [TOTAL_INPUT_W];
     genvar i;
     generate
@@ -269,7 +269,7 @@ module top_multwrap_bram #(
     multi_matmul_wrapper_inst (
         .clk(clk), .en(en_module), // toggle enable after BOTH Input and Weight BRAM are entirely filled
         .rst_n(internal_rst_n), .reset_acc(internal_reset_acc),
-        .in_bram(in_multi_matmul),
+        .input_w(in_multi_matmul), .input_n(w_mat_doutb),
         .acc_done_wrap(acc_done_wrap), .systolic_finish_wrap(systolic_finish_wrap),
         .out_multi_matmul(out_multi_matmul)
     );
