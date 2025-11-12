@@ -223,39 +223,49 @@ class MatrixProcessor:
                     f.write(" ".join(line) + '\n')
     
     def _export_core_mode_C(self, matrix: np.ndarray, 
-                          converter: FixedPointConverter, filename: str,
-                          block_size: int):
-        """Export matrix C in core block format with custom block size"""
+                      converter: FixedPointConverter, filename: str,
+                      block_size: int):
+        """Export matrix C in core block format using matrix A arrangement"""
         rows, cols = matrix.shape
-        block_size_rows = self.cores_a * block_size
-        block_size_cols = self.cores_b * block_size
         
-        # Validate dimensions
-        if rows % block_size_rows != 0:
+        # Validate dimensions for matrix A-like pattern
+        if rows % (self.cores_a * block_size) != 0:
             raise ValueError(f"Matrix C: Rows ({rows}) must be divisible by cores_a×block_size ({self.cores_a}×{block_size})")
-        if cols % block_size_cols != 0:
+        if cols % (self.cores_b * block_size) != 0:
             raise ValueError(f"Matrix C: Columns ({cols}) must be divisible by cores_b×block_size ({self.cores_b}×{block_size})")
         
-        # Calculate block counts
-        blocks_row = rows // block_size_rows
-        blocks_col = cols // block_size_cols
+        # Calculate parameters (same as matrix A pattern)
+        total_elements = rows * cols
+        elements_per_line = self.cores_a * self.cores_b * (block_size * block_size)
+        total_lines = total_elements // elements_per_line
+        
+        # Group processing (same as matrix A)
+        row_groups = rows // (self.cores_a * block_size)
+        blocks_per_row = cols // (self.cores_b * block_size)
         
         with open(filename, 'w') as f:
-            # Process blocks in row-major order
-            for block_i in range(blocks_row):
-                row_start = block_i * block_size_rows
-                for block_j in range(blocks_col):
-                    col_start = block_j * block_size_cols
+            for group_idx in range(row_groups):
+                group_start_row = group_idx * self.cores_a * block_size
+                
+                for block_col in range(blocks_per_row):
+                    col_start = block_col * self.cores_b * block_size
                     line = []
                     
-                    # Extract block
-                    block = matrix[row_start:row_start+block_size_rows, 
-                                  col_start:col_start+block_size_cols]
-                    
-                    # Flatten block in row-major order
-                    for r in range(block_size_rows):
-                        for c in range(block_size_cols):
-                            line.append(converter.int_to_binary(int(block[r, c])))
+                    # Process all core combinations in this group
+                    for core_a in range(self.cores_a):
+                        row_start = group_start_row + core_a * block_size
+                        
+                        for core_b in range(self.cores_b):
+                            col_start_inner = col_start + core_b * block_size
+                            
+                            # Extract block
+                            block = matrix[row_start:row_start+block_size, 
+                                        col_start_inner:col_start_inner+block_size]
+                            
+                            # Flatten block in row-major order (like matrix A)
+                            for r in range(block_size):
+                                for c in range(block_size):
+                                    line.append(converter.int_to_binary(int(block[r, c])))
                     
                     f.write(" ".join(line) + '\n')
 
@@ -282,8 +292,8 @@ def main():
     args = parser.parse_args()
     
     # Matrix dimensions
-    ROWS_A, COLS_A = 16, 12
-    COLS_B = 16
+    ROWS_A, COLS_A = 8, 6
+    COLS_B = 8
     
     # Fixed-point configurations (total_bits, fractional_bits, signed)
     fp_config_A = (16, 8, True)   
