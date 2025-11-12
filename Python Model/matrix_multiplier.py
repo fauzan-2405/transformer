@@ -225,44 +225,41 @@ class MatrixProcessor:
     def _export_core_mode_C(self, matrix: np.ndarray, 
                       converter: FixedPointConverter, filename: str,
                       block_size: int):
-        """Export matrix C in core block format using matrix A arrangement"""
+        """Export matrix C in core block format using the correct pattern"""
         rows, cols = matrix.shape
         
-        # Validate dimensions for matrix A-like pattern
+        # Validate dimensions
         if rows % (self.cores_a * block_size) != 0:
             raise ValueError(f"Matrix C: Rows ({rows}) must be divisible by cores_a×block_size ({self.cores_a}×{block_size})")
         if cols % (self.cores_b * block_size) != 0:
             raise ValueError(f"Matrix C: Columns ({cols}) must be divisible by cores_b×block_size ({self.cores_b}×{block_size})")
         
-        # Calculate parameters (same as matrix A pattern)
-        total_elements = rows * cols
-        elements_per_line = self.cores_a * self.cores_b * (block_size * block_size)
-        total_lines = total_elements // elements_per_line
-        
-        # Group processing (same as matrix A)
+        # Calculate parameters
         row_groups = rows // (self.cores_a * block_size)
-        blocks_per_row = cols // (self.cores_b * block_size)
+        col_groups = cols // (self.cores_b * block_size)
         
         with open(filename, 'w') as f:
-            for group_idx in range(row_groups):
-                group_start_row = group_idx * self.cores_a * block_size
+            # Process each combination of row group and column group
+            for row_group in range(row_groups):
+                row_start = row_group * self.cores_a * block_size
                 
-                for block_col in range(blocks_per_row):
-                    col_start = block_col * self.cores_b * block_size
+                for col_group in range(col_groups):
+                    col_start = col_group * self.cores_b * block_size
                     line = []
                     
-                    # Process all core combinations in this group
-                    for core_a in range(self.cores_a):
-                        row_start = group_start_row + core_a * block_size
+                    # For each column subgroup within the column group
+                    for col_subgroup in range(self.cores_b):
+                        col_sub_start = col_start + col_subgroup * block_size
                         
-                        for core_b in range(self.cores_b):
-                            col_start_inner = col_start + core_b * block_size
+                        # For each row subgroup within the row group  
+                        for row_subgroup in range(self.cores_a):
+                            row_sub_start = row_start + row_subgroup * block_size
                             
-                            # Extract block
-                            block = matrix[row_start:row_start+block_size, 
-                                        col_start_inner:col_start_inner+block_size]
+                            # Extract the 2x2 block
+                            block = matrix[row_sub_start:row_sub_start+block_size,
+                                        col_sub_start:col_sub_start+block_size]
                             
-                            # Flatten block in row-major order (like matrix A)
+                            # Flatten in row-major order
                             for r in range(block_size):
                                 for c in range(block_size):
                                     line.append(converter.int_to_binary(int(block[r, c])))
