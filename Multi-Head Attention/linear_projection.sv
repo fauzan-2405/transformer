@@ -8,7 +8,8 @@ module linear_pojection #(
     localparam DATA_WIDTH_B  = WIDTH_B*CHUNK_SIZE*NUM_CORES_B*TOTAL_MODULES,
     localparam int ADDR_WIDTH_B = $clog2(MEMORY_SIZE_B/DATA_WIDTH_B) 
 ) (
-    input logic clk, rst_n,
+    input logic clk, rst_n, en_module,
+    input logic internal_rst_n, internal_reset_acc,
     input logic w_mat_enb_q,
     input logic [ADDR_WIDTH_B-1:0] w_mat_addrb_q,
     input logic w_mat_enb_k,
@@ -41,7 +42,7 @@ module linear_pojection #(
             if (i == 0) begin : Q1
                 multwrap_wbram #(.MEM_INIT_FILE("mem_q1.mem")) q1 (
                     .clk(clk),
-                    .en_module(en),
+                    .en_module(en_module),
                     .internal_rst_n(internal_rst_n),
                     .rst_n(rst_n),
                     .internal_reset_acc(internal_reset_acc),
@@ -56,7 +57,7 @@ module linear_pojection #(
             else if (i == 1) begin : Q2
                 multwrap_wbram #(.MEM_INIT_FILE("mem_q2.mem")) q2 (
                     .clk(clk),
-                    .en_module(en),
+                    .en_module(en_module),
                     .internal_rst_n(internal_rst_n),
                     .rst_n(rst_n),
                     .internal_reset_acc(internal_reset_acc),
@@ -71,7 +72,7 @@ module linear_pojection #(
             else if (i == 2) begin : Q3
                 multwrap_wbram #(.MEM_INIT_FILE("mem_q3.mem")) q3 (
                     .clk(clk),
-                    .en_module(en),
+                    .en_module(en_module),
                     .internal_rst_n(internal_rst_n),
                     .rst_n(rst_n),
                     .internal_reset_acc(internal_reset_acc),
@@ -86,7 +87,7 @@ module linear_pojection #(
             else if (i == 3) begin : Q4
                 multwrap_wbram #(.MEM_INIT_FILE("mem_q4.mem")) q4 (
                     .clk(clk),
-                    .en_module(en),
+                    .en_module(en_module),
                     .internal_rst_n(internal_rst_n),
                     .rst_n(rst_n),
                     .internal_reset_acc(internal_reset_acc),
@@ -109,7 +110,7 @@ module linear_pojection #(
             else if (j == 0) begin : K1
                 multwrap_wbram #(.MEM_INIT_FILE("mem_k1.mem")) k1 (
                     .clk(clk),
-                    .en_module(en),
+                    .en_module(en_module),
                     .internal_rst_n(internal_rst_n),
                     .rst_n(rst_n),
                     .internal_reset_acc(internal_reset_acc),
@@ -124,7 +125,7 @@ module linear_pojection #(
             else if (j == 1) begin : K2
                 multwrap_wbram #(.MEM_INIT_FILE("mem_k2.mem")) k2 (
                     .clk(clk),
-                    .en_module(en),
+                    .en_module(en_module),
                     .internal_rst_n(internal_rst_n),
                     .rst_n(rst_n),
                     .internal_reset_acc(internal_reset_acc),
@@ -139,7 +140,7 @@ module linear_pojection #(
             else if (j == 2) begin : K3
                 multwrap_wbram #(.MEM_INIT_FILE("mem_k3.mem")) k3 (
                     .clk(clk),
-                    .en_module(en),
+                    .en_module(en_module),
                     .internal_rst_n(internal_rst_n),
                     .rst_n(rst_n),
                     .internal_reset_acc(internal_reset_acc),
@@ -154,7 +155,7 @@ module linear_pojection #(
             else if (j == 3) begin : K4
                 multwrap_wbram #(.MEM_INIT_FILE("mem_k4.mem")) k4 (
                     .clk(clk),
-                    .en_module(en),
+                    .en_module(en_module),
                     .internal_rst_n(internal_rst_n),
                     .rst_n(rst_n),
                     .internal_reset_acc(internal_reset_acc),
@@ -177,7 +178,7 @@ module linear_pojection #(
             else if (k == 0) begin : V1
                 multwrap_wbram #(.MEM_INIT_FILE("mem_v1.mem")) v1 (
                     .clk(clk),
-                    .en_module(en),
+                    .en_module(en_module),
                     .internal_rst_n(internal_rst_n),
                     .rst_n(rst_n),
                     .internal_reset_acc(internal_reset_acc),
@@ -192,7 +193,7 @@ module linear_pojection #(
             else if (i == 9) begin : V2
                 multwrap_wbram #(.MEM_INIT_FILE("mem_v2.mem")) v2 (
                     .clk(clk),
-                    .en_module(en),
+                    .en_module(en_module),
                     .internal_rst_n(internal_rst_n),
                     .rst_n(rst_n),
                     .internal_reset_acc(internal_reset_acc),
@@ -207,7 +208,7 @@ module linear_pojection #(
             else if (i == 10) begin : V3
                 multwrap_wbram #(.MEM_INIT_FILE("mem_v3.mem")) v3 (
                     .clk(clk),
-                    .en_module(en),
+                    .en_module(en_module),
                     .internal_rst_n(internal_rst_n),
                     .rst_n(rst_n),
                     .internal_reset_acc(internal_reset_acc),
@@ -222,7 +223,7 @@ module linear_pojection #(
             else begin : V4
                 multwrap_wbram #(.MEM_INIT_FILE("mem_v4.mem")) v4 (
                     .clk(clk),
-                    .en_module(en),
+                    .en_module(en_module),
                     .internal_rst_n(internal_rst_n),
                     .rst_n(rst_n),
                     .internal_reset_acc(internal_reset_acc),
