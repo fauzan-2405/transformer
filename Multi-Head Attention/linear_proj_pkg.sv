@@ -20,8 +20,9 @@ package linear_proj_pkg;
     parameter int NUM_CORES_B    = 1;
     parameter int NUM_CORES_A    = 2;
 
-    parameter TOTAL_INPUT_W = 2;
-    parameter TOTAL_MODULES = 4;
+    parameter TOTAL_INPUT_W = 2; // Total port from input matrix (to be used in multi_matmul_wrapper.sv)
+    parameter TOTAL_MODULES = 4; // Total matmul module used in multi_matmul.v (the value does not have to be the same as TOTAL_WEIGHT_PER_KEY)
+    parameter TOTAL_WEIGHT_PER_KEY = 4; // Total of weight per key (Q1, Q2, ..., Q4 etc)
     
     parameter int NUM_A_ELEMENTS = ((A_OUTER_DIMENSION/BLOCK_SIZE)*(INNER_DIMENSION/BLOCK_SIZE))/(NUM_CORES_A); // Total elements of Input if we converted the inputs based on the NUM_CORES
     parameter int NUM_B_ELEMENTS = ((B_OUTER_DIMENSION/BLOCK_SIZE)*(INNER_DIMENSION/BLOCK_SIZE))/(NUM_CORES_B*TOTAL_MODULES);
