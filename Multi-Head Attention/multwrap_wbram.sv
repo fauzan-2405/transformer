@@ -4,9 +4,9 @@ import linear_proj_pkg::*;
 
 module multwrap_wbram #(
     parameter string MEM_INIT_FILE = "mem_q1.mem",
-    localparam MEMORY_SIZE_B = INNER_DIMENSION*B_OUTER_DIMENSION*WIDTH_B,
-    localparam DATA_WIDTH_B  = WIDTH_B*CHUNK_SIZE*NUM_CORES_B*TOTAL_MODULES,
-    localparam int ADDR_WIDTH_B = $clog2(MEMORY_SIZE_B/DATA_WIDTH_B) 
+    parameter MEMORY_SIZE_B = INNER_DIMENSION*B_OUTER_DIMENSION*WIDTH_B,
+    parameter DATA_WIDTH_B  = WIDTH_B*CHUNK_SIZE*NUM_CORES_B*TOTAL_MODULES,
+    parameter int ADDR_WIDTH_B = $clog2(MEMORY_SIZE_B/DATA_WIDTH_B) 
 ) (
     input logic clk, en_module,
     input logic internal_rst_n, rst_n, // internal_rst_n used for multimatmul, while rst_n used for the BRAM
