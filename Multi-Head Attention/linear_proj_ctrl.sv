@@ -6,8 +6,11 @@ import linear_proj_pkg::*;
 module linear_proj_ctrl
 (
     input logic clk, rst_n,
+    input logic in_mat_ena, in_mat_enb,
+    input logic in_mat_wea, in_mat_web,
     input logic [ADDR_WIDTH_A-1:0] in_mat_wr_addra, in_mat_wr_addrb,
     
+    // For input BRAM
     output logic in_mat_ena_mux, in_mat_enb_mux,
     output logic in_mat_wea_mux, in_mat_web_mux,
     output logic [ADDR_WIDTH_A-1:0] in_mat_addra_mux, in_mat_addrb_mux,
@@ -15,8 +18,9 @@ module linear_proj_ctrl
     // For weight BRAM, we just use port B
     output logic w_mat_enb_mux, 
     output logic [ADDR_WIDTH_B-1:0] w_mat_addrb_mux,
-
-    output out_valid, done
+    
+    output logic enable_linear_proj, internal_rst_n_ctrl, internal_reset_acc_ctrl,
+    output logic out_valid, done
 );
 
     // Internal read address counters (controller-driven)
@@ -39,12 +43,19 @@ module linear_proj_ctrl
     assign in_mat_wea_mux   = (write_phase) ? in_mat_wea : 1'b0;
     assign in_mat_web_mux   = (write_phase) ? in_mat_web : 1'b0;
 
-    assign in_mat_ena_mux   = (write_phase) ? in_mat_ena : 1'b1; // For now, let's toggle it to 1 in read mode
+    // In the future if we wanted to turn off the BRAM, but for now we just let it on
+    //assign in_mat_ena_mux   = (write_phase) ? in_mat_ena : (en_module) ? 1'b1 : 1'b0; 
+    //assign in_mat_enb_mux   = (write_phase) ? in_mat_enb : (en_module) ? 1'b1 : 1'b0;
+
+    assign in_mat_ena_mux   = (write_phase) ? in_mat_ena : 1'b1; 
     assign in_mat_enb_mux   = (write_phase) ? in_mat_enb : 1'b1;
 
     // For weight matrix BRAM (w_mat)
     assign w_mat_addrb_mux  = (write_phase) ? 0 : w_mat_rd_addrb;
-    assign w_mat_enb_mux   = (write_phase) ? w_mat_enb : 1'b1;
+    
+    // In the future if we wanted to turn off the BRAM, but for now we just let it on
+    //assign w_mat_enb_mux    = (write_phase) ? w_mat_enb : (en_module) ? 1'b1 : 1'b0;
+    assign w_mat_enb_mux    = (write_phase) ? w_mat_enb : 1'b1;
 
     // *** Main Controller **********************************************************
     // Create the mux here to toggle the write enable port and write/read addresses for BRAMs
@@ -143,6 +154,9 @@ module linear_proj_ctrl
         end
     end
 
+    assign enable_linear_proj       = en_module;
+    assign internal_reset_acc_ctrl  = internal_reset_acc;
+    assign internal_rst_n_ctrl      = internal_rst_n;
     // Assign out_valid port when first acc_done_wrap is 1
     assign out_valid = counter_acc_done;
     // Done assigning based on flag
