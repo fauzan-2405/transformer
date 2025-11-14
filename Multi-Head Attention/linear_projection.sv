@@ -2,11 +2,13 @@
 // Used to do linear projection of course (duh)
 import linear_proj_pkg::*;
 
-module linear_pojection #(
+module linear_projection #(
     parameter OUT_KEYS = WIDTH_OUT*CHUNK_SIZE*NUM_CORES_A*NUM_CORES_B*TOTAL_MODULES
 ) (
     input logic clk, rst_n, en_module,
     input logic internal_rst_n, internal_reset_acc,
+    input logic [WIDTH_A*CHUNK_SIZE*NUM_CORES_A-1:0] in_multi_matmul [TOTAL_INPUT_W],
+
     input logic w_mat_enb_q,
     input logic [ADDR_WIDTH_B-1:0] w_mat_addrb_q,
     input logic w_mat_enb_k,
@@ -104,7 +106,7 @@ module linear_pojection #(
     genvar j;
     generate
         for (j = 0; j < TOTAL_WEIGHT_PER_KEY; j++) begin : GEN_MULTWRAP_K
-            else if (j == 0) begin : K1
+            if (j == 0) begin : K1
                 multwrap_wbram #(.MEM_INIT_FILE("mem_k1.mem")) k1 (
                     .clk(clk),
                     .en_module(en_module),
@@ -187,7 +189,7 @@ module linear_pojection #(
                     .out_multwrap_wbram(out_v1)
                 );
             end
-            else if (i == 9) begin : V2
+            else if (k == 1) begin : V2
                 multwrap_wbram #(.MEM_INIT_FILE("mem_v2.mem")) v2 (
                     .clk(clk),
                     .en_module(en_module),
@@ -202,7 +204,7 @@ module linear_pojection #(
                     .out_multwrap_wbram(out_v2)
                 );
             end
-            else if (i == 10) begin : V3
+            else if (k == 2) begin : V3
                 multwrap_wbram #(.MEM_INIT_FILE("mem_v3.mem")) v3 (
                     .clk(clk),
                     .en_module(en_module),
@@ -217,7 +219,7 @@ module linear_pojection #(
                     .out_multwrap_wbram(out_v3)
                 );
             end
-            else begin : V4
+            else if (k == 3) begin : V4
                 multwrap_wbram #(.MEM_INIT_FILE("mem_v4.mem")) v4 (
                     .clk(clk),
                     .en_module(en_module),
@@ -236,8 +238,12 @@ module linear_pojection #(
     endgenerate
 
     //
-    logic acc_done_all = &acc_done_q && &acc_done_k && &acc_done_v;
-    logic systolic_finish_all = &systolic_finish_q && &systolic_finish_k && &&systolic_finish_v;
+    logic acc_done_all = &acc_done_q & 
+                         &acc_done_k &
+                         &acc_done_v;
+    logic systolic_finish_all = &systolic_finish_q & 
+                                &systolic_finish_k & 
+                                &systolic_finish_v;
 
 
 endmodule
