@@ -6,6 +6,7 @@ import linear_proj_pkg::*;
 module linear_proj_ctrl
 (
     input logic clk, rst_n,
+    input logic acc_done_wrap, systolic_finish_wrap,
     input logic in_mat_ena, in_mat_enb,
     input logic in_mat_wea, in_mat_web,
     input logic [ADDR_WIDTH_A-1:0] in_mat_wr_addra, in_mat_wr_addrb,
@@ -27,7 +28,6 @@ module linear_proj_ctrl
     logic [ADDR_WIDTH_A-1:0] in_mat_rd_addra; // used when reading port A
     logic [ADDR_WIDTH_A-1:0] in_mat_rd_addrb; // used when reading port B
     logic [ADDR_WIDTH_B-1:0] w_mat_rd_addrb;    // reading weights (we'll use only one BRAM port for read later)
-    logic multi_en; // enable to multi_matmul_wrapper
     
 
     // *************** Control Signals for Mux *************** 
@@ -60,9 +60,8 @@ module linear_proj_ctrl
     // *** Main Controller **********************************************************
     // Create the mux here to toggle the write enable port and write/read addresses for BRAMs
     logic internal_rst_n, internal_reset_acc;
-    logic systolic_finish_wrap;
     logic acc_done_wrap_rising;
-    logic acc_done_wrap_d, acc_done_wrap;
+    logic acc_done_wrap_d;
     assign acc_done_wrap_rising = ~acc_done_wrap_d & acc_done_wrap;
     logic en_module; // Toggle to ALWAYS HIGH after both BRAMs are filled
     logic [WIDTH_OUT-1:0] counter, counter_row, counter_col, flag;
@@ -128,7 +127,7 @@ module linear_proj_ctrl
                 */
                 in_mat_rd_addra <= counter + (INNER_DIMENSION/BLOCK_SIZE)*(counter_row*2); // same as the old one but port A used for even addresses (starting from 0)
                 in_mat_rd_addrb <= counter + (INNER_DIMENSION/BLOCK_SIZE)*(counter_row*2 + 1); // and port B used for odd addresses (starting from 1)`
-                w_mat_rd_addrb = counter + (INNER_DIMENSION/BLOCK_SIZE)*counter_col;
+                w_mat_rd_addrb <= counter + (INNER_DIMENSION/BLOCK_SIZE)*counter_col;
             end
 
             // Column/Row Update
