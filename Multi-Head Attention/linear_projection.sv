@@ -174,7 +174,7 @@ module linear_projection #(
     genvar k;
     generate
         for (k = 0; k < TOTAL_WEIGHT_PER_KEY; k++) begin : GEN_MULTWRAP_V
-            else if (k == 0) begin : V1
+            if (k == 0) begin : V1
                 multwrap_wbram #(.MEM_INIT_FILE("mem_v1.mem")) v1 (
                     .clk(clk),
                     .en_module(en_module),
@@ -238,10 +238,10 @@ module linear_projection #(
     endgenerate
 
     //
-    logic acc_done_all = &acc_done_q & 
+    assign acc_done_all = &acc_done_q & 
                          &acc_done_k &
                          &acc_done_v;
-    logic systolic_finish_all = &systolic_finish_q & 
+    assign systolic_finish_all = &systolic_finish_q & 
                                 &systolic_finish_k & 
                                 &systolic_finish_v;
 

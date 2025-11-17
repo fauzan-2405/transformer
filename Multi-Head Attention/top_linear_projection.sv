@@ -29,7 +29,7 @@ module top_linear_projection #(
     output logic [(OUT_KEYS)-1:0] out_v1 [TOTAL_INPUT_W],
     output logic [(OUT_KEYS)-1:0] out_v2 [TOTAL_INPUT_W],
     output logic [(OUT_KEYS)-1:0] out_v3 [TOTAL_INPUT_W],
-    output logic [(OUT_KEYS)-1:0] out_v4 [TOTAL_INPUT_W]
+    output logic [(OUT_KEYS)-1:0] out_v4 [TOTAL_INPUT_W],
     
     output logic out_valid, done
 );
@@ -170,7 +170,7 @@ module top_linear_projection #(
         .acc_done_all(acc_done_all_sig),
         .systolic_finish_all(systolic_finish_all_sig),
 
-        ..out_q1(out_q1),
+        .out_q1(out_q1),
         .out_q2(out_q2),
         .out_q3(out_q3),
         .out_q4(out_q4),
