@@ -55,7 +55,7 @@ module linear_proj_ctrl
     
     // In the future if we wanted to turn off the BRAM, but for now we just let it on
     //assign w_mat_enb_mux    = (write_phase) ? w_mat_enb : (en_module) ? 1'b1 : 1'b0;
-    assign w_mat_enb_mux    = (write_phase) ? w_mat_enb : 1'b1;
+    assign w_mat_enb_mux    = (~write_phase);
 
     // *** Main Controller **********************************************************
     // Create the mux here to toggle the write enable port and write/read addresses for BRAMs

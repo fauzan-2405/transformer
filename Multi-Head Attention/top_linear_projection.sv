@@ -151,7 +151,7 @@ module top_linear_projection #(
 
     linear_projection #(
         .OUT_KEYS(OUT_KEYS)
-    )(
+    ) linear_projection_inst (
         .clk(clk), .rst_n(rst_n),
         .en_module(enable_linear_proj),
         .internal_rst_n(internal_rst_n_ctrl),
