@@ -280,21 +280,32 @@ def generate_linear_projection(processor: MatrixProcessor,
     Wv_list = []
 
     if unique_per_type:
-        # generate one of each and reuse
+        # Generate ONLY ONE SET of Wq, Wk, Wv
         Wq = processor.create_matrix(weight_rows, weight_cols, min_val, max_val, conv_W, integers_only)
         Wk = processor.create_matrix(weight_rows, weight_cols, min_val, max_val, conv_W, integers_only)
         Wv = processor.create_matrix(weight_rows, weight_cols, min_val, max_val, conv_W, integers_only)
-        Wq_list = [Wq] * heads  # used internally, but they all point to same matrix
-        Wk_list = [Wk] * heads
-        Wv_list = [Wv] * heads
-        # Export only one copy for each type (mem_q1.mem etc.)
-        processor.export_matrix(Wq, conv_W, f"exports/mem_q1.mem", mode='core', block_size=block_size, num_cores=cores_b, matrix_type='B')
-        processor.export_matrix(Wk, conv_W, f"exports/mem_k1.mem", mode='core', block_size=block_size, num_cores=cores_b, matrix_type='B')
-        processor.export_matrix(Wv, conv_W, f"exports/mem_v1.mem", mode='core', block_size=block_size, num_cores=cores_b, matrix_type='B')
+
+        # Store only one
+        Wq_list = [Wq]
+        Wk_list = [Wk]
+        Wv_list = [Wv]
+
+        # Export only one set of weights
+        processor.export_matrix(Wq, conv_W, "exports/mem_q1.mem", mode='core',
+                                block_size=block_size, num_cores=cores_b, matrix_type='B')
+        processor.export_matrix(Wk, conv_W, "exports/mem_k1.mem", mode='core',
+                                block_size=block_size, num_cores=cores_b, matrix_type='B')
+        processor.export_matrix(Wv, conv_W, "exports/mem_v1.mem", mode='core',
+                                block_size=block_size, num_cores=cores_b, matrix_type='B')
+
+        # Print (optional)
         if display:
             processor.print_matrix(Wq, conv_W, "Weight Wq (type)", display)
             processor.print_matrix(Wk, conv_W, "Weight Wk (type)", display)
             processor.print_matrix(Wv, conv_W, "Weight Wv (type)", display)
+
+        # Only one output
+        head_indices = [0]
 
     else:
         # unique_per_head: generate distinct matrices per head and export each
