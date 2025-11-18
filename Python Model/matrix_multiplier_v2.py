@@ -349,7 +349,7 @@ def main():
     parser.add_argument('--cores_b', type=int, default=2, help='Number of cores for matrix B')
 
     # linear projection specific
-    parser.add_argument('--heads', type=int, default=12, help='Number of heads (weight matrices per Q/K/V)')
+    parser.add_argument('--heads', type=int, default=4, help='Number of heads (weight matrices per Q/K/V)')
     group = parser.add_mutually_exclusive_group()
     group.add_argument('--unique_per_head', action='store_true',
                         help='Generate distinct Wq/Wk/Wv per head (default)')
