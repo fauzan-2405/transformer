@@ -5,6 +5,8 @@ python -u "d:\DATA\Documents\Xirka Internship\PME\Transformer\transformer\Python
 
 python -u "d:\DATA\Documents\Xirka Internship\PME\Transformer\transformer\Python Model\mem_processor_v2.py" "d:\DATA\Documents\Xirka Internship\PME\Transformer\transformer\exports\Tested Mem Files\#7 Linear Projection Testing" --total_bits 16 --frac_bits 8 --display float
 
+python -u "d:\DATA\Documents\Xirka Internship\PME\Transformer\transformer\Python Model\bin2hex.py" "d:\DATA\Documents\Xirka Internship\PME\Transformer\transformer\exports\Tested Mem Files\#7 Linear Projection Testing" --element-bits 16
+
 NB:
 > cores_b = 4 in other words: cores_b = 1 with TOTAL_MODULES = 4
 
