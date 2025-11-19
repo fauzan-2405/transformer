@@ -3,7 +3,7 @@
 import linear_proj_pkg::*;
 
 module multwrap_wbram #(
-    parameter string MEM_INIT_FILE = "mem_q1.mem",
+    parameter MEM_INIT_FILE = "mem_q1.mem",
     parameter MEMORY_SIZE_B = INNER_DIMENSION*B_OUTER_DIMENSION*WIDTH_B,
     parameter DATA_WIDTH_B  = WIDTH_B*CHUNK_SIZE*NUM_CORES_B*TOTAL_MODULES,
     parameter int ADDR_WIDTH_B = $clog2(MEMORY_SIZE_B/DATA_WIDTH_B) 
@@ -69,7 +69,7 @@ module multwrap_wbram #(
         .clkb(clk),
         .rstb(~rst_n),
         .enb(w_mat_enb),
-        .web(), 
+        .web('0), 
         .addrb(w_mat_addrb),
         .dinb(),
         .doutb(w_mat_doutb) // For now, we only use port B to read

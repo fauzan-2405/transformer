@@ -3,7 +3,8 @@
 import linear_proj_pkg::*;
 
 module linear_projection #(
-    parameter OUT_KEYS = WIDTH_OUT*CHUNK_SIZE*NUM_CORES_A*NUM_CORES_B*TOTAL_MODULES
+    parameter OUT_KEYS = WIDTH_OUT*CHUNK_SIZE*NUM_CORES_A*NUM_CORES_B*TOTAL_MODULES,
+    localparam int LP_TOTAL_WEIGHT_PER_KEY = LP_TOTAL_WEIGHT_PER_KEY
 ) (
     input logic clk, rst_n, en_module,
     input logic internal_rst_n, internal_reset_acc,
@@ -34,10 +35,10 @@ module linear_projection #(
     output logic [(OUT_KEYS)-1:0] out_v4 [TOTAL_INPUT_W]
 );
     // ************************** Generating Q keys **************************
-    logic [TOTAL_WEIGHT_PER_KEY-1:0] acc_done_q, systolic_finish_q;
+    logic [LP_TOTAL_WEIGHT_PER_KEY-1:0] acc_done_q, systolic_finish_q;
     genvar i;
     generate
-        for (i = 0; i < TOTAL_WEIGHT_PER_KEY; i++) begin : GEN_MULTWRAP_Q
+        for (i = 0; i < LP_TOTAL_WEIGHT_PER_KEY; i++) begin : GEN_MULTWRAP_Q
             if (i == 0) begin : Q1
                 multwrap_wbram #(.MEM_INIT_FILE("mem_q1.mem")) q1 (
                     .clk(clk),
@@ -102,10 +103,10 @@ module linear_projection #(
     endgenerate
 
     // ************************** Generating K keys **************************
-    logic [TOTAL_WEIGHT_PER_KEY-1:0] acc_done_k, systolic_finish_k;
+    logic [LP_TOTAL_WEIGHT_PER_KEY-1:0] acc_done_k, systolic_finish_k;
     genvar j;
     generate
-        for (j = 0; j < TOTAL_WEIGHT_PER_KEY; j++) begin : GEN_MULTWRAP_K
+        for (j = 0; j < LP_TOTAL_WEIGHT_PER_KEY; j++) begin : GEN_MULTWRAP_K
             if (j == 0) begin : K1
                 multwrap_wbram #(.MEM_INIT_FILE("mem_k1.mem")) k1 (
                     .clk(clk),
@@ -170,10 +171,10 @@ module linear_projection #(
     endgenerate
 
     // ************************** Generating V keys **************************
-    logic [TOTAL_WEIGHT_PER_KEY-1:0] acc_done_v, systolic_finish_v;
+    logic [LP_TOTAL_WEIGHT_PER_KEY-1:0] acc_done_v, systolic_finish_v;
     genvar k;
     generate
-        for (k = 0; k < TOTAL_WEIGHT_PER_KEY; k++) begin : GEN_MULTWRAP_V
+        for (k = 0; k < LP_TOTAL_WEIGHT_PER_KEY; k++) begin : GEN_MULTWRAP_V
             if (k == 0) begin : V1
                 multwrap_wbram #(.MEM_INIT_FILE("mem_v1.mem")) v1 (
                     .clk(clk),
