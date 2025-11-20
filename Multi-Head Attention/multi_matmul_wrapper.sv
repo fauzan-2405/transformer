@@ -60,14 +60,14 @@ module multi_matmul_wrapper #(
     assign acc_done_wrap = &acc_done_array;
     assign systolic_finish_wrap  = &systolic_finish_array;
 
-    always @(posedge clk) begin
+    /*always @(posedge clk) begin
         if (~rst_n) begin
             // Output
             for (int i = 0; i < TOTAL_INPUT_W; i = i +1) begin
                 out_multi_matmul[i] <= '0;
             end
         end
-    end
+    end*/
 
 
 
