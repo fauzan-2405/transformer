@@ -19,7 +19,7 @@ module mac_v2 #(
     input [WIDTH_B-1:0] in_north0, in_north1,
     input [WIDTH_A-1:0] in_west0, in_west2,
     output wire accumulator_done, systolic_finish,
-    output wire [WIDTH_OUT*CHUNK_SIZE-1:0] out
+    output wire [WIDTH_OUT*CHUNK_SIZE-1:0] out_mac
 );
     // Systolic
     // wire done_systolic; // output from systolic
@@ -30,7 +30,7 @@ module mac_v2 #(
     );
 
     accumulator_v2 #(.WIDTH_OUT(WIDTH_OUT), .FRAC_WIDTH_OUT(FRAC_WIDTH_OUT), .BLOCK_SIZE(BLOCK_SIZE), .CHUNK_SIZE(CHUNK_SIZE), .INNER_DIMENSION(INNER_DIMENSION)) 
-        acc (.clk(clk), .rst_n(reset_acc), .in(out_systolic), .systolic_done(systolic_finish), .accumulator_done(accumulator_done), .out(out)
+        acc (.clk(clk), .rst_n(reset_acc), .in(out_systolic), .systolic_done(systolic_finish), .accumulator_done(accumulator_done), .out_accum(out_mac)
     );
 
 endmodule

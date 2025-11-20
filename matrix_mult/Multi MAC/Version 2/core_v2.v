@@ -68,7 +68,7 @@ module core_v2 #(
     mac_v2 #(.BLOCK_SIZE(BLOCK_SIZE), .INNER_DIMENSION(INNER_DIMENSION), .CHUNK_SIZE(CHUNK_SIZE), .WIDTH_A(WIDTH_A), .FRAC_WIDTH_A(FRAC_WIDTH_A), .WIDTH_B(WIDTH_B), .FRAC_WIDTH_B(FRAC_WIDTH_B), .WIDTH_OUT(WIDTH_OUT), .FRAC_WIDTH_OUT(FRAC_WIDTH_OUT)) 
         mac_0 (
         .clk(clk), .en(en), .rst_n(rst_n), .reset_acc(reset_acc), .in_north0(out_mux0_n), .in_north1(out_mux1_n), .in_west0(out_mux0_w), .in_west2(out_mux2_w),
-        .accumulator_done(accumulator_done), .systolic_finish(systolic_finish), .out(out)
+        .accumulator_done(accumulator_done), .systolic_finish(systolic_finish), .out_mac(out)
     );
 
 endmodule
