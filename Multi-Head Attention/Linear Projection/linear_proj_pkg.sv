@@ -1,18 +1,16 @@
 // This package contains parameters used in linear projection operation
-// TODO: 
-// 1. Review the dimension of ADDR_WIDTH_* parameter
 
 package linear_proj_pkg;
     // Parameterization
-    parameter int WIDTH_A        = 16;
-    parameter int FRAC_WIDTH_A   = 8;
-    parameter int WIDTH_B        = 16;
-    parameter int FRAC_WIDTH_B   = 8;
-    parameter int WIDTH_OUT      = 16;
-    parameter int FRAC_WIDTH_OUT = 8;
+    parameter int WIDTH_A        = top_pkg::WIDTH_A;
+    parameter int FRAC_WIDTH_A   = top_pkg::FRAC_WIDTH_A;
+    parameter int WIDTH_B        = top_pkg::WIDTH_B;
+    parameter int FRAC_WIDTH_B   = top_pkg::FRAC_WIDTH_B;
+    parameter int WIDTH_OUT      = top_pkg::WIDTH_OUT;
+    parameter int FRAC_WIDTH_OUT = top_pkg::FRAC_WIDTH_OUT;
 
-    parameter int BLOCK_SIZE     = 2; 
-    parameter int CHUNK_SIZE     = 4;
+    parameter int BLOCK_SIZE     = top_pkg::BLOCK_SIZE; 
+    parameter int CHUNK_SIZE     = top_pkg::CHUNK_SIZE;
 
     parameter int A_OUTER_DIMENSION = 8;
     parameter int B_OUTER_DIMENSION = 8;
