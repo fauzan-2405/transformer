@@ -21,22 +21,24 @@ module self_attention_head #(
         .FRAC_WIDTH_OUT(FRAC_WIDTH_OUT),
         .BLOCK_SIZE(BLOCK_SIZE),
         .CHUNK_SIZE(CHUNK_SIZE),
-        .INNER_DIMENSION(),
-        .TOTAL_MODULES(),
-        .TOTAL_INPUT_W(),
-        .NUM_CORES_A(),
-        .NUM_CORES_B()
+        .INNER_DIMENSION(INNER_DIMENSION_Qn_KnT),
+        .TOTAL_MODULES(TOTAL_MODULES_LP),
+        .TOTAL_INPUT_W(TOTAL_INPUT_W_Qn_KnT),
+        .NUM_CORES_A(NUM_CORES_A_Qn_KnT),
+        .NUM_CORES_B(NUM_CORES_B_Qn_KnT)
     ) matmul_Qn_KnT (
         .clk(clk),
-        .rst_n(internal_rst_n),
-        .en(en_module),
-        .reset_acc(internal_reset_acc),
-        .input_w(in_multi_matmul), 
-        .input_n(w_mat_doutb), 
-        .acc_done_wrap(acc_done_wrap), 
-        .systolic_finish_wrap(systolic_finish_wrap),
-        .out_multi_matmul(out_multwrap_wbram)
-    )
+        .rst_n(rst_n),
+        .en(),
+        .reset_acc(),
+        .input_w(), 
+        .input_n(), 
+        .acc_done_wrap(), 
+        .systolic_finish_wrap(),
+        .out_multi_matmul()
+    );
+
+    // ************************** 4-BIT SHIFTER **************************
 
 
 endmodule
