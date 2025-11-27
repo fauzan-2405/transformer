@@ -11,4 +11,8 @@ package top_pkg;
 
     parameter int BLOCK_SIZE     = 2; 
     parameter int CHUNK_SIZE     = 4;
+
+    parameter TOTAL_MODULES_K    = 4; // N parameters
+    parameter TOTAL_MODULES_Q    = 4; // P parameters
+    parameter TOTAL_MODULES_V    = 4; // T parameters
 endpackage
