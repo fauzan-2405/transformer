@@ -1,6 +1,6 @@
 `timescale 1ns/1ps
 
-module tb_4bit_rshift;
+module tb_rshift;
 
     // ===========================================================
     // Parameters (match your module!)
@@ -30,7 +30,7 @@ module tb_4bit_rshift;
     // ===========================================================
     // Instantiate DUT
     // ===========================================================
-    4bit_rshift #(
+    rshift #(
         .WIDTH_OUT(WIDTH_OUT),
         .CHUNK_SIZE(CHUNK_SIZE),
         .TOTAL_MODULES(TOTAL_MODULES),

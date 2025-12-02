@@ -1,4 +1,7 @@
-module 4bit_rshift #(
+// rshift.sv
+// Used to arithmetic right shift
+
+module rshift #(
     parameter WIDTH_A = 16,
     parameter FRAC_WIDTH_A = 8,
     parameter WIDTH_B = 16,
