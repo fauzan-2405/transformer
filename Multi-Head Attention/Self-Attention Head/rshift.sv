@@ -17,6 +17,7 @@ module rshift #(
 ) (
     input  logic clk,
     input  logic rst_n, 
+    input  logic in_valid,
     input  logic [(WIDTH_OUT*CHUNK_SIZE*NUM_CORES_A*NUM_CORES_B*TOTAL_MODULES)-1:0]
             in_4bit_rshift [TOTAL_INPUT_W],
 
@@ -32,43 +33,39 @@ module rshift #(
     logic [(WIDTH_OUT*CHUNK_SIZE*NUM_CORES_A*NUM_CORES_B*TOTAL_MODULES)-1:0]
           next_shifted [TOTAL_INPUT_W];
 
-    //integer w, e;
     always_comb begin
-        /*for (w = 0; w < TOTAL_INPUT_W; w++)
-            next_shifted[w] = '0;*/
-
         for (integer w_i = 0; w_i < TOTAL_INPUT_W; w_i++) begin
+            // Arithmetic shift behavior
             for (integer e_i = 0; e_i < ELEMENTS_PER_VEC; e_i++) begin
                 int high = VECTOR_BITS - e_i*WIDTH_OUT - 1;
 
                 logic signed [WIDTH_OUT-1:0] tmp_elem;
                 logic signed [WIDTH_OUT-1:0] shifted;
 
-                tmp_elem = in_4bit_rshift[w][high -: WIDTH_OUT];
+                tmp_elem = in_4bit_rshift[w_i][high -: WIDTH_OUT];
                 shifted  = tmp_elem >>> 4;
 
-                next_shifted[w][high -: WIDTH_OUT] = shifted;
+                next_shifted[w_i][high -: WIDTH_OUT] = shifted;
             end
         end
     end
 
-    logic valid_d;   
     always_ff @(posedge clk) begin
         if (!rst_n) begin
             // active-low reset
-            for (integer w_j = 0; w_j < TOTAL_INPUT_W; w_j++)
+            for (integer w_j = 0; w_j < TOTAL_INPUT_W; w_j++) begin
                 out_shifted[w_j] <= '0;
+            end
 
-            valid_d   <= 1'b0;
             out_valid <= 1'b0;
 
         end else begin
             // register new data
-            for (integer w_k = 0; w_k < TOTAL_INPUT_W; w_k++)
+            for (integer w_k = 0; w_k < TOTAL_INPUT_W; w_k++) begin
                 out_shifted[w_k] <= next_shifted[w_k];
+            end
 
-            valid_d   <= 1'b1;        
-            out_valid <= valid_d;     
+            out_valid   <= in_valid;        
         end
     end
 

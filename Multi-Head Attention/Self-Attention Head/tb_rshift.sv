@@ -22,6 +22,7 @@ module tb_rshift;
     // ===========================================================
     logic clk;
     logic rst_n;
+    logic in_valid;
 
     logic [VECTOR_BITS-1:0] in_4bit_rshift [TOTAL_INPUT_W];
     logic [VECTOR_BITS-1:0] out_shifted    [TOTAL_INPUT_W];
@@ -40,6 +41,7 @@ module tb_rshift;
     ) dut (
         .clk(clk),
         .rst_n(rst_n),
+        .in_valid(in_valid),
         .in_4bit_rshift(in_4bit_rshift),
         .out_shifted(out_shifted),
         .out_valid(out_valid)
@@ -57,6 +59,7 @@ module tb_rshift;
     task apply_reset;
         begin
             rst_n = 0;
+            in_valid = 0;
             repeat(3) @(posedge clk);
             rst_n = 1;
         end
@@ -65,7 +68,7 @@ module tb_rshift;
     // ===========================================================
     // Golden reference computation
     // ===========================================================
-    function automatic [VECTOR_BITS-1:0]
+    /*function automatic [VECTOR_BITS-1:0]
         golden_shift(input [VECTOR_BITS-1:0] vec);
 
         logic signed [WIDTH_OUT-1:0] element;
@@ -84,7 +87,7 @@ module tb_rshift;
                 golden_shift[high -: WIDTH_OUT] = shifted;
             end
         end
-    endfunction
+    endfunction*/
 
     // ===========================================================
     // Test sequence
@@ -114,7 +117,9 @@ module tb_rshift;
                 end
             end
 
-            @(posedge clk);
+            in_valid <= 1;
+
+            //@(posedge clk);
 
             /*if (out_valid) begin
                 for (w = 0; w < TOTAL_INPUT_W; w++) begin
