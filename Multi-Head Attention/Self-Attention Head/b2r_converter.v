@@ -1,6 +1,7 @@
 // b2r_converter.v VERSIONN TWOOO
 // Used to convert block-per-block input into row-per-row (normal matrix ordering)
 // WIDTH*CHUNK_SIZE*NUM_CORES = COL_OPERATION (in this computation)
+// TODO check line 113 because it will break 12x6 example
 
 module b2r_converter #(
     parameter WIDTH         = 16,
