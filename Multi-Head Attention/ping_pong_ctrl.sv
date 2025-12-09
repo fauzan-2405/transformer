@@ -7,9 +7,15 @@ module ping_pong_ctrl #(
     parameter XXX = YYY,
 ) (
     input logic clk, rst_n,
+    input logic in_valid,
 
-    output logic                    bram_ena_mux, bram_enb_mux,
-    output logic [ADDR_WIDTH-1:0]   bram_addra_mux, bram_addrb_mux,
+    // Bank 0 Interface
+    output logic                     bank0_ena_ctrl, bank0_enb_ctrl,
+    output logic [ADDR_WIDTH-1:0]    bank0_addra_ctrl, bank0_addrb_ctrl,
+
+    // Bank 1 Interface
+    output logic                     bank1_ena_ctrl, bank1_enb_ctrl,
+    output logic [ADDR_WIDTH-1:0]    bank1_addra_ctrl, bank1_addrb_ctrl,
 );
     
 
