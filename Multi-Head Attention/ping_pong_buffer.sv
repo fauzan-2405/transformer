@@ -21,16 +21,15 @@ module ping_pong_buffer #(
 ) (
     input logic clk, rst_n,
 
-    // BRAM Interface
-    input logic                     bram_ena, bram_enb,
-    input logic [ADDR_WIDTH-1:0]    bram_addra, bram_addrb,
-    input logic [IN_WIDTH-1:0]      bram_data [TOTAL_INPUT_W],
+    // Bank 0 Interface
+    input logic                     bank0_ena, bank0_enb,
+    input logic [ADDR_WIDTH-1:0]    bank0_addra, bank0_addrb,
+    input logic [IN_WIDTH-1:0]      bank0_din [TOTAL_INPUT_W],
 
-    // Read Interface (Stage Y)
-    input logic                     rd_ready,
-    output logic                    rd_valid,
-    output logic [MODULE_WIDTH-1:0] rd_data, 
-    output logic [ADDR_WIDTH-1:0]   rd_addr
+    // Bank 1 Interface
+    input logic                     bank1_ena, bank1_enb,
+    input logic [ADDR_WIDTH-1:0]    bank1_addra, bank1_addrb,
+    input logic [IN_WIDTH-1:0]      bank1_din [TOTAL_INPUT_W],
 
     // Debug
     output logic                active_bank_wr,
