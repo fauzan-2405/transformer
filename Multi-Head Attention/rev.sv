@@ -1,168 +1,179 @@
-// ======================================================================
-//  ping_pong_bram_buffer.sv
-//  BRAM-based ping-pong buffer for streaming multi-module matmul outputs
-//
-//  - INPUT FORMAT:
-//      wr_data[TOTAL_INPUT_W] each packed as:
-//          { module[TOTAL_MODULES-1], ..., module[0] }
-//
-//  - STORED IN BRAM AS:
-//      input_index 0 →   addr 0            ... COL_X-1
-//      input_index 1 →   addr COL_X        ... 2*COL_X-1
-//
-//  - Each BRAM entry stores one module result:
-//        MODULE_WIDTH = WIDTH*CHUNK_SIZE*NUM_CORES_A*NUM_CORES_B
-//
-// ======================================================================
+// -------------------------------------------------------------
+// Ping-Pong BRAM Buffer
+// Stores output of (X × W) before feeding into next matmul stage
+// Supports:
+//   * TOTAL_INPUT_W parallel inputs (usually 2)
+//   * TOTAL_MODULES slices per input (MSB-first)
+//   * True Dual Port BRAM writes (Input0 on PortA, Input1 on PortB)
+//   * Ping-pong double-buffering to avoid overflow
+// -------------------------------------------------------------
 
 module ping_pong_bram_buffer #(
-    parameter WIDTH             = 16,
-    parameter CHUNK_SIZE        = 4,
-    parameter NUM_CORES_A       = 2,
-    parameter NUM_CORES_B       = 1,
-    parameter TOTAL_MODULES     = 4,
-    parameter TOTAL_INPUT_W     = 2,
+    parameter WIDTH              = 16,
+    parameter CHUNK_SIZE         = 4,
+    parameter NUM_CORES_A        = 2,
+    parameter NUM_CORES_B        = 1,
+    parameter TOTAL_MODULES      = 4,
+    parameter TOTAL_INPUT_W      = 2,       // usually 2
+    parameter COL_X              = 256,     // number of columns of the X output
 
-    // From your confirmation:
-    // COL_X == COL_SIZE_MAT_C (number of writes per input matrix)
-    parameter COL_X             = 32,  
+    // derived
+    parameter MODULE_WIDTH       = WIDTH * CHUNK_SIZE * NUM_CORES_A * NUM_CORES_B,
+    parameter IN_WIDTH           = MODULE_WIDTH * TOTAL_MODULES,
+    parameter TOTAL_ADDR         = COL_X * TOTAL_INPUT_W  // full addr space per bank
+) (
+    input  logic                       clk,
+    input  logic                       rst_n,
 
-    localparam MODULE_WIDTH     = WIDTH * CHUNK_SIZE * NUM_CORES_A * NUM_CORES_B,
-    localparam IN_WIDTH         = MODULE_WIDTH * TOTAL_MODULES,
-    localparam TOTAL_DEPTH      = COL_X * TOTAL_INPUT_W
-)(
-    input  logic clk,
-    input  logic rst_n,
+    // Input valid from top_linear_projection
+    input  logic                       wr_valid,
+    input  logic [IN_WIDTH-1:0]        wr_data [TOTAL_INPUT_W],
 
-    // ---------------- WR side ----------------
-    input  logic                 wr_valid,
-    input  logic [IN_WIDTH-1:0]  wr_data [TOTAL_INPUT_W],
-    output logic                 wr_ready,
+    // Output interface for next matmul
+    input  logic                       rd_en,
+    input  logic [$clog2(TOTAL_ADDR)-1:0] rd_addr,
+    output logic [MODULE_WIDTH-1:0]    rd_data,
 
-    // ---------------- RD side ----------------
-    input  logic                 rd_ready,
-    output logic                 rd_valid,
-    output logic [MODULE_WIDTH-1:0] rd_data,
-    output logic [$clog2(TOTAL_DEPTH)-1:0] rd_addr
+    // Status
+    output logic                       bank0_valid,
+    output logic                       bank1_valid,
+    output logic                       active_bank  // bank currently being written
 );
 
-    // ------------------------------------------------------------------
-    //  Ping-pong state
-    // ------------------------------------------------------------------
-    logic ping_is_write;
-    logic [$clog2(TOTAL_DEPTH)-1:0] wr_addr;
-    logic [$clog2(TOTAL_DEPTH)-1:0] rd_addr_int;
+    // ---------------------------------------------------------
+    // Internal registers
+    // ---------------------------------------------------------
+    logic [0:0] curr_bank;   // 0 or 1
+    logic [$clog2(COL_X)-1:0] wr_idx;
 
-    assign rd_addr = rd_addr_int;
+    assign active_bank = curr_bank;
 
-    // ==================================================================
-    //  Generate two BRAMs: BRAM0 and BRAM1
-    // ==================================================================
-    logic [MODULE_WIDTH-1:0] dout0, dout1;
+    // Valid flags
+    logic bank_valid [1:0];
 
-    // BRAM 0
-    xpm_memory_sdpram #(
-        .ADDR_WIDTH_A  ($clog2(TOTAL_DEPTH)),
-        .ADDR_WIDTH_B  ($clog2(TOTAL_DEPTH)),
-        .READ_DATA_WIDTH_B(MODULE_WIDTH),
+    assign bank0_valid = bank_valid[0];
+    assign bank1_valid = bank_valid[1];
+
+    // ---------------------------------------------------------
+    // BRAM Declaration (Ping-Pong: 2 banks)
+    // We pack both banks into a single large TDPRAM instance:
+    //   addr[MSB] selects bank (0 or 1)
+    //   addr[LSBs] index inside bank
+    // ---------------------------------------------------------
+
+    localparam ADDR_BITS = $clog2(TOTAL_ADDR);
+    localparam BANK_ADDR_BITS = $clog2(TOTAL_ADDR);
+
+    // Single TDPRAM with 2×TOTAL_ADDR rows:
+    // addr = {bank_bit, internal_addr}
+    localparam TOTAL_DEPTH = 2 * TOTAL_ADDR;
+
+    logic [MODULE_WIDTH-1:0] bram_dout_a, bram_dout_b;
+
+    // ---------------------------------------------------------
+    // Combine addresses
+    // ---------------------------------------------------------
+    logic [$clog2(TOTAL_DEPTH)-1:0] portA_addr, portB_addr, portRd_addr;
+
+    // Write address calculation:
+    //   Input 0 → address = wr_idx
+    //   Input 1 → address = wr_idx + COL_X
+    logic [$clog2(TOTAL_ADDR)-1:0] wr_addr_in0;
+    logic [$clog2(TOTAL_ADDR)-1:0] wr_addr_in1;
+
+    assign wr_addr_in0 = wr_idx;
+    assign wr_addr_in1 = wr_idx + COL_X;
+
+    assign portA_addr = {curr_bank, wr_addr_in0};
+    assign portB_addr = {curr_bank, wr_addr_in1};
+    assign portRd_addr = {~curr_bank, rd_addr};  
+    // downstream always reads the *other* bank
+
+    // ---------------------------------------------------------
+    // BRAM Instance
+    // True Dual Port, 2×TOTAL_ADDR deep
+    // ---------------------------------------------------------
+
+    xpm_memory_tdpram #(
+        .ADDR_WIDTH_A($clog2(TOTAL_DEPTH)),
+        .ADDR_WIDTH_B($clog2(TOTAL_DEPTH)),
+        .READ_DATA_WIDTH_A(MODULE_WIDTH),
         .WRITE_DATA_WIDTH_A(MODULE_WIDTH),
+        .READ_DATA_WIDTH_B(MODULE_WIDTH),
+        .WRITE_DATA_WIDTH_B(MODULE_WIDTH),
+        .BYTE_WRITE_WIDTH_A(MODULE_WIDTH),
+        .BYTE_WRITE_WIDTH_B(MODULE_WIDTH),
         .MEMORY_SIZE(TOTAL_DEPTH * MODULE_WIDTH),
-        .WRITE_MODE_B("no_change")
-    ) bram0 (
-        .clka(clk), .addra(wr_addr), .dina(/* filled below */), .wea(/* filled below */),
-        .clkb(clk), .addrb(rd_addr_int), .doutb(dout0),
-        .ena(1), .enb(1)
+        .MEMORY_INIT_FILE("none"),
+        .MEMORY_INIT_PARAM("0"),
+        .READ_LATENCY_A(1),
+        .READ_LATENCY_B(1),
+        .CLOCKING_MODE("common_clock"),
+        .WRITE_MODE_A("write_first"),
+        .WRITE_MODE_B("write_first")
+    ) bram_pingpong (
+        .clka(clk),
+        .clkb(clk),
+        .rsta(~rst_n),
+        .rstb(~rst_n),
+
+        // Write Input 0 → Port A
+        .ena(wr_valid),
+        .wea(wr_valid),
+        .addra(portA_addr),
+        .dina(extract_module(wr_data[0], META_IDX)),
+        .douta(bram_dout_a),
+
+        // Write Input 1 → Port B
+        .enb(wr_valid),
+        .web(wr_valid),
+        .addrb(portB_addr),
+        .dinb(extract_module(wr_data[1], META_IDX)),
+        .doutb(bram_dout_b)
     );
 
-    // BRAM 1
-    xpm_memory_sdpram #(
-        .ADDR_WIDTH_A  ($clog2(TOTAL_DEPTH)),
-        .ADDR_WIDTH_B  ($clog2(TOTAL_DEPTH)),
-        .READ_DATA_WIDTH_B(MODULE_WIDTH),
-        .WRITE_DATA_WIDTH_A(MODULE_WIDTH),
-        .MEMORY_SIZE(TOTAL_DEPTH * MODULE_WIDTH),
-        .WRITE_MODE_B("no_change")
-    ) bram1 (
-        .clka(clk), .addra(wr_addr), .dina(/* filled below */), .wea(/* filled below */),
-        .clkb(clk), .addrb(rd_addr_int), .doutb(dout1),
-        .ena(1), .enb(1)
+    // ---------------------------------------------------------
+    // MSB-first slicing function
+    // ---------------------------------------------------------
+    function automatic [MODULE_WIDTH-1:0] extract_module (
+        input [IN_WIDTH-1:0] bus,
+        input int idx
     );
+        extract_module = bus[IN_WIDTH - (idx+1)*MODULE_WIDTH +: MODULE_WIDTH];
+    endfunction
 
-    // ------------------------------------------------------------------
-    //  Select which BRAM is write / read
-    // ------------------------------------------------------------------
-    wire writing_to_bram0 =  ping_is_write;
-    wire writing_to_bram1 = ~ping_is_write;
-
-    logic bram_we;
-    logic [MODULE_WIDTH-1:0] bram_din;
-
-    assign bram_we = wr_valid && wr_ready;
-
-    // Pick correct BRAM input
-    assign bram0.wea  = writing_to_bram0 ? bram_we : 1'b0;
-    assign bram1.wea  = writing_to_bram1 ? bram_we : 1'b0;
-    assign bram0.dina = writing_to_bram0 ? bram_din : '0;
-    assign bram1.dina = writing_to_bram1 ? bram_din : '0;
-
-    // RD side mux
-    assign rd_data = ping_is_write ? dout1 : dout0;
-
-    // ------------------------------------------------------------------
-    //  WRITE LOGIC — Slice wr_data into TOTAL_MODULES blocks
-    // ------------------------------------------------------------------
-    integer inp, mod_i;
-    always_comb begin
-        bram_din = '0;
-        // not used here, because each BRAM write writes only 1 module
-    end
-
-    // Write address generation & slicing
+    // ---------------------------------------------------------
+    // Write index and bank switching logic
+    // ---------------------------------------------------------
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
-            wr_addr <= 0;
-            ping_is_write <= 0;
+            curr_bank     <= 0;
+            wr_idx        <= 0;
+            bank_valid[0] <= 0;
+            bank_valid[1] <= 0;
         end else begin
-            if (wr_valid && wr_ready) begin
+            if (wr_valid) begin
+                if (wr_idx == COL_X-1) begin
+                    // Mark bank as valid
+                    bank_valid[curr_bank] <= 1'b1;
 
-                // Determine which input index we are writing (0 or 1)
-                // and which module slice
-                int which_input  = wr_addr / COL_X;     // 0 or 1
-                int module_index = wr_addr % COL_X;     // 0..(COL_X-1)
+                    // Switch bank
+                    curr_bank <= ~curr_bank;
 
-                // ---- Extract MODULE_WIDTH slice from wr_data ----
-                bram_din <= wr_data[which_input][(module_index+1)*MODULE_WIDTH - 1 : (module_index)*MODULE_WIDTH ];
+                    // Clear next bank valid flag (it will be rewritten)
+                    bank_valid[~curr_bank] <= 1'b0;
 
-                // Increment write address
-                wr_addr <= wr_addr + 1;
-
-                // When full buffer written → flip ping-pong
-                if (wr_addr == TOTAL_DEPTH-1) begin
-                    wr_addr <= 0;
-                    ping_is_write <= ~ping_is_write;
+                    wr_idx <= 0;
+                end else begin
+                    wr_idx <= wr_idx + 1;
                 end
             end
         end
     end
 
-    assign wr_ready = !(wr_addr == TOTAL_DEPTH);
-
-    // ------------------------------------------------------------------
-    // READ SIDE
-    // ------------------------------------------------------------------
-    always_ff @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
-            rd_addr_int <= 0;
-            rd_valid <= 0;
-        end else begin
-            if (rd_ready) begin
-                rd_valid <= 1;
-                rd_addr_int <= rd_addr_int + 1;
-
-                if (rd_addr_int == TOTAL_DEPTH-1)
-                    rd_addr_int <= 0;
-            end
-        end
-    end
+    // ---------------------------------------------------------
+    // Output read data (Port A or B? We choose B)
+    // ---------------------------------------------------------
+    assign rd_data = bram_dout_b;
 
 endmodule
