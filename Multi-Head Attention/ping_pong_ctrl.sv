@@ -32,7 +32,7 @@ module ping_pong_ctrl #(
     assign bank0_addra_ctrl = (current_bank[0]) ? bank0_addra_wr : bank0_addra_rd;
     assign bank0_addrb_ctrl = (current_bank[0]) ? bank0_addrb_wr : bank0_addrb_rd;
     
-    // For bank 0
+    // For bank 1
     logic [ADDR_WIDTH-1:0] bank1_addra_rd, bank1_addra_wr;
     logic [ADDR_WIDTH-1:0] bank1_addrb_rd, bank1_addrb_wr;
     assign bank1_addra_ctrl = (current_bank[1]) ? bank1_addra_wr : bank1_addra_rd;
@@ -65,13 +65,17 @@ module ping_pong_ctrl #(
             // Bank controllers    
             bank0_ena_ctrl      <= 0;
             bank0_enb_ctrl      <= 0;
-            bank0_addra_ctrl    <= '0;
-            bank0_addrb_ctrl    <= '0;
+            bank0_addra_wr      <= '0;
+            bank0_addrb_wr      <= COL_X; // Because we started at the new line
+            bank0_addra_rd      <= '0;
+            bank0_addrb_rd      <= '0;
             
             bank1_ena_ctrl      <= 0;
             bank1_enb_ctrl      <= 0;
-            bank1_addra_ctrl    <= '0;
-            bank1_addrb_ctrl    <= '0;
+            bank1_addra_wr      <= '0;
+            bank1_addrb_wr      <= COL_X; // Because we started at the new line
+            bank1_addra_rd      <= '0;
+            bank1_addrb_rd      <= '0;
 
             current_bank        <= 2'b01;   // At reset, bank 0 is writing (marked by 1) and bank 1 is reading (marked by 0)
             slicing_idx         <= '0;      // For slicing the input into MODULE_WIDTH using extract_module func
@@ -83,86 +87,90 @@ module ping_pong_ctrl #(
             acc_done_wrap_d  <= acc_done_wrap;
             counter_acc_done <= 0;
 
-            if (current_bank[0] ^ current_bank[1]) begin
-                // ------------------------ Writing/Filling Phase ------------------------
-                // When one of the current bank is in writing phase (not two of them)
-                if (slicing_idx == TOTAL_MODULES -1) begin
+            // ------------------------ BANK 0 ------------------------
+            if (current_bank[0]) begin 
+                // ----------- Writing/Filling Phase -----------
+                if (slicing_idx == TOTAL_MODULES - 1) begin
                     slicing_idx <= '0;
-                    if (current_bank[0] == 1) begin
-                        bank0_wea_ctrl <= 0;
-                        bank0_web_ctrl <= 0;
-                    end
-                    else if (current_bank[1] == 1) begin
-                        bank1_web_ctrl <= 0;
-                        bank1_web_ctrl <= 0;
+                    bank0_wea_ctrl <= 0;
+                    bank0_web_ctrl <= 0;
+                    if ((bank0_addra_wr == COL_X -1) && (bank0_addrb_wr) == 2*COL_X - 1) begin // Both BRAMs are fully filled
+                        bank0_addra_wr      <= '0;
+                        bank0_addrb_wr      <= COL_X; // Because we started at the new line
+                        current_bank[0]     <= ~current_bank[0]; // Toggle '0' aka read mode
                     end
                 end else begin
                     slicing_idx <= slicing_idx + 1;
-                    // Toggle on the bank*_write control based on the current_bank
-                    if (current_bank[0] == 1) begin
-                        bank0_wea_ctrl <= 1;
-                        bank0_web_ctrl <= 1;
+                    bank0_wea_ctrl <= 1;
+                    bank0_web_ctrl <= 1;
+                    // Address Generation, when slicing idx change:
+                    bank0_addra_wr  <= bank0_addra_wr + 1;
+                    bank0_addrb_wr  <= bank0_addrb_wr + 1;
+                end
+            end else begin
+                // --------------- Reading Phase ---------------
+                bank0_wea_ctrl <= 0; // Safeguard to ensure the write enables are turned off
+                bank0_web_ctrl <= 0;
+
+                // Imported from linear_proj_ctrl.sv
+                internal_rst_n <= ~systolic_finish_wrap;
+                if (systolic_finish_wrap) begin
+                    internal_reset_acc <= ~acc_done_wrap;
+                end
+
+                // Counter Update
+                if (systolic_finish_wrap) begin
+                    // counter indicates the matrix C element iteration
+                    if (counter == ((INNER_DIMENSION/BLOCK_SIZE) - 1)) begin 
+                        counter <=0;
                     end
-                    else if (current_bank[1] == 1) begin
-                        bank1_web_ctrl <= 1;
-                        bank1_web_ctrl <= 1;
+                    else begin
+                        counter <= counter + 1;
+                    end
+                    // Address controller
+                    /* These are the old controllers when I use only 1 port for input matrix
+                    in_mat_rd_addrb <= counter + (INNER_DIMENSION/BLOCK_SIZE)*counter_row;
+                    we_mat_rd_addrb <= counter + (INNER_DIMENSION/BLOCK_SIZE)*counter_col;
+                    */
+                    bank0_addra_rd <= counter + (INNER_DIMENSION/BLOCK_SIZE)*(counter_row*2); // same as the old one but port A used for even addresses (starting from 0)
+                    bank0_addrb_rd <= counter + (INNER_DIMENSION/BLOCK_SIZE)*(counter_row*2 + 1); // and port B used for odd addresses (starting from 1)`
+                    w_mat_rd_addrb <= counter + (INNER_DIMENSION/BLOCK_SIZE)*counter_col;
+                end
+
+                // Column/Row Update
+                if (acc_done_wrap_rising) begin
+                    // counter_row indicates the i-th row of the matrix C that we are working right now
+                    // counter_col indicates the i-th column of the matrix C that we are working right now
+
+                    // Check if we already at the end of the MAT C column
+                    if (counter_col == (COL_SIZE_MAT_C - 1)) begin
+                        counter_col <= 0;
+                        counter_row <= counter_row + 1;
+                    end else begin
+                        counter_col <= counter_col + 1;
+                    end
+
+                    counter_acc_done <= 1;
+
+                    // Flag assigning for 'done' variable
+                    if (flag != MAX_FLAG) begin
+                        flag <= flag + 1;   
                     end
                 end
-
-                // ------------------------ Address Generation Phase ------------------------
-                // Port A & B Controller
-                
             end
 
-            // ------------------------ Address Generation Phase ------------------------
-            // Port A & B Controller
-            if ((in_mat_wr_addra >= NUM_A_ELEMENTS-1-1)) begin // enable AFTER BOTH of BRAMs are filled is HIGH
-                en_module <= 1'b1;// Control write enable of each BRAMs for both ports
-            end
-
-            // Internal Reset Control
-            if (en_module) begin
-                write_phase     <= 1'b0;
-                internal_rst_n  <= ~systolic_finish_wrap;
-            end
-
-            if (systolic_finish_wrap) begin
-                internal_reset_acc <= ~acc_done_wrap;
-            end
-
-            // Counter Update
-            if (systolic_finish_wrap) begin
-                // counter indicates the matrix C element iteration
-                if (counter == ((INNER_DIMENSION/BLOCK_SIZE) - 1)) begin 
-                    counter <=0;
-                end
-                else begin
-                    counter <= counter + 1;
-                end
-                // Address controller
-                /* These are the old controllers when I use only 1 port for input matrix
-                in_mat_rd_addrb <= counter + (INNER_DIMENSION/BLOCK_SIZE)*counter_row;
-                we_mat_rd_addrb <= counter + (INNER_DIMENSION/BLOCK_SIZE)*counter_col;
-                */
-                in_mat_rd_addra <= counter + (INNER_DIMENSION/BLOCK_SIZE)*(counter_row*2); // same as the old one but port A used for even addresses (starting from 0)
-                in_mat_rd_addrb <= counter + (INNER_DIMENSION/BLOCK_SIZE)*(counter_row*2 + 1); // and port B used for odd addresses (starting from 1)`
-                w_mat_rd_addrb <= counter + (INNER_DIMENSION/BLOCK_SIZE)*counter_col;
-            end
-
-            // Column/Row Update
-            if (acc_done_wrap_rising) begin
-                // counter_row indicates the i-th row of the matrix C that we are working right now
-                // counter_col indicates the i-th column of the matrix C that we are working right now
-
-                // Check if we already at the end of the MAT C column
-                if (counter_col == (COL_SIZE_MAT_C - 1)) begin
-                    counter_col <= 0;
-                    counter_row <= counter_row + 1;
+            // ------------------------ BANK 1 ------------------------
+            if (current_bank[1]) begin
+                // ----------- Writing/Filling Phase -----------
+                if (slicing_idx == TOTAL_MODULES - 1) begin
+                    slicing_idx <= '0;
+                    bank0_wea_ctrl <= 0;
+                    bank0_web_ctrl <= 0;
                 end else begin
-                    counter_col <= counter_col + 1;
+                    slicing_idx <= slicing_idx + 1;
+                    bank0_wea_ctrl <= 1;
+                    bank0_web_ctrl <= 1;
                 end
-
-                counter_acc_done <= 1;
             end
 
         end
