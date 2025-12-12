@@ -5,18 +5,19 @@
 
 module ping_pong_buffer_n #(
     parameter WIDTH             = 16,
-    parameter NUM_CORES_A       = 2,
-    parameter NUM_CORES_B       = 1,
-    parameter TOTAL_MODULES     = 4,
+    parameter NUM_CORES_A       = 2, // DO NOT FORGET to swap NUM_CORES_A with NUM_CORES_B (TOTAL_MODULES) in this
+    parameter TOTAL_MODULES     = 1, // buffer because this is used to transpose the matrix
+    parameter NUM_CORES_B       = 4,
     parameter COL_X             = 16, // COL SIZE of matrix X (producer), we calculate it using C_COL_MAT_SIZE formula!!
     parameter COL_Y             = 16, // COL SIZE of matrix y (consumer) 
     parameter TOTAL_INPUT_W     = 2,
 
     localparam CHUNK_SIZE       = top_pkg::TOP_CHUNK_SIZE,
     localparam BLOCK_SIZE       = top_pkg::TOP_BLOCK_SIZE,
-    localparam MODULE_WIDTH     = WIDTH*CHUNK_SIZE*NUM_CORES_A*NUM_CORES_B,
-    localparam IN_WIDTH         = MODULE_WIDTH * TOTAL_MODULES,
-    localparam TOTAL_DEPTH      = COL_X * TOTAL_INPUT_W,
+    localparam SLICE_WIDTH      = WIDTH*CHUNK_SIZE*NUM_CORES_B,
+    localparam MODULE_WIDTH     = SLICE_WIDTH*TOTAL_INPUT_W,
+    localparam IN_WIDTH         = WIDTH*CHUNK_SIZE*TOTAL_MODULES*NUM_CORES_A,
+    localparam TOTAL_DEPTH      = COL_X * TOTAL_INPUT_W,    // ************** PLEASE REVISE THIS **************
     localparam MEMORY_SIZE      = TOTAL_DEPTH * MODULE_WIDTH,
     localparam int ADDR_WIDTH   = $clog2(TOTAL_DEPTH)
 ) (
@@ -42,11 +43,21 @@ module ping_pong_buffer_n #(
     // ************************************ Controller ************************************
     // MSB-first slicing function
     function automatic [MODULE_WIDTH-1:0] extract_module (
-        input [IN_WIDTH-1:0] bus,
+        input logic [IN_WIDTH-1:0] bus [TOTAL_INPUT_W],
         input int idx
     );
-        extract_module = bus[IN_WIDTH - (idx+1)*MODULE_WIDTH +: MODULE_WIDTH];
+        logic [MODULE_WIDTH-1:0] tmp;
+        int pos = MODULE_WIDTH;
+
+        for (int b = 0; b < TOTAL_INPUT_W; b++) begin
+            pos -= SLICE_WIDTH;
+            tmp[pos +: SLICE_WIDTH] =
+                bus[b][IN_WIDTH - (idx+1)*SLICE_WIDTH +: SLICE_WIDTH];
+        end
+
+        extract_module = tmp;
     endfunction
+
 
     // ************************************ Write BRAM ************************************
     xpm_memory_tdpram
