@@ -1,6 +1,7 @@
 // ping_pong_ctrl.sv
 // Used to control ping_pong_buffer
 // Basically utilizing the linear_proj_ctrl.sv but tweaks some of the settings
+// IN THE FUTURE: Check whether we need to toggle we*_ctrl via combinational or sequential
 
 module ping_pong_ctrl #(
     parameter TOTAL_MODULES = 4,
@@ -22,14 +23,27 @@ module ping_pong_ctrl #(
     output logic [ADDR_WIDTH-1:0]    w_bank1_addra_ctrl, w_bank1_addrb_ctrl,
 
     // ------------- North Input Interface -------------
+    // Bank 0 Interface
+    output logic                     n_bank0_ena_ctrl, n_bank0_enb_ctrl,            
+    output logic                     n_bank0_wea_ctrl, 
+    output logic [ADDR_WIDTH-1:0]    n_bank0_addra_ctrl, n_bank0_addrb_ctrl,
+
+    // Bank 1 Interface
+    output logic                     n_bank1_ena_ctrl, n_bank1_enb_ctrl,            
+    output logic                     n_bank1_wea_ctrl, 
+    output logic [ADDR_WIDTH-1:0]    n_bank1_addra_ctrl, n_bank1_addrb_ctrl
 
     output logic [$clog2(TOTAL_MODULES)-1:0] slicing_idx,
     output logic                             enable_matmul
 );
     // ************************************ Controller ************************************
-    logic [0:0] current_bank;
+    logic [0:0] current_bank;   // We use this logic for both of inputs,
+                                // So, current_bank[0] represents bank_0 for w_input & n_input
+                                // and current_bank[1] represents bank_1 for w_input & n_input
+                                // When either current_bank is 1, its state is writing
+                                // When it is 0, its state is reading
 
-    // ------------- For West Input -------------
+    // ------------------- For West Input -------------------
     // For bank 0
     logic [ADDR_WIDTH-1:0] w_bank0_addra_rd, w_bank0_addra_wr;
     logic [ADDR_WIDTH-1:0] w_bank0_addrb_rd, w_bank0_addrb_wr;
@@ -42,7 +56,23 @@ module ping_pong_ctrl #(
     assign w_bank1_addra_ctrl = (current_bank[1]) ? w_bank1_addra_wr : w_bank1_addra_rd;
     assign w_bank1_addrb_ctrl = (current_bank[1]) ? w_bank1_addrb_wr : w_bank1_addrb_rd;
 
-    // Logics for address generation
+    // ------------------- For North Input -------------------
+    // For north input, we explicitly use port A JUST for writing 
+    // and port B JUST for reading
+
+    // For bank 0
+    logic [ADDR_WIDTH-1:0] n_bank0_addra_wr;
+    logic [ADDR_WIDTH-1:0] n_bank0_addrb_rd;
+    assign w_bank0_addra_ctrl = (current_bank[0]) ? n_bank0_addra_wr : 0;
+    assign w_bank0_addrb_ctrl = (current_bank[0]) ? 0 : n_bank0_addrb_rd;
+
+     // For bank 1
+    logic [ADDR_WIDTH-1:0] n_bank1_addra_wr;
+    logic [ADDR_WIDTH-1:0] n_bank1_addrb_rd;
+    assign w_bank1_addra_ctrl = (current_bank[1]) ? n_bank1_addra_wr : 0;
+    assign w_bank1_addrb_ctrl = (current_bank[1]) ? 0 : n_bank1_addrb_rd;
+
+    // ------------- Logics for address generation -------------
     logic internal_rst_n, internal_reset_acc;
     logic acc_done_wrap_rising;
     logic acc_done_wrap_d;
@@ -66,7 +96,7 @@ module ping_pong_ctrl #(
             internal_rst_n      <= 1'b0;
             internal_reset_acc  <= 1'b0;
 
-            // Bank controllers    
+            // West Input Bank Controllers    
             w_bank0_ena_ctrl      <= 0;
             w_bank0_enb_ctrl      <= 0;
             w_bank0_addra_wr      <= '0;
@@ -81,12 +111,21 @@ module ping_pong_ctrl #(
             w_bank1_addra_rd      <= '0;
             w_bank1_addrb_rd      <= '0;
 
+            // North Input Bank Controllers
+            n_bank0_ena_ctrl      <= 0;
+            n_bank0_enb_ctrl      <= 0;
+            n_bank0_addra_wr      <= '0;
+            n_bank0_addrb_rd      <= '0;
+
             current_bank        <= 2'b01;   // At reset, bank 0 is writing (marked by 1) and bank 1 is reading (marked by 0)
             slicing_idx         <= '0;      // For slicing the input into MODULE_WIDTH using extract_module func
         end
         else begin
             w_bank0_ena_ctrl <= 1; w_bank0_enb_ctrl <= 1;
             w_bank1_ena_ctrl <= 1; w_bank1_enb_ctrl <= 1;
+
+            n_bank0_ena_ctrl <= 1; n_bank0_enb_ctrl <= 1;
+            n_bank1_ena_ctrl <= 1; n_bank1_enb_ctrl <= 1;
 
             acc_done_wrap_d  <= acc_done_wrap;
             counter_acc_done <= 0;
