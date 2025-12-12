@@ -1,8 +1,9 @@
-// ping_pong_buffer.sv
+// ping_pong_buffer_w.sv
 // Used to bridge linear projection results with Qn x KnT matmul in self-head attention (or other things)
 // The input consists NUM_CORES_A * NUM_CORES_B * TOTAL_MODULES blocks
+// This used as the WEST input
 
-module ping_pong_buffer #(
+module ping_pong_buffer_w #(
     parameter WIDTH             = 16,
     parameter NUM_CORES_A       = 2,
     parameter NUM_CORES_B       = 1,
