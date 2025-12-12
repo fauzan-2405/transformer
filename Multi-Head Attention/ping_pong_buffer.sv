@@ -20,22 +20,32 @@ module ping_pong_buffer #(
     localparam int ADDR_WIDTH   = $clog2(TOTAL_DEPTH)
 ) (
     input logic clk, rst_n,
+    input logic [$clog2(TOTAL_MODULES)-1:0] slicing_idx; 
 
     // Bank 0 Interface
     input logic                     bank0_ena, bank0_enb,
+    input logic                     bank0_wea, bank0_web,
     input logic [ADDR_WIDTH-1:0]    bank0_addra, bank0_addrb,
     input logic [IN_WIDTH-1:0]      bank0_din [TOTAL_INPUT_W],
 
     // Bank 1 Interface
     input logic                     bank1_ena, bank1_enb,
+    input logic                     bank1_web, bank1_web,
     input logic [ADDR_WIDTH-1:0]    bank1_addra, bank1_addrb,
     input logic [IN_WIDTH-1:0]      bank1_din [TOTAL_INPUT_W],
 
     // Debug
     output logic                active_bank_wr,
-    output logic                active_bank_rd,
+    output logic                active_bank_rd
 );
     // ************************************ Controller ************************************
+    // MSB-first slicing function
+    function automatic [MODULE_WIDTH-1:0] extract_module (
+        input [IN_WIDTH-1:0] bus,
+        input int idx
+    );
+        extract_module = bus[IN_WIDTH - (idx+1)*MODULE_WIDTH +: MODULE_WIDTH];
+    endfunction
 
     // ************************************ Write BRAM ************************************
     xpm_memory_tdpram
@@ -73,10 +83,10 @@ module ping_pong_buffer #(
         // Port A module ports
         .clka(clk),
         .rsta(~rst_n),
-        .ena(1'b0), 
+        .ena(bank0_ena), 
         .wea(),
         .addra(), 
-        .dina(),
+        .dina(extract_module(wr_data[0], slicing_idx)),
         .douta(),
         
         // Port B module ports
@@ -85,7 +95,7 @@ module ping_pong_buffer #(
         .enb(),
         .web('0), 
         .addrb(),
-        .dinb(),
+        .dinb(extract_module(wr_data[1], slicing_idx)),
         .doutb() // For now, we only use port B to read
     );
 
