@@ -10,15 +10,18 @@ module ping_pong_ctrl #(
     input logic in_valid,
     input logic acc_done_wrap, systolic_finish_wrap,
 
+    // ------------- West Input Interface -------------
     // Bank 0 Interface
-    output logic                     bank0_ena_ctrl, bank0_enb_ctrl,
-    output logic                     bank0_wea_ctrl, bank0_web_ctrl,
-    output logic [ADDR_WIDTH-1:0]    bank0_addra_ctrl, bank0_addrb_ctrl,
+    output logic                     w_bank0_ena_ctrl, w_bank0_enb_ctrl,
+    output logic                     w_bank0_wea_ctrl, w_bank0_web_ctrl,
+    output logic [ADDR_WIDTH-1:0]    w_bank0_addra_ctrl, w_bank0_addrb_ctrl,
 
     // Bank 1 Interface
-    output logic                     bank1_ena_ctrl, bank1_enb_ctrl,
-    output logic                     bank1_wea_ctrl, bank1_web_ctrl,
-    output logic [ADDR_WIDTH-1:0]    bank1_addra_ctrl, bank1_addrb_ctrl,
+    output logic                     w_bank1_ena_ctrl, w_bank1_enb_ctrl,
+    output logic                     w_bank1_wea_ctrl, w_bank1_web_ctrl,
+    output logic [ADDR_WIDTH-1:0]    w_bank1_addra_ctrl, w_bank1_addrb_ctrl,
+
+    // ------------- North Input Interface -------------
 
     output logic [$clog2(TOTAL_MODULES)-1:0] slicing_idx,
     output logic                             enable_matmul
@@ -26,17 +29,18 @@ module ping_pong_ctrl #(
     // ************************************ Controller ************************************
     logic [0:0] current_bank;
 
+    // ------------- For West Input -------------
     // For bank 0
-    logic [ADDR_WIDTH-1:0] bank0_addra_rd, bank0_addra_wr;
-    logic [ADDR_WIDTH-1:0] bank0_addrb_rd, bank0_addrb_wr;
-    assign bank0_addra_ctrl = (current_bank[0]) ? bank0_addra_wr : bank0_addra_rd;
-    assign bank0_addrb_ctrl = (current_bank[0]) ? bank0_addrb_wr : bank0_addrb_rd;
+    logic [ADDR_WIDTH-1:0] w_bank0_addra_rd, w_bank0_addra_wr;
+    logic [ADDR_WIDTH-1:0] w_bank0_addrb_rd, w_bank0_addrb_wr;
+    assign w_bank0_addra_ctrl = (current_bank[0]) ? w_bank0_addra_wr : w_bank0_addra_rd;
+    assign w_bank0_addrb_ctrl = (current_bank[0]) ? w_bank0_addrb_wr : w_bank0_addrb_rd;
     
     // For bank 1
-    logic [ADDR_WIDTH-1:0] bank1_addra_rd, bank1_addra_wr;
-    logic [ADDR_WIDTH-1:0] bank1_addrb_rd, bank1_addrb_wr;
-    assign bank1_addra_ctrl = (current_bank[1]) ? bank1_addra_wr : bank1_addra_rd;
-    assign bank1_addrb_ctrl = (current_bank[1]) ? bank1_addrb_wr : bank1_addrb_rd;
+    logic [ADDR_WIDTH-1:0] w_bank1_addra_rd, w_bank1_addra_wr;
+    logic [ADDR_WIDTH-1:0] w_bank1_addrb_rd, w_bank1_addrb_wr;
+    assign w_bank1_addra_ctrl = (current_bank[1]) ? w_bank1_addra_wr : w_bank1_addra_rd;
+    assign w_bank1_addrb_ctrl = (current_bank[1]) ? w_bank1_addrb_wr : w_bank1_addrb_rd;
 
     // Logics for address generation
     logic internal_rst_n, internal_reset_acc;
@@ -63,26 +67,26 @@ module ping_pong_ctrl #(
             internal_reset_acc  <= 1'b0;
 
             // Bank controllers    
-            bank0_ena_ctrl      <= 0;
-            bank0_enb_ctrl      <= 0;
-            bank0_addra_wr      <= '0;
-            bank0_addrb_wr      <= COL_X; // Because we started at the new line
-            bank0_addra_rd      <= '0;
-            bank0_addrb_rd      <= '0;
+            w_bank0_ena_ctrl      <= 0;
+            w_bank0_enb_ctrl      <= 0;
+            w_bank0_addra_wr      <= '0;
+            w_bank0_addrb_wr      <= COL_X; // Because we started at the new line
+            w_bank0_addra_rd      <= '0;
+            w_bank0_addrb_rd      <= '0;
             
-            bank1_ena_ctrl      <= 0;
-            bank1_enb_ctrl      <= 0;
-            bank1_addra_wr      <= '0;
-            bank1_addrb_wr      <= COL_X; // Because we started at the new line
-            bank1_addra_rd      <= '0;
-            bank1_addrb_rd      <= '0;
+            w_bank1_ena_ctrl      <= 0;
+            w_bank1_enb_ctrl      <= 0;
+            w_bank1_addra_wr      <= '0;
+            w_bank1_addrb_wr      <= COL_X; // Because we started at the new line
+            w_bank1_addra_rd      <= '0;
+            w_bank1_addrb_rd      <= '0;
 
             current_bank        <= 2'b01;   // At reset, bank 0 is writing (marked by 1) and bank 1 is reading (marked by 0)
             slicing_idx         <= '0;      // For slicing the input into MODULE_WIDTH using extract_module func
         end
         else begin
-            bank0_ena_ctrl <= 1; bank0_enb_ctrl <= 1;
-            bank1_ena_ctrl <= 1; bank1_enb_ctrl <= 1;
+            w_bank0_ena_ctrl <= 1; w_bank0_enb_ctrl <= 1;
+            w_bank1_ena_ctrl <= 1; w_bank1_enb_ctrl <= 1;
 
             acc_done_wrap_d  <= acc_done_wrap;
             counter_acc_done <= 0;
@@ -92,25 +96,25 @@ module ping_pong_ctrl #(
                 // ----------- Writing/Filling Phase -----------
                 if (slicing_idx == TOTAL_MODULES - 1) begin
                     slicing_idx <= '0;
-                    bank0_wea_ctrl <= 0;
-                    bank0_web_ctrl <= 0;
-                    if ((bank0_addra_wr == COL_X -1) && (bank0_addrb_wr) == 2*COL_X - 1) begin // Both BRAMs are fully filled
-                        bank0_addra_wr      <= '0;
-                        bank0_addrb_wr      <= COL_X; // Because we started at the new line
+                    w_bank0_wea_ctrl <= 0;
+                    w_bank0_web_ctrl <= 0;
+                    if ((w_bank0_addra_wr == COL_X -1) && (w_bank0_addrb_wr) == 2*COL_X - 1) begin // Both BRAMs are fully filled
+                        w_bank0_addra_wr      <= '0;
+                        w_bank0_addrb_wr      <= COL_X; // Because we started at the new line
                         current_bank[0]     <= ~current_bank[0]; // Toggle '0' aka read mode
                     end
                 end else begin
                     slicing_idx <= slicing_idx + 1;
-                    bank0_wea_ctrl <= 1;
-                    bank0_web_ctrl <= 1;
+                    w_bank0_wea_ctrl <= 1;
+                    w_bank0_web_ctrl <= 1;
                     // Address Generation, when slicing idx change:
-                    bank0_addra_wr  <= bank0_addra_wr + 1;
-                    bank0_addrb_wr  <= bank0_addrb_wr + 1;
+                    w_bank0_addra_wr  <= w_bank0_addra_wr + 1;
+                    w_bank0_addrb_wr  <= w_bank0_addrb_wr + 1;
                 end
             end else begin
                 // --------------- Reading Phase ---------------
-                bank0_wea_ctrl <= 0; // Safeguard to ensure the write enables are turned off
-                bank0_web_ctrl <= 0;
+                w_bank0_wea_ctrl <= 0; // Safeguard to ensure the write enables are turned off
+                w_bank0_web_ctrl <= 0;
             end
 
             // ------------------------ BANK 1 ------------------------
@@ -118,25 +122,25 @@ module ping_pong_ctrl #(
                 // ----------- Writing/Filling Phase -----------
                 if (slicing_idx == TOTAL_MODULES - 1) begin
                     slicing_idx <= '0;
-                    bank1_wea_ctrl <= 0;
-                    bank1_web_ctrl <= 0;
-                    if ((bank1_addra_wr == COL_X -1) && (bank1_addrb_wr) == 2*COL_X - 1) begin // Both BRAMs are fully filled
-                        bank1_addra_wr      <= '0;
-                        bank1_addrb_wr      <= COL_X; // Because we started at the new line
+                    w_bank1_wea_ctrl <= 0;
+                    w_bank1_web_ctrl <= 0;
+                    if ((w_bank1_addra_wr == COL_X -1) && (w_bank1_addrb_wr) == 2*COL_X - 1) begin // Both BRAMs are fully filled
+                        w_bank1_addra_wr      <= '0;
+                        w_bank1_addrb_wr      <= COL_X; // Because we started at the new line
                         current_bank[1]     <= ~current_bank[1]; // Toggle '0' aka read mode
                     end
                 end else begin
                     slicing_idx <= slicing_idx + 1;
-                    bank1_wea_ctrl <= 1;
-                    bank1_web_ctrl <= 1;
+                    w_bank1_wea_ctrl <= 1;
+                    w_bank1_web_ctrl <= 1;
                     // Address Generation, when slicing idx change:
-                    bank1_addra_wr  <= bank1_addra_wr + 1;
-                    bank1_addrb_wr  <= bank1_addrb_wr + 1;
+                    w_bank1_addra_wr  <= w_bank1_addra_wr + 1;
+                    w_bank1_addrb_wr  <= w_bank1_addrb_wr + 1;
                 end
             end else begin
                 // --------------- Reading Phase ---------------
-                bank1_wea_ctrl <= 0; // Safeguard to ensure the write enables are turned off
-                bank1_web_ctrl <= 0;
+                w_bank1_wea_ctrl <= 0; // Safeguard to ensure the write enables are turned off
+                w_bank1_web_ctrl <= 0;
             end
 
             // Address Generation for Both Direction
@@ -161,8 +165,8 @@ module ping_pong_ctrl #(
                     in_mat_rd_addrb <= counter + (INNER_DIMENSION/BLOCK_SIZE)*counter_row;
                     we_mat_rd_addrb <= counter + (INNER_DIMENSION/BLOCK_SIZE)*counter_col;
                     */
-                    bank0_addra_rd <= counter + (INNER_DIMENSION/BLOCK_SIZE)*(counter_row*2); // same as the old one but port A used for even addresses (starting from 0)
-                    bank0_addrb_rd <= counter + (INNER_DIMENSION/BLOCK_SIZE)*(counter_row*2 + 1); // and port B used for odd addresses (starting from 1)`
+                    w_bank0_addra_rd <= counter + (INNER_DIMENSION/BLOCK_SIZE)*(counter_row*2); // same as the old one but port A used for even addresses (starting from 0)
+                    w_bank0_addrb_rd <= counter + (INNER_DIMENSION/BLOCK_SIZE)*(counter_row*2 + 1); // and port B used for odd addresses (starting from 1)`
                     w_mat_rd_addrb <= counter + (INNER_DIMENSION/BLOCK_SIZE)*counter_col;
                 end
 
