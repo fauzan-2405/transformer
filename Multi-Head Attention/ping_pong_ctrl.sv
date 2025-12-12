@@ -111,7 +111,36 @@ module ping_pong_ctrl #(
                 // --------------- Reading Phase ---------------
                 bank0_wea_ctrl <= 0; // Safeguard to ensure the write enables are turned off
                 bank0_web_ctrl <= 0;
+            end
 
+            // ------------------------ BANK 1 ------------------------
+            if (current_bank[1]) begin 
+                // ----------- Writing/Filling Phase -----------
+                if (slicing_idx == TOTAL_MODULES - 1) begin
+                    slicing_idx <= '0;
+                    bank1_wea_ctrl <= 0;
+                    bank1_web_ctrl <= 0;
+                    if ((bank1_addra_wr == COL_X -1) && (bank1_addrb_wr) == 2*COL_X - 1) begin // Both BRAMs are fully filled
+                        bank1_addra_wr      <= '0;
+                        bank1_addrb_wr      <= COL_X; // Because we started at the new line
+                        current_bank[1]     <= ~current_bank[1]; // Toggle '0' aka read mode
+                    end
+                end else begin
+                    slicing_idx <= slicing_idx + 1;
+                    bank1_wea_ctrl <= 1;
+                    bank1_web_ctrl <= 1;
+                    // Address Generation, when slicing idx change:
+                    bank1_addra_wr  <= bank1_addra_wr + 1;
+                    bank1_addrb_wr  <= bank1_addrb_wr + 1;
+                end
+            end else begin
+                // --------------- Reading Phase ---------------
+                bank1_wea_ctrl <= 0; // Safeguard to ensure the write enables are turned off
+                bank1_web_ctrl <= 0;
+            end
+
+            // Address Generation for Both Direction
+            if a begin
                 // Imported from linear_proj_ctrl.sv
                 internal_rst_n <= ~systolic_finish_wrap;
                 if (systolic_finish_wrap) begin
@@ -156,20 +185,6 @@ module ping_pong_ctrl #(
                     if (flag != MAX_FLAG) begin
                         flag <= flag + 1;   
                     end
-                end
-            end
-
-            // ------------------------ BANK 1 ------------------------
-            if (current_bank[1]) begin
-                // ----------- Writing/Filling Phase -----------
-                if (slicing_idx == TOTAL_MODULES - 1) begin
-                    slicing_idx <= '0;
-                    bank0_wea_ctrl <= 0;
-                    bank0_web_ctrl <= 0;
-                end else begin
-                    slicing_idx <= slicing_idx + 1;
-                    bank0_wea_ctrl <= 1;
-                    bank0_web_ctrl <= 1;
                 end
             end
 
