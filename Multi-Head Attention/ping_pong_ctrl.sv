@@ -7,7 +7,8 @@ module ping_pong_ctrl #(
     parameter TOTAL_MODULES = 4,
     parameter ADDR_WIDTH    = 4,
     parameter W_COL_X       = 4, // Indicates how many columns from W_COL_X that being used as a west input
-    parameter N_COL_X       = 4  // Indicates how many columns from N_COL_X that being used as a north input
+    parameter N_COL_X       = 4, // Indicates how many columns from N_COL_X that being used as a north input
+    parameter COL_Y         = 2  // Indicates how many columns for the next resulting matrix
 ) (
     input logic clk, rst_n,
     input logic in_valid,
@@ -67,14 +68,14 @@ module ping_pong_ctrl #(
     // For bank 0
     logic [ADDR_WIDTH-1:0] n_bank0_addra_wr;
     logic [ADDR_WIDTH-1:0] n_bank0_addrb_rd;
-    assign w_bank0_addra_ctrl = (current_bank[0]) ? n_bank0_addra_wr : 0;
-    assign w_bank0_addrb_ctrl = (current_bank[0]) ? 0 : n_bank0_addrb_rd;
+    assign n_bank0_addra_ctrl = (current_bank[0]) ? n_bank0_addra_wr : 0;
+    assign n_bank0_addrb_ctrl = (current_bank[0]) ? 0 : n_bank0_addrb_rd;
 
      // For bank 1
     logic [ADDR_WIDTH-1:0] n_bank1_addra_wr;
     logic [ADDR_WIDTH-1:0] n_bank1_addrb_rd;
-    assign w_bank1_addra_ctrl = (current_bank[1]) ? n_bank1_addra_wr : 0;
-    assign w_bank1_addrb_ctrl = (current_bank[1]) ? 0 : n_bank1_addrb_rd;
+    assign n_bank1_addra_ctrl = (current_bank[1]) ? n_bank1_addra_wr : 0;
+    assign n_bank1_addrb_ctrl = (current_bank[1]) ? 0 : n_bank1_addrb_rd;
 
     // ------------- Logics for address generation -------------
     logic internal_rst_n, internal_reset_acc;
@@ -82,7 +83,7 @@ module ping_pong_ctrl #(
     logic acc_done_wrap_d;
     assign acc_done_wrap_rising = ~acc_done_wrap_d & acc_done_wrap;
     logic en_module; 
-    logic [WIDTH_OUT-1:0] counter, counter_col, flag;
+    logic [WIDTH_OUT-1:0] counter, counter_row, counter_col, flag;
     logic counter_acc_done;
 
     always @(posedge clk) begin 
@@ -90,6 +91,7 @@ module ping_pong_ctrl #(
             // Address generation
             counter             <= 0;
             counter_col         <= 0;
+            counter_row         <= 0; // Technically speaking, because we just operate in one row, counter_row value is always 0 (indicating 1/first row)
             counter_acc_done    <= 0;
             internal_rst_n      <= 0;
             internal_reset_acc  <= 0;
@@ -184,14 +186,22 @@ module ping_pong_ctrl #(
 
             // --------------- BANK 1 for both North and West Input ---------------
             if (current_bank[1]) begin 
-                if (w_slicing_idx == TOTAL_MODULES - 1) begin
-                    w_slicing_idx <= '0;
-                    w_bank1_wea_ctrl <= 0;
-                    w_bank1_web_ctrl <= 0;
-                    if ((w_bank1_addra_wr == W_COL_X -1) && (w_bank1_addrb_wr) == 2*W_COL_X - 1) begin // Both BRAMs are fully filled
+                if ((w_slicing_idx == TOTAL_MODULES - 1) && (n_slicing_idx == TOTAL_MODULES - 1)) begin
+                    w_slicing_idx       <= '0;
+                    w_bank1_wea_ctrl    <= 0;
+                    w_bank1_web_ctrl    <= 0;
+                    n_slicing_idx       <= '0;
+                    n_bank1_wea_ctrl    <= 0;
+
+                    if ((w_bank1_addra_wr == W_COL_X -1) && (w_bank1_addrb_wr) == 2*W_COL_X - 1) begin // Both West BRAMs are fully filled
                         w_bank1_addra_wr      <= '0;
                         w_bank1_addrb_wr      <= W_COL_X; // Because we started at the new line
-                        current_bank[1]     <= ~current_bank[1]; // Toggle '0' aka read mode
+                        writing_phase[0]    <= ~writing_phase[0]; 
+                    end
+
+                    if (n_bank1_addra_wr == N_COL_X - 1) begin // North BRAM is fully filled
+                        n_bank1_addra_wr    <= 0';;
+                        writing_phase[1]    <= ~writing_phase[1]
                     end
                 end else begin
                     w_slicing_idx <= w_slicing_idx + 1;
@@ -200,18 +210,21 @@ module ping_pong_ctrl #(
                     // Address Generation, when slicing idx change:
                     w_bank1_addra_wr  <= w_bank1_addra_wr + 1;
                     w_bank1_addrb_wr  <= w_bank1_addrb_wr + 1;
+                    n_bank1_addra_wr  <= n_bank1_addra_wr + 1;
                 end
             end else begin
                 // Reading Phase
                 w_bank1_wea_ctrl <= 0;
                 w_bank1_web_ctrl <= 0;
+                n_bank1_wea_ctrl <= 0;
             end
 
             acc_done_wrap_d  <= acc_done_wrap;
             counter_acc_done <= 0;
 
             // ------------------------------------------------------ READING PHASE ------------------------------------------------------
-            if a begin
+            // --------------- BANK 0 for both North and West Input ---------------
+            if (~current_bank[0]) begin
                 // Imported from linear_proj_ctrl.sv
                 internal_rst_n <= ~systolic_finish_wrap;
                 if (systolic_finish_wrap) begin
@@ -228,13 +241,9 @@ module ping_pong_ctrl #(
                         counter <= counter + 1;
                     end
                     // Address controller
-                    /* These are the old controllers when I use only 1 port for input matrix
-                    in_mat_rd_addrb <= counter + (INNER_DIMENSION/BLOCK_SIZE)*counter_row;
-                    we_mat_rd_addrb <= counter + (INNER_DIMENSION/BLOCK_SIZE)*counter_col;
-                    */
-                    w_bank0_addra_rd <= counter + (INNER_DIMENSION/BLOCK_SIZE)*(1*2);       // same as the old one but port A used for even addresses (starting from 0)
-                    w_bank0_addrb_rd <= counter + (INNER_DIMENSION/BLOCK_SIZE)*(1*2 + 1);   // and port B used for odd addresses (starting from 1)
-                    w_mat_rd_addrb <= counter + (INNER_DIMENSION/BLOCK_SIZE)*counter_col;
+                    w_bank0_addra_rd <= counter + (INNER_DIMENSION/BLOCK_SIZE)*(counter_row*2);       // same as the old one but port A used for even addresses (starting from 0)
+                    w_bank0_addrb_rd <= counter + (INNER_DIMENSION/BLOCK_SIZE)*(counter_row*2 + 1);   // and port B used for odd addresses (starting from 1)
+                    n_bank0_addrb_rd <= counter + (INNER_DIMENSION/BLOCK_SIZE)*counter_col;
                 end
 
                 // Column/Row Update
@@ -243,19 +252,15 @@ module ping_pong_ctrl #(
                     // counter_col indicates the i-th column of the matrix C that we are working right now
 
                     // Check if we already at the end of the MAT C column
-                    if (counter_col == (COL_SIZE_MAT_C - 1)) begin
+                    if (counter_col == (COL_Y - 1)) begin
                         counter_col <= 0;
-                        counter_row <= counter_row + 1;
+                        //counter_row <= counter_row + 1;   // This is the old formula if we want to traverse all rows
+                        counter_row <= 0;                   // This is the new formula because we operate in one row only
                     end else begin
                         counter_col <= counter_col + 1;
                     end
 
                     counter_acc_done <= 1;
-
-                    // Flag assigning for 'done' variable
-                    if (flag != MAX_FLAG) begin
-                        flag <= flag + 1;   
-                    end
                 end
             end
 
