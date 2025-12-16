@@ -212,8 +212,11 @@ module ping_pong_ctrl #(
                     end
                 end else begin
                     w_slicing_idx <= w_slicing_idx + 1;
+                    n_slicing_idx <= n_slicing_idx + 1;
                     w_bank1_wea_ctrl <= 1;
                     w_bank1_web_ctrl <= 1;
+                    n_bank1_wea_ctrl    <= 1;
+
                     // Address Generation, when slicing idx change:
                     w_bank1_addra_wr  <= w_bank1_addra_wr + 1;
                     w_bank1_addrb_wr  <= w_bank1_addrb_wr + 1;
