@@ -1,7 +1,7 @@
 // ping_pong_ctrl.sv
 // Used to control ping_pong_buffer
 // Basically utilizing the linear_proj_ctrl.sv but tweaks some of the settings
-// THIS IS THE SEQUENTIAL ONE
+// IN THE FUTURE: Check whether we need to toggle we*_ctrl via combinational or sequential
 
 module ping_pong_ctrl #(
     parameter TOTAL_MODULES = 4,
@@ -49,7 +49,8 @@ module ping_pong_ctrl #(
     logic [1:0] writing_phase, reading_phase;
     logic write_now; // To toggle write after one in_valid is arrived
 
-    assign write_now = (in_valid) ? (((w_slicing_idx == TOTAL_MODULES - 1) && (n_slicing_idx == TOTAL_MODULES - 1)) ? 1 : 0) : 0;
+    assign write_now = (in_valid) ? 1 
+                        : ((w_slicing_idx == TOTAL_MODULES - 1) && (n_slicing_idx == TOTAL_MODULES - 1)) ? 1 : 0;
 
     // ------------------- For West Input -------------------
     // For bank 0
