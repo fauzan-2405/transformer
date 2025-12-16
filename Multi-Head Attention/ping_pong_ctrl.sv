@@ -46,7 +46,10 @@ module ping_pong_ctrl #(
                                 // and current_bank[1] represents bank_1 for w_input & n_input
                                 // When either current_bank is 1, its state is writing
                                 // When it is 0, its state is reading
-    logic [0:0] writing_phase;
+    logic [1:0] writing_phase, reading_phase;
+    logic write_now; // To toggle write after one in_valid is arrived
+
+    assign write_now = (in_valid) ? (((w_slicing_idx == TOTAL_MODULES - 1) && (n_slicing_idx == TOTAL_MODULES - 1)) ? 1 : 0) : 0;
 
     // ------------------- For West Input -------------------
     // For bank 0
@@ -133,7 +136,8 @@ module ping_pong_ctrl #(
             n_bank1_addrb_rd      <= '0;
 
             current_bank          <= 2'b01;   // At reset, bank 0 state is writing (marked by 1) and bank 1 state is reading (marked by 0)
-            writing_phase         <= 2'b11;   // At reset, both directions will write   
+            writing_phase         <= 2'b11;   // At reset, both directions will write (see README.MD for further explanation)
+            reading_phase         <= 2'b01;   // (see README.MD for further explanation)
             w_slicing_idx         <= '0;      // For slicing the WEST input into MODULE_WIDTH using extract_module func
             n_slicing_idx         <= '0;      // For slicing the NORTH input into SLICE_WIDTH (see ping_pong_buffer_n.sv) using extract_module func
         end
@@ -145,10 +149,12 @@ module ping_pong_ctrl #(
             n_bank1_ena_ctrl <= 1; n_bank1_enb_ctrl <= 1;
 
             current_bank     <= {~writing_phase[1], writing_phase[0]};
+
             // ------------------------------------------------------ WRITING PHASE ------------------------------------------------------
             // --------------- BANK 0 for both North and West Input ---------------
             if (current_bank[0]) begin 
-                if ((w_slicing_idx == TOTAL_MODULES - 1) && (n_slicing_idx == TOTAL_MODULES - 1)) begin
+                //if ((w_slicing_idx == TOTAL_MODULES - 1) && (n_slicing_idx == TOTAL_MODULES - 1)) begin
+                if (~write_now) begin
                     w_slicing_idx       <= '0;
                     w_bank0_wea_ctrl    <= 0;
                     w_bank0_web_ctrl    <= 0;
@@ -186,7 +192,7 @@ module ping_pong_ctrl #(
 
             // --------------- BANK 1 for both North and West Input ---------------
             if (current_bank[1]) begin 
-                if ((w_slicing_idx == TOTAL_MODULES - 1) && (n_slicing_idx == TOTAL_MODULES - 1)) begin
+                if (~write_now) begin
                     w_slicing_idx       <= '0;
                     w_bank1_wea_ctrl    <= 0;
                     w_bank1_web_ctrl    <= 0;
@@ -225,44 +231,91 @@ module ping_pong_ctrl #(
             // ------------------------------------------------------ READING PHASE ------------------------------------------------------
             // --------------- BANK 0 for both North and West Input ---------------
             if (~current_bank[0]) begin
-                // Imported from linear_proj_ctrl.sv
-                internal_rst_n <= ~systolic_finish_wrap;
-                if (systolic_finish_wrap) begin
-                    internal_reset_acc <= ~acc_done_wrap;
-                end
-
-                // Counter Update
-                if (systolic_finish_wrap) begin
-                    // counter indicates the matrix C element iteration
-                    if (counter == ((INNER_DIMENSION/BLOCK_SIZE) - 1)) begin 
-                        counter <=0;
-                    end
-                    else begin
-                        counter <= counter + 1;
-                    end
-                    // Address controller
-                    w_bank0_addra_rd <= counter + (INNER_DIMENSION/BLOCK_SIZE)*(counter_row*2);       // same as the old one but port A used for even addresses (starting from 0)
-                    w_bank0_addrb_rd <= counter + (INNER_DIMENSION/BLOCK_SIZE)*(counter_row*2 + 1);   // and port B used for odd addresses (starting from 1)
-                    n_bank0_addrb_rd <= counter + (INNER_DIMENSION/BLOCK_SIZE)*counter_col;
-                end
-
-                // Column/Row Update
-                if (acc_done_wrap_rising) begin
-                    // counter_row indicates the i-th row of the matrix C that we are working right now
-                    // counter_col indicates the i-th column of the matrix C that we are working right now
-
-                    // Check if we already at the end of the MAT C column
-                    if (counter_col == (COL_Y - 1)) begin
-                        counter_col <= 0;
-                        //counter_row <= counter_row + 1;   // This is the old formula if we want to traverse all rows
-                        counter_row <= 0;                   // This is the new formula because we operate in one row only
-                    end else begin
-                        counter_col <= counter_col + 1;
+                if (reading_phase[0]) begin
+                    // Imported from linear_proj_ctrl.sv
+                    internal_rst_n <= ~systolic_finish_wrap;
+                    if (systolic_finish_wrap) begin
+                        internal_reset_acc <= ~acc_done_wrap;
                     end
 
-                    counter_acc_done <= 1;
+                    // Counter Update
+                    if (systolic_finish_wrap) begin
+                        // counter indicates the matrix C element iteration
+                        if (counter == ((INNER_DIMENSION/BLOCK_SIZE) - 1)) begin 
+                            counter <=0;
+                        end
+                        else begin
+                            counter <= counter + 1;
+                        end
+                        // Address controller
+                        w_bank0_addra_rd <= counter + (INNER_DIMENSION/BLOCK_SIZE)*(counter_row*2);       // same as the old one but port A used for even addresses (starting from 0)
+                        w_bank0_addrb_rd <= counter + (INNER_DIMENSION/BLOCK_SIZE)*(counter_row*2 + 1);   // and port B used for odd addresses (starting from 1)
+                        n_bank0_addrb_rd <= counter + (INNER_DIMENSION/BLOCK_SIZE)*counter_col;
+                    end
+
+                    // Column/Row Update
+                    if (acc_done_wrap_rising) begin
+                        // counter_row indicates the i-th row of the matrix C that we are working right now
+                        // counter_col indicates the i-th column of the matrix C that we are working right now
+
+                        // Check if we already at the end of the MAT C column
+                        if (counter_col == (COL_Y - 1)) begin
+                            counter_col <= 0;
+                            //counter_row <= counter_row + 1;   // This is the old formula if we want to traverse all rows
+                            counter_row <= 0;                   // This is the new formula because we operate in one row only
+                            reading_phase <= ~reading_phase;    // Terminate the process
+                        end else begin
+                            counter_col <= counter_col + 1;
+                        end
+
+                        counter_acc_done <= 1;
+                    end
                 end
             end
+
+            // --------------- BANK 1 for both North and West Input ---------------
+            if (~current_bank[1]) begin
+                if (reading_phase[1]) begin
+                    // Imported from linear_proj_ctrl.sv
+                    internal_rst_n <= ~systolic_finish_wrap;
+                    if (systolic_finish_wrap) begin
+                        internal_reset_acc <= ~acc_done_wrap;
+                    end
+
+                    // Counter Update
+                    if (systolic_finish_wrap) begin
+                        // counter indicates the matrix C element iteration
+                        if (counter == ((INNER_DIMENSION/BLOCK_SIZE) - 1)) begin 
+                            counter <=0;
+                        end
+                        else begin
+                            counter <= counter + 1;
+                        end
+                        // Address controller
+                        w_bank1_addra_rd <= counter + (INNER_DIMENSION/BLOCK_SIZE)*(counter_row*2);       // same as the old one but port A used for even addresses (starting from 0)
+                        w_bank1_addrb_rd <= counter + (INNER_DIMENSION/BLOCK_SIZE)*(counter_row*2 + 1);   // and port B used for odd addresses (starting from 1)
+                        n_bank1_addrb_rd <= counter + (INNER_DIMENSION/BLOCK_SIZE)*counter_col;
+                    end
+
+                    // Column/Row Update
+                    if (acc_done_wrap_rising) begin
+                        // counter_row indicates the i-th row of the matrix C that we are working right now
+                        // counter_col indicates the i-th column of the matrix C that we are working right now
+
+                        // Check if we already at the end of the MAT C column
+                        if (counter_col == (COL_Y - 1)) begin
+                            counter_col <= 0;
+                            //counter_row <= counter_row + 1;   // This is the old formula if we want to traverse all rows
+                            counter_row <= 0;                   // This is the new formula because we operate in one row only
+                            reading_phase <= ~reading_phase;    // Terminate the process
+                        end else begin
+                            counter_col <= counter_col + 1;
+                        end
+
+                        counter_acc_done <= 1;
+                    end
+                end
+            end            
 
         end
     end
