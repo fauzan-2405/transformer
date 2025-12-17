@@ -2,12 +2,14 @@
 // Used to control ping_pong_buffer
 // Basically utilizing the linear_proj_ctrl.sv but tweaks some of the settings
 // Combinational control assertion
+// TODO Please take a look at bank_valid assertion at the very last block
 
 module ping_pong_ctrl #(
     parameter TOTAL_MODULES = 4,
     parameter ADDR_WIDTH    = 4,
     parameter W_COL_X       = 4, // Indicates how many columns from W_COL_X that being used as a west input
     parameter N_COL_X       = 4, // Indicates how many columns from N_COL_X that being used as a north input
+    parameter MAX_FLAG      = 16,
     parameter COL_Y         = 2  // Indicates how many columns for the next resulting matrix
 ) (
     input logic clk, rst_n,
@@ -38,6 +40,7 @@ module ping_pong_ctrl #(
 
     output logic [$clog2(TOTAL_MODULES)-1:0] w_slicing_idx,
     output logic [$clog2(TOTAL_MODULES)-1:0] n_slicing_idx,
+    output logic                             out_valid,
     output logic                             enable_matmul
 );
     // ************************************ Wires & Parameters ************************************
@@ -49,7 +52,7 @@ module ping_pong_ctrl #(
     } fsm_state_t;
     fsm_state_t state_reg, state_next;
 
-    logic [1:0] reading_phase, writing_phase;
+    logic [1:0] bank_valid, writing_phase;
     logic write_now;
         
     // ------------- Logics for address generation -------------
@@ -93,11 +96,23 @@ module ping_pong_ctrl #(
             end
 
             S_W0_R1: begin // Bank 0 is writing and Bank 1 is reading
-                state_next = (~writing_phase[1] & ~writing_phase[0]) ? S_W1_R0 : S_W0_R1;
+                state_next = 
+                            (flag == MAX_FLAG) ? S_DONE :
+                            (bank_valid[0] == 1) ? S_W1_R0 : S_W0_R1;
             end
 
             S_W1_R0: begin // Bank 0 is reading and Bank 1 is writing
+                state_next = 
+                            (flag == MAX_FLAG) ? S_DONE :
+                            (bank_valid[1] == 1) ? S_W0_R1 : S_W1_R0;
+            end
 
+            S_DONE : begin
+                state_next = (~rst_n) ? S_IDLE : S_DONE;
+            end
+
+            default: begin
+                state_next = S_IDLE;
             end
         endcase
     end
@@ -108,33 +123,33 @@ module ping_pong_ctrl #(
     assign w_bank0_web_ctrl   = (state_reg == S_W0_R1) ? ((write_now) ? 1 : 0) : 0;
     assign w_bank0_addra_ctrl = 
                                 (state_reg == S_W0_R1) ? w_bank0_addra_wr : 
-                                (state_reg == S_W1_R0) ? ((reading_phase[0]) ? w_bank0_addra_rd : '0) : '0;
+                                (state_reg == S_W1_R0) ? w_bank0_addra_rd : '0;
     assign w_bank0_addrb_ctrl = 
                                 (state_reg == S_W0_R1) ? w_bank0_addrb_wr : 
-                                (state_reg == S_W1_R0) ? ((reading_phase[0]) ? w_bank0_addrb_rd : '0) : '0;
+                                (state_reg == S_W1_R0) ? w_bank0_addrb_rd : '0;
     
     // For bank 1
     assign w_bank1_wea_ctrl   = (state_reg == S_W1_R0) ? ((write_now) ? 1 : 0) : 0;
     assign w_bank1_web_ctrl   = (state_reg == S_W1_R0) ? ((write_now) ? 1 : 0) : 0;
     assign w_bank1_addra_ctrl = 
                                 (state_reg == S_W1_R0) ? w_bank1_addra_wr : 
-                                (state_reg == S_W0_R1) ? ((reading_phase[1]) ? w_bank1_addra_rd : '0) : '0;
+                                (state_reg == S_W0_R1) ? w_bank1_addra_rd : '0;
     assign w_bank1_addrb_ctrl = 
                                 (state_reg == S_W1_R0) ? w_bank1_addrb_wr : 
-                                (state_reg == S_W0_R1) ? ((reading_phase[1]) ? w_bank1_addrb_rd : '0) : '0;
+                                (state_reg == S_W0_R1) ? w_bank1_addrb_rd : '0;
   
     // ------------------- For North Input -------------------
     // For bank 0
     assign n_bank0_wea_ctrl   = (state_reg == S_W0_R1) ? ((write_now) ? 1 : 0) : 0;
     assign n_bank0_addra_ctrl = 
                                 (state_reg == S_W0_R1) ? n_bank0_addra_wr : 
-                                (state_reg == S_W1_R0) ? ((reading_phase[0]) ? n_bank0_addra_rd : '0) : '0;
+                                (state_reg == S_W1_R0) ? n_bank0_addra_rd : '0;
 
      // For bank 1
     assign n_bank1_wea_ctrl   = (state_reg == S_W1_R0) ? ((write_now) ? 1 : 0) : 0;
     assign n_bank1_addra_ctrl = 
                                 (state_reg == S_W1_R0) ? n_bank1_addra_wr : 
-                                (state_reg == S_W0_R1) ? ((reading_phase[0]) ? n_bank1_addra_rd : '0) : '0;
+                                (state_reg == S_W0_R1) ? n_bank1_addra_rd : '0;
 
 
     // ************************************ FSM Sequential Logic ************************************
@@ -172,9 +187,8 @@ module ping_pong_ctrl #(
             n_bank1_addra_wr      <= '0;
             n_bank1_addra_rd      <= '0;
 
-            current_bank          <= 2'b01;   // At reset, bank 0 state is writing (marked by 1) and bank 1 state is reading (marked by 0)
             writing_phase         <= 2'b11;   // At reset, both directions will write (see README.MD for further explanation)
-            reading_phase         <= 2'b01;   // (see README.MD for further explanation)
+            bank_valid            <= 2'b00;   // To tell this bank[i] contains valid data / never read this bank
             write_now             <= 0;
             w_slicing_idx         <= '0;      // For slicing the WEST input into MODULE_WIDTH using extract_module func
             n_slicing_idx         <= '0;      // For slicing the NORTH input into SLICE_WIDTH (see ping_pong_buffer_n.sv) using extract_module func
@@ -195,6 +209,7 @@ module ping_pong_ctrl #(
 
                 // Address Generation, when slicing idx change:
                 if (state_reg == S_W0_R1) begin
+                    // ---------- Bank 0 ----------
                     if ((w_bank0_addra_wr == W_COL_X -1) && (w_bank0_addrb_wr == 2*W_COL_X - 1)) begin // Both West BRAMs are fully filled
                         w_bank0_addra_wr    <= '0;
                         w_bank0_addrb_wr    <= W_COL_X; // Because we started at the new line
@@ -205,13 +220,18 @@ module ping_pong_ctrl #(
                     end
                    
                     if (n_bank0_addra_wr == N_COL_X - 1) begin // North BRAM is fully filled
-                        n_bank0_addra_wr    <= 0';;
+                        n_bank0_addra_wr    <= '0;
                         writing_phase[1]    <= ~writing_phase[1]
                     end else if (writing_phase[1]) begin
                         n_bank0_addra_wr  <= n_bank0_addra_wr + 1;
                     end
+
+                    if (~writing_phase[1] && ~writing_phase[0]) begin
+                        bank_valid[0]       <= 1'b1;
+                    end
                 end 
                 else if (state_reg == S_W1_R0) begin
+                    // ---------- Bank 1 ----------
                     if ((w_bank1_addra_wr == W_COL_X -1) && (w_bank1_addrb_wr) == 2*W_COL_X - 1) begin // Both West BRAMs are fully filled
                         w_bank1_addra_wr    <= '0;
                         w_bank1_addrb_wr    <= W_COL_X; // Because we started at the new line
@@ -222,10 +242,14 @@ module ping_pong_ctrl #(
                     end
                     
                     if (n_bank1_addra_wr == N_COL_X - 1) begin // North BRAM is fully filled
-                        n_bank1_addra_wr    <= 0';
+                        n_bank1_addra_wr    <= '0;
                         writing_phase[1]    <= ~writing_phase[1]
                     end else if (~writing_phase[1]) begin
                         n_bank1_addra_wr  <= n_bank1_addra_wr + 1;
+                    end
+
+                    if (writing_phase[1] && writing_phase[0]) begin
+                        bank_valid[1]       <= 1'b1;
                     end
                 end
             end else begin
@@ -234,11 +258,62 @@ module ping_pong_ctrl #(
             end
 
             // ------------------------------------------------------ READING PHASE ------------------------------------------------------
+            // Imported from linear_proj_ctrl.sv
 
+            if (bank_valid[0] ^ bank_valid[1]) begin
+                internal_rst_n <= ~systolic_finish_wrap;
+            end
+            
+            if (systolic_finish_wrap && (bank_valid[0] ^ bank_valid[1])) begin
+                internal_reset_acc <= ~acc_done_wrap;
+                // counter indicates the matrix C element iteration
+                if (counter == ((INNER_DIMENSION/BLOCK_SIZE) - 1)) begin 
+                    counter <=0;
+                end
+                else begin
+                    counter <= counter + 1;
+                end
+                // Address controller
+                if (state_reg == S_W0_R1) begin
+                    w_bank1_addra_rd <= counter + (INNER_DIMENSION/BLOCK_SIZE)*(counter_row*2);       // same as the old one but port A used for even addresses (starting from 0)
+                    w_bank1_addrb_rd <= counter + (INNER_DIMENSION/BLOCK_SIZE)*(counter_row*2 + 1);   // and port B used for odd addresses (starting from 1)
+                    n_bank1_addra_rd <= counter + (INNER_DIMENSION/BLOCK_SIZE)*counter_col;
+                end else if (state_reg == S_W1_R0) begin
+                    w_bank0_addra_rd <= counter + (INNER_DIMENSION/BLOCK_SIZE)*(counter_row*2);
+                    w_bank0_addrb_rd <= counter + (INNER_DIMENSION/BLOCK_SIZE)*(counter_row*2 + 1);   
+                    n_bank0_addra_rd <= counter + (INNER_DIMENSION/BLOCK_SIZE)*counter_col;
+                end
+                
+            end
 
+            // Column/Row Update
+            if (acc_done_wrap_rising && (bank_valid[0] ^ bank_valid[1])) begin
+                // Check if we already at the end of the MAT Y column
+                if (counter_col == (COL_Y - 1)) begin
+                    counter_col <= 0;
+                    //counter_row <= counter_row + 1;   // This is the old formula if we want to traverse all rows
+                    counter_row <= 0;                   // This is the new formula because we operate in one row only
+                    
+                    if (state_reg == S_W0_R1) begin // Terminate the process
+                        bank_valid[1] <= 1'b0;
+                    end else if (state_reg == S_W1_R0) begin
+                        bank_valid[0] <= 1'b0;
+                    end
+                end else begin
+                    counter_col <= counter_col + 1;
+                end
+
+                counter_acc_done <= 1;
+            end
+            
+            // Flag assigning for 'done' variable
+            if (flag != MAX_FLAG) begin
+                flag <= flag + 1;   
+            end
         end
     end
     
+    assign out_valid = counter_acc_done;
     //assign enable_matmul = en_module;
 
 endmodule
