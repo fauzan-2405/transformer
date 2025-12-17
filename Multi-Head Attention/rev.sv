@@ -1,7 +1,7 @@
 // ping_pong_ctrl.sv
 // Used to control ping_pong_buffer
 // Basically utilizing the linear_proj_ctrl.sv but tweaks some of the settings
-// IN THE FUTURE: Check whether we need to toggle we*_ctrl via combinational or sequential
+// Combinational control assertion
 
 module ping_pong_ctrl #(
     parameter TOTAL_MODULES = 4,
@@ -56,12 +56,16 @@ module ping_pong_ctrl #(
     // For bank 0
     logic [ADDR_WIDTH-1:0] w_bank0_addra_rd, w_bank0_addra_wr;
     logic [ADDR_WIDTH-1:0] w_bank0_addrb_rd, w_bank0_addrb_wr;
+    assign w_bank0_wea_ctrl   = (current_bank[0]) ? ((write_now) ? 1 : 0) : 0;
+    assign w_bank0_web_ctrl   = (current_bank[0]) ? ((write_now) ? 1 : 0) : 0;
     assign w_bank0_addra_ctrl = (current_bank[0]) ? w_bank0_addra_wr : w_bank0_addra_rd;
     assign w_bank0_addrb_ctrl = (current_bank[0]) ? w_bank0_addrb_wr : w_bank0_addrb_rd;
     
     // For bank 1
     logic [ADDR_WIDTH-1:0] w_bank1_addra_rd, w_bank1_addra_wr;
     logic [ADDR_WIDTH-1:0] w_bank1_addrb_rd, w_bank1_addrb_wr;
+    assign w_bank1_wea_ctrl   = (current_bank[1]) ? ((write_now) ? 1 : 0) : 0;
+    assign w_bank1_web_ctrl   = (current_bank[1]) ? ((write_now) ? 1 : 0) : 0;
     assign w_bank1_addra_ctrl = (current_bank[1]) ? w_bank1_addra_wr : w_bank1_addra_rd;
     assign w_bank1_addrb_ctrl = (current_bank[1]) ? w_bank1_addrb_wr : w_bank1_addrb_rd;
 
@@ -72,12 +76,14 @@ module ping_pong_ctrl #(
     // For bank 0
     logic [ADDR_WIDTH-1:0] n_bank0_addra_wr;
     logic [ADDR_WIDTH-1:0] n_bank0_addrb_rd;
+    assign n_bank0_wea_ctrl   = (current_bank[0]) ? ((write_now) ? 1 : 0) : 0;
     assign n_bank0_addra_ctrl = (current_bank[0]) ? n_bank0_addra_wr : 0;
     assign n_bank0_addrb_ctrl = (current_bank[0]) ? 0 : n_bank0_addrb_rd;
 
      // For bank 1
     logic [ADDR_WIDTH-1:0] n_bank1_addra_wr;
     logic [ADDR_WIDTH-1:0] n_bank1_addrb_rd;
+    assign n_bank1_wea_ctrl   = (current_bank[1]) ? ((write_now) ? 1 : 0) : 0;
     assign n_bank1_addra_ctrl = (current_bank[1]) ? n_bank1_addra_wr : 0;
     assign n_bank1_addrb_ctrl = (current_bank[1]) ? 0 : n_bank1_addrb_rd;
 
@@ -109,8 +115,6 @@ module ping_pong_ctrl #(
             // West Input Bank Controllers
             w_bank0_ena_ctrl      <= 0;
             w_bank0_enb_ctrl      <= 0;
-            w_bank0_wea_ctrl      <= 0;
-            w_bank0_web_ctrl      <= 0;
             w_bank0_addra_wr      <= '0;
             w_bank0_addrb_wr      <= W_COL_X; // Because we started at the new line
             w_bank0_addra_rd      <= '0;
@@ -118,8 +122,6 @@ module ping_pong_ctrl #(
             
             w_bank1_ena_ctrl      <= 0;
             w_bank1_enb_ctrl      <= 0;
-            w_bank1_wea_ctrl      <= 0;
-            w_bank1_web_ctrl      <= 0;
             w_bank1_addra_wr      <= '0;
             w_bank1_addrb_wr      <= W_COL_X; // Because we started at the new line
             w_bank1_addra_rd      <= '0;
@@ -157,10 +159,7 @@ module ping_pong_ctrl #(
                 //if ((w_slicing_idx == TOTAL_MODULES - 1) && (n_slicing_idx == TOTAL_MODULES - 1)) begin
                 if (~write_now) begin
                     w_slicing_idx       <= '0;
-                    w_bank0_wea_ctrl    <= 0;
-                    w_bank0_web_ctrl    <= 0;
                     n_slicing_idx       <= '0;
-                    n_bank0_wea_ctrl    <= 0;
 
                     if ((w_bank0_addra_wr == W_COL_X -1) && (w_bank0_addrb_wr == 2*W_COL_X - 1)) begin // Both West BRAMs are fully filled
                         w_bank0_addra_wr    <= '0;
@@ -174,31 +173,20 @@ module ping_pong_ctrl #(
                     end
                 end else begin
                     w_slicing_idx       <= w_slicing_idx + 1;
-                    w_bank0_wea_ctrl    <= 1;
-                    w_bank0_web_ctrl    <= 1;
                     n_slicing_idx       <= n_slicing_idx + 1;
-                    n_bank0_wea_ctrl    <= 1;
 
                     // Address Generation, when slicing idx change:
                     w_bank0_addra_wr  <= w_bank0_addra_wr + 1;
                     w_bank0_addrb_wr  <= w_bank0_addrb_wr + 1;
                     n_bank0_addra_wr  <= n_bank0_addra_wr + 1;
                 end
-            end else begin
-                // Reading Phase
-                w_bank0_wea_ctrl <= 0; // Safeguard to ensure the write enables are turned off
-                w_bank0_web_ctrl <= 0;
-                n_bank0_wea_ctrl <= 0;
-            end
+            end 
 
             // --------------- BANK 1 for both North and West Input ---------------
             if (current_bank[1]) begin 
                 if (~write_now) begin
                     w_slicing_idx       <= '0;
-                    w_bank1_wea_ctrl    <= 0;
-                    w_bank1_web_ctrl    <= 0;
                     n_slicing_idx       <= '0;
-                    n_bank1_wea_ctrl    <= 0;
 
                     if ((w_bank1_addra_wr == W_COL_X -1) && (w_bank1_addrb_wr) == 2*W_COL_X - 1) begin // Both West BRAMs are fully filled
                         w_bank1_addra_wr      <= '0;
@@ -212,22 +200,13 @@ module ping_pong_ctrl #(
                     end
                 end else begin
                     w_slicing_idx <= w_slicing_idx + 1;
-                    n_slicing_idx <= n_slicing_idx + 1;
-                    w_bank1_wea_ctrl <= 1;
-                    w_bank1_web_ctrl <= 1;
-                    n_bank1_wea_ctrl    <= 1;
-
+                    n_slicing_idx       <= n_slicing_idx + 1;
                     // Address Generation, when slicing idx change:
                     w_bank1_addra_wr  <= w_bank1_addra_wr + 1;
                     w_bank1_addrb_wr  <= w_bank1_addrb_wr + 1;
                     n_bank1_addra_wr  <= n_bank1_addra_wr + 1;
                 end
-            end else begin
-                // Reading Phase
-                w_bank1_wea_ctrl <= 0;
-                w_bank1_web_ctrl <= 0;
-                n_bank1_wea_ctrl <= 0;
-            end
+            end 
 
             acc_done_wrap_d  <= acc_done_wrap;
             counter_acc_done <= 0;
@@ -324,6 +303,6 @@ module ping_pong_ctrl #(
         end
     end
     
-    assign enable_matmul = en_module;
+    //assign enable_matmul = en_module;
 
 endmodule
