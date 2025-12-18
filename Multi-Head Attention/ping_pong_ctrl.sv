@@ -42,6 +42,7 @@ module ping_pong_ctrl #(
 
     output logic [$clog2(TOTAL_MODULES)-1:0] w_slicing_idx,
     output logic [$clog2(TOTAL_MODULES)-1:0] n_slicing_idx,
+    output logic                             internal_rst_n_ctrl, internal_reset_acc_ctrl,
     output logic                             out_valid,
     output logic                             enable_matmul
 );
@@ -62,7 +63,6 @@ module ping_pong_ctrl #(
     logic acc_done_wrap_rising;
     logic acc_done_wrap_d;
     assign acc_done_wrap_rising = ~acc_done_wrap_d & acc_done_wrap;
-    logic en_module; 
     logic [7:0] counter, counter_row, counter_col, flag;
     logic counter_acc_done;
 
@@ -88,12 +88,6 @@ module ping_pong_ctrl #(
         state_next = state_reg;
         case (state_reg)
             S_IDLE: begin
-                w_bank0_ena_ctrl    = 1; w_bank0_enb_ctrl   = 1;
-                w_bank1_ena_ctrl    = 1; w_bank1_enb_ctrl   = 1;
-
-                n_bank0_ena_ctrl    = 1;
-                n_bank1_ena_ctrl    = 1;
-                
                 state_next = (in_valid) ? S_W0_R1 : S_IDLE;
             end
 
@@ -121,6 +115,8 @@ module ping_pong_ctrl #(
 
     // ------------------- For West Input -------------------
     // For bank 0
+    assign w_bank0_ena_ctrl   = (state_reg != S_DONE) ? 1 : 0;
+    assign w_bank0_enb_ctrl   = (state_reg != S_DONE) ? 1 : 0;
     assign w_bank0_wea_ctrl   = (state_reg == S_W0_R1) ? ((write_now) ? 1 : 0) : 0;
     assign w_bank0_web_ctrl   = (state_reg == S_W0_R1) ? ((write_now) ? 1 : 0) : 0;
     assign w_bank0_addra_ctrl = 
@@ -131,6 +127,8 @@ module ping_pong_ctrl #(
                                 (state_reg == S_W1_R0) ? w_bank0_addrb_rd : '0;
     
     // For bank 1
+    assign w_bank1_ena_ctrl   = (state_reg != S_DONE) ? 1 : 0;
+    assign w_bank1_enb_ctrl   = (state_reg != S_DONE) ? 1 : 0;
     assign w_bank1_wea_ctrl   = (state_reg == S_W1_R0) ? ((write_now) ? 1 : 0) : 0;
     assign w_bank1_web_ctrl   = (state_reg == S_W1_R0) ? ((write_now) ? 1 : 0) : 0;
     assign w_bank1_addra_ctrl = 
@@ -142,12 +140,14 @@ module ping_pong_ctrl #(
   
     // ------------------- For North Input -------------------
     // For bank 0
+    assign n_bank0_ena_ctrl   = (state_reg != S_DONE) ? 1 : 0;
     assign n_bank0_wea_ctrl   = (state_reg == S_W0_R1) ? ((write_now) ? 1 : 0) : 0;
     assign n_bank0_addra_ctrl = 
                                 (state_reg == S_W0_R1) ? n_bank0_addra_wr : 
                                 (state_reg == S_W1_R0) ? n_bank0_addra_rd : '0;
 
      // For bank 1
+    assign n_bank1_ena_ctrl   = (state_reg != S_DONE) ? 1 : 0;
     assign n_bank1_wea_ctrl   = (state_reg == S_W1_R0) ? ((write_now) ? 1 : 0) : 0;
     assign n_bank1_addra_ctrl = 
                                 (state_reg == S_W1_R0) ? n_bank1_addra_wr : 
@@ -162,12 +162,9 @@ module ping_pong_ctrl #(
             counter_col         <= 0;
             counter_row         <= 0; // Technically speaking, because we just operate in one row, counter_row value is always 0 (indicating 1/first row)
             counter_acc_done    <= 0;
-            internal_rst_n      <= 0;
-            internal_reset_acc  <= 0;
             acc_done_wrap_d     <= 0;
             flag                <= 0;
 
-            en_module           <= 1'b0;
             internal_rst_n      <= 1'b0;
             internal_reset_acc  <= 1'b0;
 
@@ -316,6 +313,8 @@ module ping_pong_ctrl #(
     end
     
     assign out_valid = counter_acc_done;
-    //assign enable_matmul = en_module;
+    assign enable_matmul = (state_reg != S_DONE) ? 1 : 0;
+    assign internal_reset_acc_ctrl  = internal_reset_acc;
+    assign internal_rst_n_ctrl      = internal_rst_n;
 
 endmodule
