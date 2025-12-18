@@ -5,12 +5,14 @@
 // TODO Please take a look at bank_valid assertion at the very last block
 
 module ping_pong_ctrl #(
-    parameter TOTAL_MODULES = 4,
-    parameter ADDR_WIDTH    = 4,
-    parameter W_COL_X       = 4, // Indicates how many columns from W_COL_X that being used as a west input
-    parameter N_COL_X       = 4, // Indicates how many columns from N_COL_X that being used as a north input
-    parameter MAX_FLAG      = 16,
-    parameter COL_Y         = 2  // Indicates how many columns for the next resulting matrix
+    parameter TOTAL_MODULES     = 4,
+    parameter ADDR_WIDTH        = 4,
+    parameter W_COL_X           = 4, // Indicates how many columns from W_COL_X that being used as a west input
+    parameter N_COL_X           = 4, // Indicates how many columns from N_COL_X that being used as a north input
+    parameter MAX_FLAG          = 16,
+    parameter COL_Y             = 2,  // Indicates how many columns for the next resulting matrix
+    parameter INNER_DIMENSION   = 16,
+    parameter BLOCK_SIZE        = 2
 ) (
     input logic clk, rst_n,
     input logic in_valid,
@@ -83,7 +85,7 @@ module ping_pong_ctrl #(
 
     // ************************************ FSM Next State Logic ************************************
     always @* begin
-        state_next = state_reg
+        state_next = state_reg;
         case (state_reg)
             S_IDLE: begin
                 w_bank0_ena_ctrl    = 1; w_bank0_enb_ctrl   = 1;
@@ -221,7 +223,7 @@ module ping_pong_ctrl #(
                    
                     if (n_bank0_addra_wr == N_COL_X - 1) begin // North BRAM is fully filled
                         n_bank0_addra_wr    <= '0;
-                        writing_phase[1]    <= ~writing_phase[1]
+                        writing_phase[1]    <= ~writing_phase[1];
                     end else if (writing_phase[1]) begin
                         n_bank0_addra_wr  <= n_bank0_addra_wr + 1;
                     end
@@ -243,7 +245,7 @@ module ping_pong_ctrl #(
                     
                     if (n_bank1_addra_wr == N_COL_X - 1) begin // North BRAM is fully filled
                         n_bank1_addra_wr    <= '0;
-                        writing_phase[1]    <= ~writing_phase[1]
+                        writing_phase[1]    <= ~writing_phase[1];
                     end else if (~writing_phase[1]) begin
                         n_bank1_addra_wr  <= n_bank1_addra_wr + 1;
                     end
