@@ -2,6 +2,7 @@
 // Used to bridge linear projection results with Qn x KnT matmul in self-head attention (or other things)
 // The input consists NUM_CORES_A * NUM_CORES_B * TOTAL_MODULES blocks
 // This used as the NORTH input
+// TO DO change the TDPRAM into SPRAM
 
 module ping_pong_buffer_n #(
     parameter WIDTH             = 16,
@@ -25,20 +26,18 @@ module ping_pong_buffer_n #(
     input logic [$clog2(TOTAL_MODULES)-1:0] slicing_idx; 
 
     // Bank 0 Interface
-    input logic                     bank0_ena, bank0_enb,
-    input logic                     bank0_wea, bank0_web,
-    input logic [ADDR_WIDTH-1:0]    bank0_addra, bank0_addrb,
+    input logic                     bank0_ena,
+    input logic                     bank0_wea,
+    input logic [ADDR_WIDTH-1:0]    bank0_addra,
     input logic [IN_WIDTH-1:0]      bank0_din [TOTAL_INPUT_W],
+    output logic [MODULE_WIDTH-1:0] bank0_dout,
 
     // Bank 1 Interface
-    input logic                     bank1_ena, bank1_enb,
-    input logic                     bank1_web, bank1_web,
-    input logic [ADDR_WIDTH-1:0]    bank1_addra, bank1_addrb,
+    input logic                     bank1_ena,
+    input logic                     bank1_wea,
+    input logic [ADDR_WIDTH-1:0]    bank1_addra,
     input logic [IN_WIDTH-1:0]      bank1_din [TOTAL_INPUT_W],
-
-    // Debug
-    output logic                active_bank_wr,
-    output logic                active_bank_rd
+    output logic [MODULE_WIDTH-1:0] bank1_dout,
 );
     // ************************************ Controller ************************************
     // MSB-first slicing function
@@ -49,7 +48,7 @@ module ping_pong_buffer_n #(
         logic [MODULE_WIDTH-1:0] tmp;
         int pos = MODULE_WIDTH;
 
-        for (int b = 0; b < TOTAL_INPUT_W; b++) begin
+        for (int b = 0; b < TOTAL_INPUT_W - 1; b++) begin
             pos -= SLICE_WIDTH;
             tmp[pos +: SLICE_WIDTH] =
                 bus[b][IN_WIDTH - (idx+1)*SLICE_WIDTH +: SLICE_WIDTH];
@@ -59,110 +58,71 @@ module ping_pong_buffer_n #(
     endfunction
 
 
-    // ************************************ Write BRAM ************************************
-    xpm_memory_tdpram
+    // ************************************ BANK 0 ************************************
+    xpm_memory_spram
     #(
-        // Common module parameters
-        .MEMORY_SIZE(MEMORY_SIZE),           // DECIMAL, 
-        .MEMORY_PRIMITIVE("auto"),           // String
-        .CLOCKING_MODE("common_clock"),      // String, "common_clock"
-        .MEMORY_INIT_FILE(),                 // String
-        .MEMORY_INIT_PARAM("0"),             // String      
-        .USE_MEM_INIT(1),                    // DECIMAL
-        
-        // Port A module parameters
-        .WRITE_DATA_WIDTH_A(MODULE_WIDTH), // DECIMAL, data width: 64-bit
-        .READ_DATA_WIDTH_A(MODULE_WIDTH),  // DECIMAL, data width: 64-bit
-        .BYTE_WRITE_WIDTH_A($clog2(MODULE_WIDTH)), // DECIMAL, how many bytes in WRITE_DATA_WIDTH_A, use $clog2 maybe?
-        .ADDR_WIDTH_A(ADDR_WIDTH),         // DECIMAL, clog2(MEMORY_SIZE/WRITE_DATA_WIDTH_A)
-        .READ_RESET_VALUE_A("0"),            // String
-        .READ_LATENCY_A(1),                  // DECIMAL
-        .WRITE_MODE_A("write_first"),        // String
-        .RST_MODE_A("SYNC"),                 // String
-        
-        // Port B module parameters  
-        .WRITE_DATA_WIDTH_B(MODULE_WIDTH), // DECIMAL, data width: 64-bit
-        .READ_DATA_WIDTH_B(MODULE_WIDTH),  // DECIMAL, data width: 64-bit
-        .BYTE_WRITE_WIDTH_B($clog2(MODULE_WIDTH)), // DECIMAL
-        .ADDR_WIDTH_BADDR_WIDTH(),         // DECIMAL, clog2(MEMORY_SIZE/WRITE_DATA_WIDTH_A)
-        .READ_RESET_VALUE_B("0"),            // String
-        .READ_LATENCY_B(1),                  // DECIMAL
-        .WRITE_MODE_B("write_first"),        // String
-        .RST_MODE_B("SYNC")                  // String
-    )
-    bank_0
-    (
-        // Port A module ports
-        .clka(clk),
-        .rsta(~rst_n),
-        .ena(bank0_ena), 
-        .wea(),
-        .addra(), 
-        .dina(extract_module(wr_data[0], slicing_idx)),
-        .douta(),
-        
-        // Port B module ports
-        .clkb(clk),
-        .rstb(~rst_n),
-        .enb(),
-        .web('0), 
-        .addrb(),
-        .dinb(extract_module(wr_data[1], slicing_idx)),
-        .doutb() // For now, we only use port B to read
-    );
+        .MEMORY_SIZE(MEMORY_SIZE),
+        .MEMORY_PRIMITIVE("auto"),
+        .CLOCKING_MODE("common_clock"),
+        .MEMORY_INIT_FILE(),
+        .MEMORY_INIT_PARAM("0"),
+        .USE_MEM_INIT(1),
 
-    // ************************************ Read BRAM ************************************
-    xpm_memory_tdpram
-    #(
-        // Common module parameters
-        .MEMORY_SIZE(MEMORY_SIZE),           // DECIMAL, 
-        .MEMORY_PRIMITIVE("auto"),           // String
-        .CLOCKING_MODE("common_clock"),      // String, "common_clock"
-        .MEMORY_INIT_FILE(),                 // String
-        .MEMORY_INIT_PARAM("0"),             // String      
-        .USE_MEM_INIT(1),                    // DECIMAL
-        
-        // Port A module parameters
-        .WRITE_DATA_WIDTH_A(MODULE_WIDTH), // DECIMAL, data width: 64-bit
-        .READ_DATA_WIDTH_A(MODULE_WIDTH),  // DECIMAL, data width: 64-bit
-        .BYTE_WRITE_WIDTH_A($clog2(MODULE_WIDTH)), // DECIMAL, how many bytes in WRITE_DATA_WIDTH_A, use $clog2 maybe?
-        .ADDR_WIDTH_A(ADDR_WIDTH),         // DECIMAL, clog2(MEMORY_SIZE/WRITE_DATA_WIDTH_A)
-        .READ_RESET_VALUE_A("0"),            // String
-        .READ_LATENCY_A(1),                  // DECIMAL
-        .WRITE_MODE_A("write_first"),        // String
-        .RST_MODE_A("SYNC"),                 // String
-        
-        // Port B module parameters  
-        .WRITE_DATA_WIDTH_B(MODULE_WIDTH), // DECIMAL, data width: 64-bit
-        .READ_DATA_WIDTH_B(MODULE_WIDTH),  // DECIMAL, data width: 64-bit
-        .BYTE_WRITE_WIDTH_B($clog2(MODULE_WIDTH)), // DECIMAL
-        .ADDR_WIDTH_BADDR_WIDTH(),         // DECIMAL, clog2(MEMORY_SIZE/WRITE_DATA_WIDTH_A)
-        .READ_RESET_VALUE_B("0"),            // String
-        .READ_LATENCY_B(1),                  // DECIMAL
-        .WRITE_MODE_B("write_first"),        // String
-        .RST_MODE_B("SYNC")                  // String
+        .WRITE_DATA_WIDTH_A(MODULE_WIDTH),
+        .READ_DATA_WIDTH_A(MODULE_WIDTH),
+        .BYTE_WRITE_WIDTH_A(MODULE_WIDTH),
+        .ADDR_WIDTH_A(ADDR_WIDTH),
+
+        .READ_LATENCY_A(1),
+        .WRITE_MODE_A("write_first"),
+        .READ_RESET_VALUE_A("0"),
+        .RST_MODE_A("SYNC")
     )
-    xpm_memory_tdpram_inst
+    bank0_n
     (
-        // Port A module ports
         .clka(clk),
         .rsta(~rst_n),
-        .ena(1'b0), 
-        .wea(),
-        .addra(), 
-        .dina(),
-        .douta(),
-        
-        // Port B module ports
-        .clkb(clk),
-        .rstb(~rst_n),
-        .enb(),
-        .web('0), 
-        .addrb(),
-        .dinb(),
-        .doutb() // For now, we only use port B to read
+
+        .ena(bank0_ena),
+        .wea(bank0_wea),
+        .addra(bank0_addra),
+
+        .dina(extract_module(bank0_din, slicing_idx)),
+        .douta(bank0_dout)
     );
 
 
+    // ************************************ BANK 1 ************************************
+    xpm_memory_spram
+    #(
+        .MEMORY_SIZE(MEMORY_SIZE),
+        .MEMORY_PRIMITIVE("auto"),
+        .CLOCKING_MODE("common_clock"),
+        .MEMORY_INIT_FILE(),
+        .MEMORY_INIT_PARAM("0"),
+        .USE_MEM_INIT(1),
+
+        .WRITE_DATA_WIDTH_A(MODULE_WIDTH),
+        .READ_DATA_WIDTH_A(MODULE_WIDTH),
+        .BYTE_WRITE_WIDTH_A(MODULE_WIDTH),
+        .ADDR_WIDTH_A(ADDR_WIDTH),
+
+        .READ_LATENCY_A(1),
+        .WRITE_MODE_A("write_first"),
+        .READ_RESET_VALUE_A("0"),
+        .RST_MODE_A("SYNC")
+    )
+    bank1_n
+    (
+        .clka(clk),
+        .rsta(~rst_n),
+
+        .ena(bank1_ena),
+        .wea(bank1_wea),          
+        .addra(bank1_addra),
+
+        .dina(extract_module(bank1_din, slicing_idx)),
+        .douta(bank1_dout)
+    );
 
 endmodule
