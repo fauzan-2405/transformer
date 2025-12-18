@@ -78,7 +78,7 @@ module ping_pong_buffer_w #(
         .WRITE_MODE_B("write_first"),        // String
         .RST_MODE_B("SYNC")                  // String
     )
-    bank_0
+    bank0_w
     (
         // Port A module ports
         .clka(clk),
@@ -130,7 +130,7 @@ module ping_pong_buffer_w #(
         .WRITE_MODE_B("write_first"),        // String
         .RST_MODE_B("SYNC")                  // String
     )
-    xpm_memory_tdpram_inst
+    bank1_w
     (
         // Port A module ports
         .clka(clk),

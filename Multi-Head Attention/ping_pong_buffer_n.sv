@@ -18,7 +18,7 @@ module ping_pong_buffer_n #(
     localparam SLICE_WIDTH      = WIDTH*CHUNK_SIZE*NUM_CORES_B,
     localparam MODULE_WIDTH     = SLICE_WIDTH*TOTAL_INPUT_W,
     localparam IN_WIDTH         = WIDTH*CHUNK_SIZE*TOTAL_MODULES*NUM_CORES_A,
-    localparam TOTAL_DEPTH      = COL_X * TOTAL_INPUT_W,    // ************** PLEASE REVISE THIS **************
+    localparam TOTAL_DEPTH      = COL_X,    // ************** PLEASE REVISE THIS **************
     localparam MEMORY_SIZE      = TOTAL_DEPTH * MODULE_WIDTH,
     localparam int ADDR_WIDTH   = $clog2(TOTAL_DEPTH)
 ) (
