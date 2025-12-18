@@ -28,12 +28,15 @@ module ping_pong_buffer_w #(
     input logic                     bank0_wea, bank0_web,
     input logic [ADDR_WIDTH-1:0]    bank0_addra, bank0_addrb,
     input logic [IN_WIDTH-1:0]      bank0_din [TOTAL_INPUT_W],
+    output logic [MODULE_WIDTH-1:0] bank0_douta, bank1_doutb,
+
 
     // Bank 1 Interface
     input logic                     bank1_ena, bank1_enb,
-    input logic                     bank1_web, bank1_web,
+    input logic                     bank1_wea, bank1_web,
     input logic [ADDR_WIDTH-1:0]    bank1_addra, bank1_addrb,
     input logic [IN_WIDTH-1:0]      bank1_din [TOTAL_INPUT_W],
+    output logic [MODULE_WIDTH-1:0] bank1_douta, bank1_doutb,
 
     // Debug
     output logic                active_bank_wr,
@@ -48,7 +51,7 @@ module ping_pong_buffer_w #(
         extract_module = bus[IN_WIDTH - (idx+1)*MODULE_WIDTH +: MODULE_WIDTH];
     endfunction
 
-    // ************************************ Write BRAM ************************************
+    // ************************************ BANK 0 ************************************
     xpm_memory_tdpram
     #(
         // Common module parameters
@@ -60,8 +63,8 @@ module ping_pong_buffer_w #(
         .USE_MEM_INIT(1),                    // DECIMAL
         
         // Port A module parameters
-        .WRITE_DATA_WIDTH_A(MODULE_WIDTH), // DECIMAL, data width: 64-bit
-        .READ_DATA_WIDTH_A(MODULE_WIDTH),  // DECIMAL, data width: 64-bit
+        .WRITE_DATA_WIDTH_A(MODULE_WIDTH), // DECIMAL, 
+        .READ_DATA_WIDTH_A(MODULE_WIDTH),  // DECIMAL, 
         .BYTE_WRITE_WIDTH_A($clog2(MODULE_WIDTH)), // DECIMAL, how many bytes in WRITE_DATA_WIDTH_A, use $clog2 maybe?
         .ADDR_WIDTH_A(ADDR_WIDTH),         // DECIMAL, clog2(MEMORY_SIZE/WRITE_DATA_WIDTH_A)
         .READ_RESET_VALUE_A("0"),            // String
@@ -70,10 +73,10 @@ module ping_pong_buffer_w #(
         .RST_MODE_A("SYNC"),                 // String
         
         // Port B module parameters  
-        .WRITE_DATA_WIDTH_B(MODULE_WIDTH), // DECIMAL, data width: 64-bit
-        .READ_DATA_WIDTH_B(MODULE_WIDTH),  // DECIMAL, data width: 64-bit
+        .WRITE_DATA_WIDTH_B(MODULE_WIDTH), // DECIMAL, 
+        .READ_DATA_WIDTH_B(MODULE_WIDTH),  // DECIMAL,
         .BYTE_WRITE_WIDTH_B($clog2(MODULE_WIDTH)), // DECIMAL
-        .ADDR_WIDTH_BADDR_WIDTH(),         // DECIMAL, clog2(MEMORY_SIZE/WRITE_DATA_WIDTH_A)
+        .ADDR_WIDTH_BADDR_WIDTH(ADDR_WIDTH),         // DECIMAL, clog2(MEMORY_SIZE/WRITE_DATA_WIDTH_A)
         .READ_RESET_VALUE_B("0"),            // String
         .READ_LATENCY_B(1),                  // DECIMAL
         .WRITE_MODE_B("write_first"),        // String
@@ -85,22 +88,22 @@ module ping_pong_buffer_w #(
         .clka(clk),
         .rsta(~rst_n),
         .ena(bank0_ena), 
-        .wea(),
-        .addra(), 
-        .dina(extract_module(wr_data[0], slicing_idx)),
-        .douta(),
+        .wea(bank0_wea),
+        .addra(bank0_addra), 
+        .dina(extract_module(bank0_din[0], slicing_idx)),
+        .douta(bank0_douta),
         
         // Port B module ports
         .clkb(clk),
         .rstb(~rst_n),
-        .enb(),
-        .web('0), 
-        .addrb(),
-        .dinb(extract_module(wr_data[1], slicing_idx)),
-        .doutb() // For now, we only use port B to read
+        .enb(bank0_enb),
+        .web(bank0_wea), 
+        .addrb(bank0_addrb),
+        .dinb(extract_module(bank0_din[1], slicing_idx)),
+        .doutb(bank0_doutb) 
     );
 
-    // ************************************ Read BRAM ************************************
+    // ************************************ Bank 1 ************************************
     xpm_memory_tdpram
     #(
         // Common module parameters
@@ -136,20 +139,20 @@ module ping_pong_buffer_w #(
         // Port A module ports
         .clka(clk),
         .rsta(~rst_n),
-        .ena(1'b0), 
-        .wea(),
-        .addra(), 
-        .dina(),
-        .douta(),
+        .ena(bank1_ena), 
+        .wea(bank1_wea),
+        .addra(bank1_addra), 
+        .dina(extract_module(bank1_din[0], slicing_idx)),
+        .douta(bank1_douta),
         
         // Port B module ports
         .clkb(clk),
         .rstb(~rst_n),
-        .enb(),
-        .web('0), 
-        .addrb(),
-        .dinb(),
-        .doutb() // For now, we only use port B to read
+        .enb(bank1_enb),
+        .web(bank1_web), 
+        .addrb(bank1_addrb),
+        .dinb(extract_module(bank1_din[1], slicing_idx)),
+        .doutb(bank1_doutb) 
     );
 
 
