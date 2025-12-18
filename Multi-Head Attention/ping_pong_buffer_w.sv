@@ -36,11 +36,7 @@ module ping_pong_buffer_w #(
     input logic                     bank1_wea, bank1_web,
     input logic [ADDR_WIDTH-1:0]    bank1_addra, bank1_addrb,
     input logic [IN_WIDTH-1:0]      bank1_din [TOTAL_INPUT_W],
-    output logic [MODULE_WIDTH-1:0] bank1_douta, bank1_doutb,
-
-    // Debug
-    output logic                active_bank_wr,
-    output logic                active_bank_rd
+    output logic [MODULE_WIDTH-1:0] bank1_douta, bank1_doutb
 );
     // ************************************ Controller ************************************
     // MSB-first slicing function
