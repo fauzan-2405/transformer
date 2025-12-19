@@ -2,17 +2,17 @@
 // Used to control ping_pong_buffer
 // Basically utilizing the linear_proj_ctrl.sv but tweaks some of the settings
 // Combinational control assertion
-// TODO Please take a look at bank_valid assertion at the very last block
 
 module ping_pong_ctrl #(
     parameter TOTAL_MODULES     = 4,
-    parameter ADDR_WIDTH        = 4,
+    parameter ADDR_WIDTH_W      = 2
+    parameter ADDR_WIDTH_N        = 4,
     parameter W_COL_X           = 4, // Indicates how many columns from W_COL_X that being used as a west input
     parameter N_COL_X           = 4, // Indicates how many columns from N_COL_X that being used as a north input
     parameter MAX_FLAG          = 16,
     parameter COL_Y             = 2,  // Indicates how many columns for the next resulting matrix
-    parameter INNER_DIMENSION   = 16,
-    parameter BLOCK_SIZE        = 2
+    localparam CHUNK_SIZE       = top_pkg::TOP_CHUNK_SIZE,
+    localparam BLOCK_SIZE       = top_pkg::TOP_BLOCK_SIZE
 ) (
     input logic clk, rst_n,
     input logic in_valid,
@@ -22,23 +22,23 @@ module ping_pong_ctrl #(
     // Bank 0 Interface
     output logic                     w_bank0_ena_ctrl, w_bank0_enb_ctrl,
     output logic                     w_bank0_wea_ctrl, w_bank0_web_ctrl,
-    output logic [ADDR_WIDTH-1:0]    w_bank0_addra_ctrl, w_bank0_addrb_ctrl,
+    output logic [ADDR_WIDTH_W-1:0]    w_bank0_addra_ctrl, w_bank0_addrb_ctrl,
 
     // Bank 1 Interface
     output logic                     w_bank1_ena_ctrl, w_bank1_enb_ctrl,
     output logic                     w_bank1_wea_ctrl, w_bank1_web_ctrl,
-    output logic [ADDR_WIDTH-1:0]    w_bank1_addra_ctrl, w_bank1_addrb_ctrl,
+    output logic [ADDR_WIDTH_W-1:0]    w_bank1_addra_ctrl, w_bank1_addrb_ctrl,
 
     // ------------- North Input Interface -------------
     // Bank 0 Interface
     output logic                     n_bank0_ena_ctrl,            
     output logic                     n_bank0_wea_ctrl, 
-    output logic [ADDR_WIDTH-1:0]    n_bank0_addra_ctrl,
+    output logic [ADDR_WIDTH_N-1:0]    n_bank0_addra_ctrl,
 
     // Bank 1 Interface
     output logic                     n_bank1_ena_ctrl,            
     output logic                     n_bank1_wea_ctrl, 
-    output logic [ADDR_WIDTH-1:0]    n_bank1_addra_ctrl,
+    output logic [ADDR_WIDTH_N-1:0]    n_bank1_addra_ctrl,
 
     output logic [$clog2(TOTAL_MODULES)-1:0] w_slicing_idx,
     output logic [$clog2(TOTAL_MODULES)-1:0] n_slicing_idx,
@@ -68,20 +68,20 @@ module ping_pong_ctrl #(
 
     // ------------------- For West Input -------------------
     // For bank 0
-    logic [ADDR_WIDTH-1:0] w_bank0_addra_rd, w_bank0_addra_wr;
-    logic [ADDR_WIDTH-1:0] w_bank0_addrb_rd, w_bank0_addrb_wr;
+    logic [ADDR_WIDTH_W-1:0] w_bank0_addra_rd, w_bank0_addra_wr;
+    logic [ADDR_WIDTH_W-1:0] w_bank0_addrb_rd, w_bank0_addrb_wr;
     // For bank 1
-    logic [ADDR_WIDTH-1:0] w_bank1_addra_rd, w_bank1_addra_wr;
-    logic [ADDR_WIDTH-1:0] w_bank1_addrb_rd, w_bank1_addrb_wr;
+    logic [ADDR_WIDTH_W-1:0] w_bank1_addra_rd, w_bank1_addra_wr;
+    logic [ADDR_WIDTH_W-1:0] w_bank1_addrb_rd, w_bank1_addrb_wr;
 
     // ------------------- For North Input -------------------
     // For north input, we explicitly use SPRAM so we only utilize port A
     // For bank 0
-    logic [ADDR_WIDTH-1:0] n_bank0_addra_wr;
-    logic [ADDR_WIDTH-1:0] n_bank0_addra_rd;
+    logic [ADDR_WIDTH_N-1:0] n_bank0_addra_wr;
+    logic [ADDR_WIDTH_N-1:0] n_bank0_addra_rd;
      // For bank 1
-    logic [ADDR_WIDTH-1:0] n_bank1_addra_wr;
-    logic [ADDR_WIDTH-1:0] n_bank1_addra_rd;
+    logic [ADDR_WIDTH_N-1:0] n_bank1_addra_wr;
+    logic [ADDR_WIDTH_N-1:0] n_bank1_addra_rd;
 
     // ************************************ FSM Next State Logic ************************************
     always @* begin
