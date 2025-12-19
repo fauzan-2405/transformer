@@ -1,4 +1,5 @@
 // This package contains parameters used in linear projection operation
+import top_pkg::*;
 
 package linear_proj_pkg;
     // Parameterization
