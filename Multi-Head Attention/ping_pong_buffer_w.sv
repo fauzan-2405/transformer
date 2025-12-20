@@ -9,7 +9,6 @@ module ping_pong_buffer_w #(
     parameter NUM_CORES_B       = 1,
     parameter TOTAL_MODULES     = 4,
     parameter COL_X             = 16, // COL SIZE of matrix X (producer), we calculate it using C_COL_MAT_SIZE formula!!
-    parameter COL_Y             = 16, // COL SIZE of matrix y (consumer) 
     parameter TOTAL_INPUT_W     = 2,
 
     localparam CHUNK_SIZE       = top_pkg::TOP_CHUNK_SIZE,

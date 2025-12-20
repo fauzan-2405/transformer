@@ -10,7 +10,6 @@ module ping_pong_buffer_n #(
     parameter TOTAL_MODULES     = 1, // buffer because this is used to transpose the matrix
     parameter NUM_CORES_B       = 4,
     parameter COL_X             = 16, // COL SIZE of matrix X (producer), we calculate it using C_COL_MAT_SIZE formula!!
-    parameter COL_Y             = 16, // COL SIZE of matrix y (consumer) 
     parameter TOTAL_INPUT_W     = 2,
 
     localparam CHUNK_SIZE       = top_pkg::TOP_CHUNK_SIZE,
@@ -18,7 +17,7 @@ module ping_pong_buffer_n #(
     localparam SLICE_WIDTH      = WIDTH*CHUNK_SIZE*NUM_CORES_B,
     localparam MODULE_WIDTH     = SLICE_WIDTH*TOTAL_INPUT_W,
     localparam IN_WIDTH         = WIDTH*CHUNK_SIZE*TOTAL_MODULES*NUM_CORES_A,
-    localparam TOTAL_DEPTH      = COL_X,    // ************** PLEASE REVISE THIS **************
+    localparam TOTAL_DEPTH      = COL_X * TOTAL_INPUT_W,    // ************** PLEASE REVISE THIS **************
     localparam MEMORY_SIZE      = TOTAL_DEPTH * MODULE_WIDTH,
     localparam int ADDR_WIDTH   = $clog2(TOTAL_DEPTH)
 ) (
@@ -37,7 +36,7 @@ module ping_pong_buffer_n #(
     input logic                     bank1_wea,
     input logic [ADDR_WIDTH-1:0]    bank1_addra,
     input logic [IN_WIDTH-1:0]      bank1_din [TOTAL_INPUT_W],
-    output logic [MODULE_WIDTH-1:0] bank1_dout,
+    output logic [MODULE_WIDTH-1:0] bank1_dout
 );
     // ************************************ Controller ************************************
     // MSB-first slicing function

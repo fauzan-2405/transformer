@@ -4,15 +4,16 @@
 // Combinational control assertion
 
 module ping_pong_ctrl #(
-    parameter TOTAL_MODULES     = 4,
-    parameter ADDR_WIDTH_W      = 2
-    parameter ADDR_WIDTH_N        = 4,
+    parameter TOTAL_MODULES_N     = 4,
+    parameter TOTAL_MODULES_W     = 4,
+    parameter ADDR_WIDTH_W      = 2,
+    parameter ADDR_WIDTH_N      = 4,
     parameter W_COL_X           = 4, // Indicates how many columns from W_COL_X that being used as a west input
     parameter N_COL_X           = 4, // Indicates how many columns from N_COL_X that being used as a north input
     parameter MAX_FLAG          = 16,
     parameter COL_Y             = 2,  // Indicates how many columns for the next resulting matrix
-    localparam CHUNK_SIZE       = top_pkg::TOP_CHUNK_SIZE,
-    localparam BLOCK_SIZE       = top_pkg::TOP_BLOCK_SIZE
+    parameter INNER_DIMENSION   = 2,
+    localparam BLOCK_SIZE       = 2
 ) (
     input logic clk, rst_n,
     input logic in_valid,
@@ -40,8 +41,8 @@ module ping_pong_ctrl #(
     output logic                     n_bank1_wea_ctrl, 
     output logic [ADDR_WIDTH_N-1:0]    n_bank1_addra_ctrl,
 
-    output logic [$clog2(TOTAL_MODULES)-1:0] w_slicing_idx,
-    output logic [$clog2(TOTAL_MODULES)-1:0] n_slicing_idx,
+    output logic [$clog2(TOTAL_MODULES_W)-1:0] w_slicing_idx,
+    output logic [$clog2(TOTAL_MODULES_N)-1:0] n_slicing_idx,
     output logic                             internal_rst_n_ctrl, internal_reset_acc_ctrl,
     output logic                             out_valid,
     output logic                             enable_matmul
@@ -197,7 +198,7 @@ module ping_pong_ctrl #(
             // ------------------------------------------------------ WRITING PHASE ------------------------------------------------------
             if (in_valid) begin
                 write_now   <= 1'b1;
-            end else if (write_now && (w_slicing_idx == TOTAL_MODULES - 1) && (n_slicing_idx == TOTAL_MODULES - 1)) begin
+            end else if (write_now && (w_slicing_idx == TOTAL_MODULES_W - 1) && (n_slicing_idx == TOTAL_MODULES_N - 1)) begin
                 write_now   <= 1'b0;
             end
 
