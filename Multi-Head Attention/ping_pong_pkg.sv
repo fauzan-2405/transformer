@@ -8,13 +8,14 @@ package ping_pong_pkg;
     parameter int FRAC_WIDTH     = 8;
     parameter int BLOCK_SIZE     = top_pkg::TOP_BLOCK_SIZE; 
     parameter int CHUNK_SIZE     = top_pkg::TOP_CHUNK_SIZE;
+    parameter int INNER_DIMENSION = 4;
     parameter COL_Y              = 4;
     parameter TOTAL_INPUT_W      = 2;
     // COL_X and COL_Y are already computed and determined by NUM_CORES_*
 
     // For West Ping-Pong Buffer, PLEASE CHANGE THESE PARAMETERS ACCORDING TO YOUR USAGE
-    parameter int W_ROW_X          = linear_proj_pkg::ROW_SIZE_MAT_C; // A_OUTER_DIMENSION
-    parameter int W_COL_X          = linear_proj_pkg::COL_SIZE_MAT_C; // INNER DIMENSION
+    parameter int W_ROW_X          = linear_proj_pkg::ROW_SIZE_MAT_C; // A_OUTER_DIMENSION in block
+    parameter int W_COL_X          = linear_proj_pkg::COL_SIZE_MAT_C; // INNER DIMENSION in block size
     parameter int W_NUM_CORES_A    = 2;
     parameter int W_NUM_CORES_B    = 2;
     parameter int W_TOTAL_MODULES  = 4;
@@ -25,7 +26,7 @@ package ping_pong_pkg;
     localparam int ADDR_WIDTH_W    = $clog2(W_TOTAL_DEPTH);
 
     // For North Ping-Pong Buffer, PLEASE CHANGE THESE PARAMETERS ACCORDING TO YOUR USAGE
-    parameter int N_COL_X          = 4; // B_OUTER_DIMENSION or in other words COL_Y
+    parameter int N_COL_X          = 4; // B_OUTER_DIMENSION or in other words COL_Y in block size
     parameter int N_NUM_CORES_A    = 2;
     parameter int N_NUM_CORES_B    = 2;
     parameter int N_TOTAL_MODULES  = 4;
