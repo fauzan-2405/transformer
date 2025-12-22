@@ -1,23 +1,27 @@
 // top_ping_pong.sv
-// This code combines ping_pong_buffer_n + ping_pong_buffer_w + ping_pong_ctrl
+// This code combines top_ping_pong_buffers + ping_pong_ctrl
 import ping_pong_pkg::*;
 
-module top_ping_pong (
+module top_ping_pong #(
+    parameter NUMBER_OF_BUFFER_INSTANCES = 4
+) (
     input logic clk, rst_n,
     input logic in_valid,
     input logic acc_done_wrap, systolic_finish_wrap,
 
     // For West Bank
-    input logic [W_IN_WIDTH-1:0] w_bank0_din [TOTAL_INPUT_W],
-    input logic [W_IN_WIDTH-1:0] w_bank1_din [TOTAL_INPUT_W],
-    output logic [W_MODULE_WIDTH-1:0] w_bank0_douta, w_bank0_doutb,
-    output logic [W_MODULE_WIDTH-1:0] w_bank1_douta, w_bank1_doutb,
+    input logic [W_IN_WIDTH-1:0] w_bank0_din [NUMBER_OF_BUFFER_INSTANCES][TOTAL_INPUT_W],
+    input logic [W_IN_WIDTH-1:0] w_bank1_din [NUMBER_OF_BUFFER_INSTANCES][TOTAL_INPUT_W],
+    output logic [W_MODULE_WIDTH-1:0] w_bank0_douta [NUMBER_OF_BUFFER_INSTANCES],
+    output logic [W_MODULE_WIDTH-1:0] w_bank0_doutb [NUMBER_OF_BUFFER_INSTANCES],
+    output logic [W_MODULE_WIDTH-1:0] w_bank1_douta [NUMBER_OF_BUFFER_INSTANCES], 
+    output logic [W_MODULE_WIDTH-1:0] w_bank1_doutb [NUMBER_OF_BUFFER_INSTANCES],
 
     // For North Bank
-    input logic [N_IN_WIDTH-1:0] n_bank0_din [TOTAL_INPUT_W],
-    input logic [N_IN_WIDTH-1:0] n_bank1_din [TOTAL_INPUT_W],
-    output logic [N_MODULE_WIDTH-1:0] n_bank0_dout,
-    output logic [N_MODULE_WIDTH-1:0] n_bank1_dout
+    input logic [N_IN_WIDTH-1:0] n_bank0_din [NUMBER_OF_BUFFER_INSTANCES][TOTAL_INPUT_W],
+    input logic [N_IN_WIDTH-1:0] n_bank1_din [NUMBER_OF_BUFFER_INSTANCES][TOTAL_INPUT_W],
+    output logic [N_MODULE_WIDTH-1:0] n_bank0_dout [NUMBER_OF_BUFFER_INSTANCES],
+    output logic [N_MODULE_WIDTH-1:0] n_bank1_dout [NUMBER_OF_BUFFER_INSTANCES]
 );
     // ************************************ PING-PONG CONTROLLER ************************************
     // West bank control
@@ -97,65 +101,58 @@ module top_ping_pong (
         .enable_matmul          (enable_matmul)
     );
 
-    // ************************************ WEST PING-PONG BUFFER ************************************
-    ping_pong_buffer_w #(
-        .WIDTH(WIDTH),
-        .NUM_CORES_A(W_NUM_CORES_A),
-        .NUM_CORES_B(W_NUM_CORES_B),
-        .TOTAL_MODULES(W_TOTAL_MODULES),
-        .COL_X(W_COL_X),
-        .TOTAL_INPUT_W(TOTAL_INPUT_W)
-    ) u_ping_pong_buffer_w (
-        .clk        (clk),
-        .rst_n      (rst_n),
-        .slicing_idx(w_slicing_idx),
+    // ************************************ PING PONG BUFFERS ************************************
+    genvar i;
+generate
+    for (i = 0; i < NUMBER_OF_BUFFER_INSTANCES - 1; i++) begin : GEN_PINGPONG
 
-        .bank0_ena  (w_bank0_ena),
-        .bank0_enb  (w_bank0_enb),
-        .bank0_wea  (w_bank0_wea),
-        .bank0_web  (w_bank0_web),
-        .bank0_addra(w_bank0_addra),
-        .bank0_addrb(w_bank0_addrb),
-        .bank0_din  (w_bank0_din),
-        .bank0_douta(w_bank0_douta),
-        .bank0_doutb(w_bank0_doutb),
+        top_ping_pong_buffers u_pingpong_buffers (
+            .clk(clk),
+            .rst_n(rst_n),
 
-        .bank1_ena  (w_bank1_ena),
-        .bank1_enb  (w_bank1_enb),
-        .bank1_wea  (w_bank1_wea),
-        .bank1_web  (w_bank1_web),
-        .bank1_addra(w_bank1_addra),
-        .bank1_addrb(w_bank1_addrb),
-        .bank1_din  (w_bank1_din),
-        .bank1_douta(w_bank1_douta),
-        .bank1_doutb(w_bank1_doutb)
-    );`
+            .w_slicing_idx(w_slicing_idx),
+            .n_slicing_idx(n_slicing_idx),
 
-    // ************************************ NORTH PING-PONG BUFFER ************************************
-    ping_pong_buffer_n #(
-        .WIDTH(WIDTH),
-        .NUM_CORES_A(N_NUM_CORES_A),
-        .NUM_CORES_B(N_NUM_CORES_B),
-        .TOTAL_MODULES(N_TOTAL_MODULES),
-        .COL_X(N_COL_X),
-        .TOTAL_INPUT_W(TOTAL_INPUT_W)
-    ) u_ping_pong_buffer_n (
-        .clk        (clk),
-        .rst_n      (rst_n),
-        .slicing_idx(n_slicing_idx),
+            // Control (shared)
+            .w_bank0_ena(w_bank0_ena_ctrl),
+            .w_bank0_enb(w_bank0_enb_ctrl),
+            .w_bank0_wea(w_bank0_wea_ctrl),
+            .w_bank0_web(w_bank0_web_ctrl),
+            .w_bank0_addra(w_bank0_addra_ctrl),
+            .w_bank0_addrb(w_bank0_addrb_ctrl),
 
-        .bank0_ena  (n_bank0_ena),
-        .bank0_wea  (n_bank0_wea),
-        .bank0_addra(n_bank0_addra),
-        .bank0_din  (n_bank0_din),
-        .bank0_dout (n_bank0_dout),
+            .w_bank1_ena(w_bank1_ena_ctrl),
+            .w_bank1_enb(w_bank1_enb_ctrl),
+            .w_bank1_wea(w_bank1_wea_ctrl),
+            .w_bank1_web(w_bank1_web_ctrl),
+            .w_bank1_addra(w_bank1_addra_ctrl),
+            .w_bank1_addrb(w_bank1_addrb_ctrl),
 
-        .bank1_ena  (n_bank1_ena),
-        .bank1_wea  (n_bank1_wea),
-        .bank1_addra(n_bank1_addra),
-        .bank1_din  (n_bank1_din),
-        .bank1_dout (n_bank1_dout)
-    );
+            .n_bank0_ena(n_bank0_ena_ctrl),
+            .n_bank0_wea(n_bank0_wea_ctrl),
+            .n_bank0_addra(n_bank0_addra_ctrl),
+
+            .n_bank1_ena(n_bank1_ena_ctrl),
+            .n_bank1_wea(n_bank1_wea_ctrl),
+            .n_bank1_addra(n_bank1_addra_ctrl),
+
+            // Instance-specific data
+            .w_bank0_din(w_bank0_din[i]),
+            .w_bank1_din(w_bank1_din[i]),
+            .n_bank0_din(n_bank0_din[i]),
+            .n_bank1_din(n_bank1_din[i]),
+
+            .w_bank0_douta(w_bank0_douta[i]),
+            .w_bank0_doutb(w_bank0_doutb[i]),
+            .w_bank1_douta(w_bank1_douta[i]),
+            .w_bank1_doutb(w_bank1_doutb[i]),
+            .n_bank0_dout(n_bank0_dout[i]),
+            .n_bank1_dout(n_bank1_dout[i])
+        );
+
+    end
+endgenerate
+
 
 
 endmodule
