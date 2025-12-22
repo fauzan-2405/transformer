@@ -12,16 +12,12 @@ module top_ping_pong #(
     // For West Bank
     input logic [W_IN_WIDTH-1:0] w_bank0_din [NUMBER_OF_BUFFER_INSTANCES][TOTAL_INPUT_W],
     input logic [W_IN_WIDTH-1:0] w_bank1_din [NUMBER_OF_BUFFER_INSTANCES][TOTAL_INPUT_W],
-    output logic [W_MODULE_WIDTH-1:0] w_bank0_douta [NUMBER_OF_BUFFER_INSTANCES],
-    output logic [W_MODULE_WIDTH-1:0] w_bank0_doutb [NUMBER_OF_BUFFER_INSTANCES],
-    output logic [W_MODULE_WIDTH-1:0] w_bank1_douta [NUMBER_OF_BUFFER_INSTANCES], 
-    output logic [W_MODULE_WIDTH-1:0] w_bank1_doutb [NUMBER_OF_BUFFER_INSTANCES],
+    output logic [W_MODULE_WIDTH-1:0] w_dout [NUMBER_OF_BUFFER_INSTANCES][TOTAL_INPUT_W],
 
     // For North Bank
     input logic [N_IN_WIDTH-1:0] n_bank0_din [NUMBER_OF_BUFFER_INSTANCES][TOTAL_INPUT_W],
     input logic [N_IN_WIDTH-1:0] n_bank1_din [NUMBER_OF_BUFFER_INSTANCES][TOTAL_INPUT_W],
-    output logic [N_MODULE_WIDTH-1:0] n_bank0_dout [NUMBER_OF_BUFFER_INSTANCES],
-    output logic [N_MODULE_WIDTH-1:0] n_bank1_dout [NUMBER_OF_BUFFER_INSTANCES],
+    output logic [N_MODULE_WIDTH-1:0] n_dout [NUMBER_OF_BUFFER_INSTANCES],
 
     // Global Controllers
     output logic internal_rst_n_ctrl,
@@ -56,6 +52,7 @@ module top_ping_pong #(
     logic internal_reset_acc_ctrl;
     logic out_valid;
     logic enable_matmul;
+    logic state_now;
 
     ping_pong_ctrl #(
         .TOTAL_MODULES_N   (N_TOTAL_MODULES),
@@ -104,13 +101,22 @@ module top_ping_pong #(
         .internal_rst_n_ctrl    (internal_rst_n_ctrl),
         .internal_reset_acc_ctrl(internal_reset_acc_ctrl),
         .out_valid              (out_valid),
-        .enable_matmul          (enable_matmul)
+        .enable_matmul          (enable_matmul),
+        .state_now              (state_now)
     );
 
     // ************************************ PING PONG BUFFERS ************************************
+    logic [W_MODULE_WIDTH-1:0] w_bank0_douta_i [NUMBER_OF_BUFFER_INSTANCES];
+    logic [W_MODULE_WIDTH-1:0] w_bank0_doutb_i [NUMBER_OF_BUFFER_INSTANCES];
+    logic [W_MODULE_WIDTH-1:0] w_bank1_douta_i [NUMBER_OF_BUFFER_INSTANCES];
+    logic [W_MODULE_WIDTH-1:0] w_bank1_doutb_i [NUMBER_OF_BUFFER_INSTANCES];
+
+    logic [N_MODULE_WIDTH-1:0] n_bank0_dout_i [NUMBER_OF_BUFFER_INSTANCES];
+    logic [N_MODULE_WIDTH-1:0] n_bank1_dout_i [NUMBER_OF_BUFFER_INSTANCES];
+
     genvar i;
     generate
-        for (i = 0; i < NUMBER_OF_BUFFER_INSTANCES - 1; i++) begin : GEN_PINGPONG
+        for (i = 0; i < NUMBER_OF_BUFFER_INSTANCES; i++) begin : GEN_PINGPONG
 
             top_ping_pong_buffers u_pingpong_buffers (
                 .clk(clk),
@@ -148,16 +154,42 @@ module top_ping_pong #(
                 .n_bank0_din(n_bank0_din[i]),
                 .n_bank1_din(n_bank1_din[i]),
 
-                .w_bank0_douta(w_bank0_douta[i]),
-                .w_bank0_doutb(w_bank0_doutb[i]),
-                .w_bank1_douta(w_bank1_douta[i]),
-                .w_bank1_doutb(w_bank1_doutb[i]),
-                .n_bank0_dout(n_bank0_dout[i]),
-                .n_bank1_dout(n_bank1_dout[i])
+                .w_bank0_douta(w_bank0_douta_i[i]),
+                .w_bank0_doutb(w_bank0_doutb_i[i]),
+                .w_bank1_douta(w_bank1_douta_i[i]),
+                .w_bank1_doutb(w_bank1_doutb_i[i]),
+                .n_bank0_dout(n_bank0_dout_i[i]),
+                .n_bank1_dout(n_bank1_dout_i[i])
             );
 
         end
     endgenerate
+
+    // ************************************ OUTPUT SELECTION ************************************
+    genvar k;
+    generate
+        for (k = 0; k < NUMBER_OF_BUFFER_INSTANCES; k++) begin : GEN_BANK_MUX
+
+            // ---------------- WEST (2 inputs) ----------------
+            // w_dout[k][0] = former douta
+            // w_dout[k][1] = former doutb
+
+            assign w_dout[k][0] = (state_now == 1'b0)
+                                    ? w_bank1_douta_i[k]
+                                    : w_bank0_douta_i[k];
+
+            assign w_dout[k][1] = (state_now == 1'b0)
+                                    ? w_bank1_doutb_i[k]
+                                    : w_bank0_doutb_i[k];
+
+            // ---------------- NORTH (single input) ----------------
+            assign n_dout[k] = (state_now == 1'b0)
+                                ? n_bank1_dout_i[k]
+                                : n_bank0_dout_i[k];
+
+        end
+    endgenerate
+
 
 
 
