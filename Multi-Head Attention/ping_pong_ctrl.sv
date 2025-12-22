@@ -45,7 +45,8 @@ module ping_pong_ctrl #(
     output logic [$clog2(TOTAL_MODULES_N)-1:0] n_slicing_idx,
     output logic                             internal_rst_n_ctrl, internal_reset_acc_ctrl,
     output logic                             out_valid,
-    output logic                             enable_matmul
+    output logic                             enable_matmul,
+    output logic                             state_now
 );
     // ************************************ Wires & Parameters ************************************
     typedef enum logic [1:0] {
@@ -317,5 +318,7 @@ module ping_pong_ctrl #(
     assign enable_matmul = (state_reg != S_DONE) ? 1 : 0;
     assign internal_reset_acc_ctrl  = internal_reset_acc;
     assign internal_rst_n_ctrl      = internal_rst_n;
+    assign state_now                = (state_reg == S_W0_R1) ? 0 : 
+                                      (state_reg == S_W1_R0) ? 1 : 0;
 
 endmodule
