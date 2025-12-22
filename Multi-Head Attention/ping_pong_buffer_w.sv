@@ -20,14 +20,14 @@ module ping_pong_buffer_w #(
     localparam int ADDR_WIDTH   = $clog2(TOTAL_DEPTH)
 ) (
     input logic clk, rst_n,
-    input logic [$clog2(TOTAL_MODULES)-1:0] slicing_idx; 
+    input logic [$clog2(TOTAL_MODULES)-1:0] slicing_idx,
 
     // Bank 0 Interface
     input logic                     bank0_ena, bank0_enb,
     input logic                     bank0_wea, bank0_web,
     input logic [ADDR_WIDTH-1:0]    bank0_addra, bank0_addrb,
     input logic [IN_WIDTH-1:0]      bank0_din [TOTAL_INPUT_W],
-    output logic [MODULE_WIDTH-1:0] bank0_douta, bank1_doutb,
+    output logic [MODULE_WIDTH-1:0] bank0_douta, bank0_doutb,
 
 
     // Bank 1 Interface

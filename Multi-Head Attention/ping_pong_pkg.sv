@@ -1,7 +1,6 @@
 // ping_pong_pkg.sv
 // This package contains all necessary parameters for ping_pong buffer
 import top_pkg::*;
-import linear_proj_pkg::*;
 
 package ping_pong_pkg;
     parameter int WIDTH          = 16;
