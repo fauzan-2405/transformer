@@ -2,9 +2,22 @@
 // Wrapper for ping_pong_buffer_w + ping_pong_buffer_n
 // Controller signals are assumed to be driven externally (ping_pong_ctrl)
 
-import ping_pong_pkg::*;
+module top_ping_pong_buffers #(
+    // West Buffer
+    parameter WIDTH             = 16,
+    parameter W_NUM_CORES_A     = 2,
+    parameter W_NUM_CORES_B     = 1,
+    parameter W_TOTAL_MODULES   = 4,
+    parameter W_COL_X           = 4,
+    parameter TOTAL_INPUT_W_W   = 4,
 
-module top_ping_pong_buffers (
+    // North Buffer
+    parameter N_NUM_CORES_A     = 2,
+    parameter N_NUM_CORES_B     = 1,
+    parameter N_TOTAL_MODULES   = 4,
+    parameter N_COL_X           = 4,
+    parameter TOTAL_INPUT_W_N   = 4
+) (
     input  logic clk,
     input  logic rst_n,
 
@@ -64,7 +77,7 @@ module top_ping_pong_buffers (
         .NUM_CORES_B   (W_NUM_CORES_B),
         .TOTAL_MODULES (W_TOTAL_MODULES),
         .COL_X         (W_COL_X),
-        .TOTAL_INPUT_W (TOTAL_INPUT_W)
+        .TOTAL_INPUT_W (TOTAL_INPUT_W_W)
     ) u_ping_pong_buffer_w (
         .clk        (clk),
         .rst_n      (rst_n),
@@ -102,7 +115,7 @@ module top_ping_pong_buffers (
         .NUM_CORES_B   (N_NUM_CORES_B),
         .TOTAL_MODULES (N_TOTAL_MODULES),
         .COL_X         (N_COL_X),
-        .TOTAL_INPUT_W (TOTAL_INPUT_W)
+        .TOTAL_INPUT_W (TOTAL_INPUT_W_N)
     ) u_ping_pong_buffer_n (
         .clk        (clk),
         .rst_n      (rst_n),
