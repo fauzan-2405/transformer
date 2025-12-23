@@ -48,10 +48,6 @@ module top_ping_pong #(
     logic [$clog2(W_TOTAL_MODULES)-1:0] w_slicing_idx;
     logic [$clog2(N_TOTAL_MODULES)-1:0] n_slicing_idx;
 
-    logic internal_rst_n_ctrl;
-    logic internal_reset_acc_ctrl;
-    logic out_valid;
-    logic enable_matmul;
     logic state_now;
 
     ping_pong_ctrl #(
@@ -61,7 +57,7 @@ module top_ping_pong #(
         .ADDR_WIDTH_W      (ADDR_WIDTH_W),
         .N_COL_X           (N_COL_X),
         .W_COL_X           (W_COL_X),
-        .MAX_FLAG          (MAX_FLAG),
+        .MAX_FLAG          (MAX_FLAG_PP),
         .COL_Y             (COL_Y),
         .INNER_DIMENSION   (INNER_DIMENSION)
     ) pingpong_controller (

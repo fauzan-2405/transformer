@@ -64,7 +64,6 @@ module top_ping_pong_buffers (
         .NUM_CORES_B   (W_NUM_CORES_B),
         .TOTAL_MODULES (W_TOTAL_MODULES),
         .COL_X         (W_COL_X),
-        .COL_Y         (COL_Y),
         .TOTAL_INPUT_W (TOTAL_INPUT_W)
     ) u_ping_pong_buffer_w (
         .clk        (clk),
@@ -103,7 +102,6 @@ module top_ping_pong_buffers (
         .NUM_CORES_B   (N_NUM_CORES_B),
         .TOTAL_MODULES (N_TOTAL_MODULES),
         .COL_X         (N_COL_X),
-        .COL_Y         (COL_Y),
         .TOTAL_INPUT_W (TOTAL_INPUT_W)
     ) u_ping_pong_buffer_n (
         .clk        (clk),

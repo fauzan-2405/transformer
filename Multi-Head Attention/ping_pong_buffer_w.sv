@@ -71,7 +71,7 @@ module ping_pong_buffer_w #(
         .WRITE_DATA_WIDTH_B(MODULE_WIDTH), // DECIMAL, 
         .READ_DATA_WIDTH_B(MODULE_WIDTH),  // DECIMAL,
         .BYTE_WRITE_WIDTH_B($clog2(MODULE_WIDTH)), // DECIMAL
-        .ADDR_WIDTH_BADDR_WIDTH(ADDR_WIDTH),         // DECIMAL, clog2(MEMORY_SIZE/WRITE_DATA_WIDTH_A)
+        .ADDR_WIDTH_B(ADDR_WIDTH),         // DECIMAL, clog2(MEMORY_SIZE/WRITE_DATA_WIDTH_A)
         .READ_RESET_VALUE_B("0"),            // String
         .READ_LATENCY_B(1),                  // DECIMAL
         .WRITE_MODE_B("write_first"),        // String
