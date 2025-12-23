@@ -7,8 +7,8 @@
 module ping_pong_buffer_n #(
     parameter WIDTH             = 16,
     parameter NUM_CORES_A       = 2, // DO NOT FORGET to swap NUM_CORES_A with NUM_CORES_B (TOTAL_MODULES) in this
-    parameter TOTAL_MODULES     = 1, // buffer because this is used to transpose the matrix
-    parameter NUM_CORES_B       = 4,
+    parameter TOTAL_MODULES     = 3, // buffer because this is used to transpose the matrix
+    parameter NUM_CORES_B       = 1,
     parameter COL_X             = 16, // COL SIZE of matrix X (producer), we calculate it using C_COL_MAT_SIZE formula!!
     parameter TOTAL_INPUT_W     = 2,
 
@@ -62,7 +62,6 @@ module ping_pong_buffer_n #(
     #(
         .MEMORY_SIZE(MEMORY_SIZE),
         .MEMORY_PRIMITIVE("auto"),
-        .CLOCKING_MODE("common_clock"),
         .MEMORY_INIT_FILE(),
         .MEMORY_INIT_PARAM("0"),
         .USE_MEM_INIT(1),
@@ -96,7 +95,6 @@ module ping_pong_buffer_n #(
     #(
         .MEMORY_SIZE(MEMORY_SIZE),
         .MEMORY_PRIMITIVE("auto"),
-        .CLOCKING_MODE("common_clock"),
         .MEMORY_INIT_FILE(),
         .MEMORY_INIT_PARAM("0"),
         .USE_MEM_INIT(1),
