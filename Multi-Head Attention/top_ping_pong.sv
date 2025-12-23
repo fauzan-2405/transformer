@@ -58,7 +58,7 @@ module top_ping_pong #(
         .N_COL_X           (N_COL_X),
         .W_COL_X           (W_COL_X),
         .MAX_FLAG          (MAX_FLAG_PP),
-        .COL_Y             (COL_Y),
+        .COL_Y             (N_COL_X),
         .INNER_DIMENSION   (INNER_DIMENSION)
     ) pingpong_controller (
         .clk                    (clk),
@@ -114,7 +114,20 @@ module top_ping_pong #(
     generate
         for (i = 0; i < NUMBER_OF_BUFFER_INSTANCES; i++) begin : GEN_PINGPONG
 
-            top_ping_pong_buffers u_pingpong_buffers (
+            top_ping_pong_buffers #(
+                .WIDTH(WIDTH),
+                .W_NUM_CORES_A(W_NUM_CORES_A),
+                .W_NUM_CORES_B(W_NUM_CORES_B),
+                .W_TOTAL_MODULES(W_TOTAL_MODULES),
+                .W_COL_X(W_COL_X),
+                .TOTAL_INPUT_W_W(TOTAL_INPUT_W_W),
+
+                .N_NUM_CORES_A(N_NUM_CORES_A),
+                .N_NUM_CORES_B(N_NUM_CORES_B),
+                .N_TOTAL_MODULES(N_TOTAL_MODULES),
+                .N_COL_X(N_COL_X),
+                .TOTAL_INPUT_W_N(TOTAL_INPUT_W_N)
+            ) u_pingpong_buffers (
                 .clk(clk),
                 .rst_n(rst_n),
 
