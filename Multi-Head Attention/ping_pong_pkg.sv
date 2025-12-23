@@ -12,12 +12,12 @@ package ping_pong_pkg;
     // COL_X and COL_Y are already computed and determined by NUM_CORES_*
 
     // For West Ping-Pong Buffer, PLEASE CHANGE THESE PARAMETERS ACCORDING TO YOUR USAGE
-    parameter TOTAL_INPUT_W_W      = self_attention_pkg::TOTAL_INPUT_W_Qn_KnT;
-    parameter int W_ROW_X          = linear_proj_pkg::ROW_SIZE_MAT_C; // A_OUTER_DIMENSION in block
-    parameter int W_COL_X          = linear_proj_pkg::COL_SIZE_MAT_C; // INNER DIMENSION in block size
-    parameter int W_NUM_CORES_A    = linear_proj_pkg::NUM_CORES_A_Qn_KnT;
-    parameter int W_NUM_CORES_B    = 2;
-    parameter int W_TOTAL_MODULES  = 4;
+    parameter TOTAL_INPUT_W_W      = 2; 
+    parameter int W_ROW_X          = linear_proj_pkg::ROW_SIZE_MAT_C; // A_OUTER_DIMENSION in BLOCK_SIZE unit
+    parameter int W_COL_X          = linear_proj_pkg::COL_SIZE_MAT_C; // INNER DIMENSION in BLOCK_SIZE unit
+    parameter int W_NUM_CORES_A    = self_attention_pkg::NUM_CORES_A_Qn_KnT;
+    parameter int W_NUM_CORES_B    = 1;
+    parameter int W_TOTAL_MODULES  = self_attention_pkg::TOTAL_MODULES_LP_Q; // How many modules used from the last multiplication for this west buffer
     localparam W_MODULE_WIDTH      = WIDTH*CHUNK_SIZE*W_NUM_CORES_A*W_NUM_CORES_B;
     localparam W_IN_WIDTH          = W_MODULE_WIDTH * W_TOTAL_MODULES;
     localparam W_TOTAL_DEPTH       = W_COL_X * TOTAL_INPUT_W_W;
@@ -25,11 +25,11 @@ package ping_pong_pkg;
     localparam int ADDR_WIDTH_W    = $clog2(W_TOTAL_DEPTH);
 
     // For North Ping-Pong Buffer, PLEASE CHANGE THESE PARAMETERS ACCORDING TO YOUR USAGE
-    parameter TOTAL_INPUT_W_N      = self_attention_pkg::TOTAL_INPUT_W_Qn_KnT;
-    parameter int N_COL_X          = 4; // B_OUTER_DIMENSION or in other words COL_Y in block size
-    parameter int N_NUM_CORES_A    = 2;
-    parameter int N_NUM_CORES_B    = 2;
-    parameter int N_TOTAL_MODULES  = 4;
+    parameter TOTAL_INPUT_W_N      = 2;
+    parameter int N_COL_X          = W_ROW_X; // B_OUTER_DIMENSION or in other words COL_Y in BLOCK_SIZE unit
+    parameter int N_NUM_CORES_A    = 1;
+    parameter int N_NUM_CORES_B    = self_attention_pkg::NUM_CORES_B_Qn_KnT;
+    parameter int N_TOTAL_MODULES  = self_attention_pkg::TOTAL_MODULES_LP_Q; // How many modules used from the last multiplication for this west buffer
     localparam N_SLICE_WIDTH       = WIDTH*CHUNK_SIZE*N_NUM_CORES_B;
     localparam N_MODULE_WIDTH      = N_SLICE_WIDTH*TOTAL_INPUT_W_N;
     localparam N_IN_WIDTH          = WIDTH*CHUNK_SIZE*N_TOTAL_MODULES*N_NUM_CORES_A;
