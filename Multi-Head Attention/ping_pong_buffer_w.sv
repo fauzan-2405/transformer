@@ -60,7 +60,7 @@ module ping_pong_buffer_w #(
         // Port A module parameters
         .WRITE_DATA_WIDTH_A(MODULE_WIDTH), // DECIMAL, 
         .READ_DATA_WIDTH_A(MODULE_WIDTH),  // DECIMAL, 
-        .BYTE_WRITE_WIDTH_A($clog2(MODULE_WIDTH)), // DECIMAL, how many bytes in WRITE_DATA_WIDTH_A, use $clog2 maybe?
+        .BYTE_WRITE_WIDTH_A((MODULE_WIDTH)), // DECIMAL, how many bytes in WRITE_DATA_WIDTH_A, use $clog2 maybe?
         .ADDR_WIDTH_A(ADDR_WIDTH),         // DECIMAL, clog2(MEMORY_SIZE/WRITE_DATA_WIDTH_A)
         .READ_RESET_VALUE_A("0"),            // String
         .READ_LATENCY_A(1),                  // DECIMAL
@@ -70,7 +70,7 @@ module ping_pong_buffer_w #(
         // Port B module parameters  
         .WRITE_DATA_WIDTH_B(MODULE_WIDTH), // DECIMAL, 
         .READ_DATA_WIDTH_B(MODULE_WIDTH),  // DECIMAL,
-        .BYTE_WRITE_WIDTH_B($clog2(MODULE_WIDTH)), // DECIMAL
+        .BYTE_WRITE_WIDTH_B((MODULE_WIDTH)), // DECIMAL
         .ADDR_WIDTH_B(ADDR_WIDTH),         // DECIMAL, clog2(MEMORY_SIZE/WRITE_DATA_WIDTH_A)
         .READ_RESET_VALUE_B("0"),            // String
         .READ_LATENCY_B(1),                  // DECIMAL
@@ -112,7 +112,7 @@ module ping_pong_buffer_w #(
         // Port A module parameters
         .WRITE_DATA_WIDTH_A(MODULE_WIDTH), // DECIMAL, data width: 64-bit
         .READ_DATA_WIDTH_A(MODULE_WIDTH),  // DECIMAL, data width: 64-bit
-        .BYTE_WRITE_WIDTH_A($clog2(MODULE_WIDTH)), // DECIMAL, how many bytes in WRITE_DATA_WIDTH_A, use $clog2 maybe?
+        .BYTE_WRITE_WIDTH_A(MODULE_WIDTH), // DECIMAL, how many bytes in WRITE_DATA_WIDTH_A, use $clog2 maybe?
         .ADDR_WIDTH_A(ADDR_WIDTH),         // DECIMAL, clog2(MEMORY_SIZE/WRITE_DATA_WIDTH_A)
         .READ_RESET_VALUE_A("0"),            // String
         .READ_LATENCY_A(1),                  // DECIMAL
@@ -122,7 +122,7 @@ module ping_pong_buffer_w #(
         // Port B module parameters  
         .WRITE_DATA_WIDTH_B(MODULE_WIDTH), // DECIMAL, data width: 64-bit
         .READ_DATA_WIDTH_B(MODULE_WIDTH),  // DECIMAL, data width: 64-bit
-        .BYTE_WRITE_WIDTH_B($clog2(MODULE_WIDTH)), // DECIMAL
+        .BYTE_WRITE_WIDTH_B(MODULE_WIDTH), // DECIMAL
         .ADDR_WIDTH_BADDR_WIDTH(),         // DECIMAL, clog2(MEMORY_SIZE/WRITE_DATA_WIDTH_A)
         .READ_RESET_VALUE_B("0"),            // String
         .READ_LATENCY_B(1),                  // DECIMAL
