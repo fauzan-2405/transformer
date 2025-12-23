@@ -10,13 +10,13 @@ module top_ping_pong #(
     input logic acc_done_wrap, systolic_finish_wrap,
 
     // For West Bank
-    input logic [W_IN_WIDTH-1:0] w_bank0_din [NUMBER_OF_BUFFER_INSTANCES][TOTAL_INPUT_W],
-    input logic [W_IN_WIDTH-1:0] w_bank1_din [NUMBER_OF_BUFFER_INSTANCES][TOTAL_INPUT_W],
-    output logic [W_MODULE_WIDTH-1:0] w_dout [NUMBER_OF_BUFFER_INSTANCES][TOTAL_INPUT_W],
+    input logic [W_IN_WIDTH-1:0] w_bank0_din [NUMBER_OF_BUFFER_INSTANCES][TOTAL_INPUT_W_W],
+    input logic [W_IN_WIDTH-1:0] w_bank1_din [NUMBER_OF_BUFFER_INSTANCES][TOTAL_INPUT_W_W],
+    output logic [W_MODULE_WIDTH-1:0] w_dout [NUMBER_OF_BUFFER_INSTANCES][TOTAL_INPUT_W_W],
 
     // For North Bank
-    input logic [N_IN_WIDTH-1:0] n_bank0_din [NUMBER_OF_BUFFER_INSTANCES][TOTAL_INPUT_W],
-    input logic [N_IN_WIDTH-1:0] n_bank1_din [NUMBER_OF_BUFFER_INSTANCES][TOTAL_INPUT_W],
+    input logic [N_IN_WIDTH-1:0] n_bank0_din [NUMBER_OF_BUFFER_INSTANCES][TOTAL_INPUT_W_N],
+    input logic [N_IN_WIDTH-1:0] n_bank1_din [NUMBER_OF_BUFFER_INSTANCES][TOTAL_INPUT_W_N],
     output logic [N_MODULE_WIDTH-1:0] n_dout [NUMBER_OF_BUFFER_INSTANCES],
 
     // Global Controllers
@@ -121,12 +121,18 @@ module top_ping_pong #(
                 .W_TOTAL_MODULES(W_TOTAL_MODULES),
                 .W_COL_X(W_COL_X),
                 .TOTAL_INPUT_W_W(TOTAL_INPUT_W_W),
+                .ADDR_WIDTH_W(ADDR_WIDTH_W),
+                .W_IN_WIDTH(W_IN_WIDTH),
+                .W_MODULE_WIDTH(W_MODULE_WIDTH),
 
                 .N_NUM_CORES_A(N_NUM_CORES_A),
                 .N_NUM_CORES_B(N_NUM_CORES_B),
                 .N_TOTAL_MODULES(N_TOTAL_MODULES),
                 .N_COL_X(N_COL_X),
-                .TOTAL_INPUT_W_N(TOTAL_INPUT_W_N)
+                .TOTAL_INPUT_W_N(TOTAL_INPUT_W_N),
+                .ADDR_WIDTH_N(ADDR_WIDTH_N),
+                .N_IN_WIDTH(N_IN_WIDTH),
+                .N_MODULE_WIDTH(N_MODULE_WIDTH)
             ) u_pingpong_buffers (
                 .clk(clk),
                 .rst_n(rst_n),
