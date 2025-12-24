@@ -10,14 +10,7 @@ Block-based matrix multiplication driver using matrix_multiplier_v2 utilities.
 - Exports Matrix C in core-mode format (matrix_C rules)
 
 Example:
-python block_matmul.py \
-  --matrix_A A.txt \
-  --matrix_B B.txt \
-  --total_bits 16 \
-  --frac_bits 8 \
-  --cores_a 2 \
-  --cores_b 4 \
-  --display float
+ python -u "d:\DATA\Documents\Xirka Internship\PME\Transformer\transformer\Python Model\block_matmul.py" --matrix_A "d:\DATA\Documents\Xirka Internship\PME\Transformer\transformer\Python Model\A.txt" --matrix_B "d:\DATA\Documents\Xirka Internship\PME\Transformer\transformer\Python Model\B.txt" --cores_a 2 --cores_b 2 --display float
 """
 
 import argparse
