@@ -21,8 +21,11 @@ def main():
 
     # Print result nicely
     print("Result of A × B:\n")
+
+    col_width = 5  # adjust if numbers get larger
     for row in result:
-        print(" ".join(f"{x:g}" for x in row))
+        print(" ".join(f"{int(x):{col_width}d}" for x in row))
+
 
 if __name__ == "__main__":
     main()
