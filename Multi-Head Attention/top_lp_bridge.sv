@@ -174,7 +174,7 @@ module top_lp_bridge #(
         .CHUNK_SIZE(CHUNK_SIZE),
         .INNER_DIMENSION(INNER_DIMENSION_Qn_KnT),
         .TOTAL_MODULES(TOTAL_MODULES_LP_Q),
-        .TOTAL_INPUT_W(2),
+        .TOTAL_INPUT_W(TOTAL_INPUT_W_Qn_KnT),
         .NUM_CORES_A(NUM_CORES_A_Qn_KnT),
         .NUM_CORES_B(NUM_CORES_B_Qn_KnT)
     ) matmul_Qn_KnT (

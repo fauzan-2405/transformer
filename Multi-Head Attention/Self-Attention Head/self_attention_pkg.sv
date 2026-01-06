@@ -17,7 +17,7 @@ package self_attention_pkg;
     parameter int NUM_CORES_B_Qn_KnT    = linear_proj_pkg::NUM_CORES_A;
     parameter int NUM_CORES_A_Qn_KnT    = linear_proj_pkg::NUM_CORES_A;
 
-    parameter TOTAL_INPUT_W_Qn_KnT = top_pkg::TOTAL_MODULES_Q; // TOTAL_INPUT_W from the linear projection
+    parameter TOTAL_INPUT_W_Qn_KnT = linear_proj_pkg::TOTAL_INPUT_W; // TOTAL_INPUT_W from the linear projection
     parameter TOTAL_MODULES_LP_Q = linear_proj_pkg::TOTAL_MODULES_Q; // TOTAL_MODULES from the linear projection
     parameter TOTAL_MODULES_LP_K = linear_proj_pkg::TOTAL_MODULES_K;
     parameter TOTAL_MODULES_LP_V = linear_proj_pkg::TOTAL_MODULES_V; 
