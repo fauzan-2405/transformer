@@ -3,6 +3,7 @@
 // This will model the behavior between linear projection and its bridge buffer with the next matmul
 
 import linear_proj_pkg::*;
+import self_attention_pkg::*;
 
 module top_lp_bridge #(
     parameter OUT_KEYS = WIDTH_OUT*CHUNK_SIZE*NUM_CORES_A*NUM_CORES_B*TOTAL_MODULES,
@@ -81,26 +82,56 @@ module top_lp_bridge #(
 
     // ************************************ TOP PING PONG  ************************************
     // For West Bank
-    logic [W_IN_WIDTH-1:0] w_bank0_din_bridge [1][TOTAL_INPUT_W];
-    logic [W_IN_WIDTH-1:0] w_bank1_din_bridge [1][TOTAL_INPUT_W];
+    logic [W_IN_WIDTH-1:0] w_bank0_din_bridge [NUMBER_OF_BUFFER_INSTANCES][TOTAL_INPUT_W]; // [1] because the NUMBER_OF_BUFFER_INSTANCES for this test is just 1
+    logic [W_IN_WIDTH-1:0] w_bank1_din_bridge [NUMBER_OF_BUFFER_INSTANCES][TOTAL_INPUT_W];
 
     // For North Bank
-    logic [N_IN_WIDTH-1:0] n_bank0_din_bridge [1][TOTAL_INPUT_W];
-    logic [N_IN_WIDTH-1:0] n_bank1_din_bridge [1][TOTAL_INPUT_W];
+    logic [N_IN_WIDTH-1:0] n_bank0_din_bridge [NUMBER_OF_BUFFER_INSTANCES][TOTAL_INPUT_W];
+    logic [N_IN_WIDTH-1:0] n_bank1_din_bridge [NUMBER_OF_BUFFER_INSTANCES][TOTAL_INPUT_W];
 
-    genvar t;
+    genvar t, u;
     generate
-        for (t = 0; t < TOTAL_INPUT_W; t++) begin
-            assign w_bank0_din_bridge[1][t] = out_q1_wire[t];
-            assign w_bank1_din_bridge[1][t] = out_q1_wire[t];
+        for (u = 0; u < NUMBER_OF_BUFFER_INSTANCES; u++) begin
+            for (t = 0; t < TOTAL_INPUT_W; t++) begin
+                if (u == 0) begin
+                    assign w_bank0_din_bridge[1][t] = out_q1_wire[t];
+                    assign w_bank1_din_bridge[1][t] = out_q1_wire[t];
 
-            assign n_bank0_din_bridge[1][t] = out_k1_wire[t];
-            assign n_bank1_din_bridge[1][t] = out_k1_wire[t];
+                    assign n_bank0_din_bridge[1][t] = out_k1_wire[t];
+                    assign n_bank1_din_bridge[1][t] = out_k1_wire[t];
+                end /*
+                else if (u == 1) begin
+                    assign w_bank0_din_bridge[2][t] = out_q2_wire[t];
+                    assign w_bank1_din_bridge[2][t] = out_q2_wire[t];
+
+                    assign n_bank0_din_bridge[2][t] = out_k2_wire[t];
+                    assign n_bank1_din_bridge[2][t] = out_k2_wire[t];
+                end
+                else if (u == 2) begin
+                    assign w_bank0_din_bridge[3][t] = out_q3_wire[t];
+                    assign w_bank1_din_bridge[3][t] = out_q3_wire[t];
+
+                    assign n_bank0_din_bridge[3][t] = out_k3_wire[t];
+                    assign n_bank1_din_bridge[3][t] = out_k3_wire[t];
+                end
+                else if (u == 3) begin
+                    assign w_bank0_din_bridge[4][t] = out_q4_wire[t];
+                    assign w_bank1_din_bridge[4][t] = out_q4_wire[t];
+
+                    assign n_bank0_din_bridge[4][t] = out_k4_wire[t];
+                    assign n_bank1_din_bridge[4][t] = out_k4_wire[t]; 
+                end */
+            end
         end
     endgenerate
 
     logic [W_MODULE_WIDTH-1:0] w_dout_pp [NUMBER_OF_BUFFER_INSTANCES][TOTAL_INPUT_W];
     logic [N_MODULE_WIDTH-1:0] n_dout_pp [NUMBER_OF_BUFFER_INSTANCES];
+
+    logic sig_internal_rst_n_ctrl;
+    logic sig_internal_reset_acc_ctrl;
+    logic sig_out_valid;
+    logic sig_enable_matmul;
 
     logic sig_acc_done_wrap;
     logic sig_systolic_finish_wrap;
@@ -125,10 +156,10 @@ module top_lp_bridge #(
         .n_dout     (n_dout_pp),
 
         // -------- Global --------
-        .internal_rst_n_ctrl     (internal_rst_n_ctrl),
-        .internal_reset_acc_ctrl(internal_reset_acc_ctrl),
-        .out_valid               (out_valid),
-        .enable_matmul           (enable_matmul)
+        .internal_rst_n_ctrl     (sig_internal_rst_n_ctrl),
+        .internal_reset_acc_ctrl (sig_internal_reset_acc_ctrl),
+        .out_valid               (sig_out_valid),
+        .enable_matmul           (sig_enable_matmul)
     );
 
     // ************************************ NEXT MATMUL  ************************************
@@ -143,14 +174,14 @@ module top_lp_bridge #(
         .CHUNK_SIZE(CHUNK_SIZE),
         .INNER_DIMENSION(INNER_DIMENSION_Qn_KnT),
         .TOTAL_MODULES(TOTAL_MODULES_LP_Q),
-        .TOTAL_INPUT_W(TOTAL_INPUT_W_Qn_KnT),
+        .TOTAL_INPUT_W(2),
         .NUM_CORES_A(NUM_CORES_A_Qn_KnT),
         .NUM_CORES_B(NUM_CORES_B_Qn_KnT)
     ) matmul_Qn_KnT (
         .clk(clk),
-        .rst_n(internal_rst_n_ctrl),
-        .en(enable_matmul),
-        .reset_acc(internal_reset_acc_ctrl),
+        .rst_n(sig_internal_rst_n_ctrl),
+        .en(sig_enable_matmul),
+        .reset_acc(sig_internal_reset_acc_ctrl),
         .input_w(w_dout_pp[0]), 
         .input_n(n_dout_pp[0]), 
         .acc_done_wrap(sig_acc_done_wrap), 
