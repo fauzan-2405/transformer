@@ -13,11 +13,11 @@ module ping_pong_buffer_w #(
 
     localparam CHUNK_SIZE       = top_pkg::TOP_CHUNK_SIZE,
     localparam BLOCK_SIZE       = top_pkg::TOP_BLOCK_SIZE,
-    localparam MODULE_WIDTH     = WIDTH*CHUNK_SIZE*NUM_CORES_A*NUM_CORES_B,
-    localparam IN_WIDTH         = MODULE_WIDTH * TOTAL_MODULES,
-    localparam TOTAL_DEPTH      = COL_X * TOTAL_INPUT_W,
-    localparam MEMORY_SIZE      = TOTAL_DEPTH * MODULE_WIDTH,
-    localparam int ADDR_WIDTH   = $clog2(TOTAL_DEPTH)
+    parameter MODULE_WIDTH     = WIDTH*CHUNK_SIZE*NUM_CORES_A*NUM_CORES_B,
+    parameter IN_WIDTH         = MODULE_WIDTH * TOTAL_MODULES,
+    parameter TOTAL_DEPTH      = COL_X * TOTAL_INPUT_W,
+    parameter MEMORY_SIZE      = TOTAL_DEPTH * MODULE_WIDTH,
+    parameter int ADDR_WIDTH   = $clog2(TOTAL_DEPTH)
 ) (
     input logic clk, rst_n,
     input logic [$clog2(TOTAL_MODULES)-1:0] slicing_idx,
@@ -123,7 +123,7 @@ module ping_pong_buffer_w #(
         .WRITE_DATA_WIDTH_B(MODULE_WIDTH), // DECIMAL, data width: 64-bit
         .READ_DATA_WIDTH_B(MODULE_WIDTH),  // DECIMAL, data width: 64-bit
         .BYTE_WRITE_WIDTH_B(MODULE_WIDTH), // DECIMAL
-        .ADDR_WIDTH_BADDR_WIDTH(),         // DECIMAL, clog2(MEMORY_SIZE/WRITE_DATA_WIDTH_A)
+        .ADDR_WIDTH_B(ADDR_WIDTH),         // DECIMAL, clog2(MEMORY_SIZE/WRITE_DATA_WIDTH_A)
         .READ_RESET_VALUE_B("0"),            // String
         .READ_LATENCY_B(1),                  // DECIMAL
         .WRITE_MODE_B("write_first"),        // String

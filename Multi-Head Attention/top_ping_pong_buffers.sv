@@ -5,14 +5,18 @@
 module top_ping_pong_buffers #(
     // West Buffer
     parameter WIDTH             = 16,
+
     parameter W_NUM_CORES_A     = 2,
     parameter W_NUM_CORES_B     = 1,
     parameter W_TOTAL_MODULES   = 4,
     parameter W_COL_X           = 4,
+    parameter W_ROW_X           = 2,
     parameter TOTAL_INPUT_W_W   = 4,
     parameter ADDR_WIDTH_W      = 8,
     parameter W_IN_WIDTH        = 32,
     parameter W_MODULE_WIDTH    = 32,
+    parameter W_MEMORY_SIZE     = 256,
+    parameter W_TOTAL_DEPTH     = 12,
 
     // North Buffer
     parameter N_NUM_CORES_A     = 2,
@@ -21,7 +25,10 @@ module top_ping_pong_buffers #(
     parameter N_COL_X           = 4,
     parameter TOTAL_INPUT_W_N   = 4,
     parameter ADDR_WIDTH_N      = 8,
+    parameter N_MEMORY_SIZE     = 256,
+    parameter N_TOTAL_DEPTH     = 12,
     parameter N_IN_WIDTH        = 32,
+    parameter N_SLICE_WIDTH     = 2,
     parameter N_MODULE_WIDTH    = 16
 ) (
     input  logic clk,
@@ -83,7 +90,12 @@ module top_ping_pong_buffers #(
         .NUM_CORES_B   (W_NUM_CORES_B),
         .TOTAL_MODULES (W_TOTAL_MODULES),
         .COL_X         (W_COL_X),
-        .TOTAL_INPUT_W (TOTAL_INPUT_W_W)
+        .TOTAL_INPUT_W (TOTAL_INPUT_W_W),
+        .MODULE_WIDTH  (W_MODULE_WIDTH),
+        .IN_WIDTH      (W_IN_WIDTH),
+        .TOTAL_DEPTH   (W_TOTAL_DEPTH),
+        .MEMORY_SIZE   (W_MEMORY_SIZE),
+        .ADDR_WIDTH    (ADDR_WIDTH_W)
     ) u_ping_pong_buffer_w (
         .clk        (clk),
         .rst_n      (rst_n),
@@ -121,7 +133,13 @@ module top_ping_pong_buffers #(
         .NUM_CORES_B   (N_NUM_CORES_B),
         .TOTAL_MODULES (N_TOTAL_MODULES),
         .COL_X         (N_COL_X),
-        .TOTAL_INPUT_W (TOTAL_INPUT_W_N)
+        .TOTAL_INPUT_W (TOTAL_INPUT_W_N),
+        .SLICE_WIDTH   (N_SLICE_WIDTH),
+        .MODULE_WIDTH  (N_MODULE_WIDTH),
+        .IN_WIDTH      (N_IN_WIDTH),
+        .TOTAL_DEPTH   (N_TOTAL_DEPTH),
+        .MEMORY_SIZE   (N_MEMORY_SIZE),
+        .ADDR_WIDTH    (ADDR_WIDTH_N)
     ) u_ping_pong_buffer_n (
         .clk        (clk),
         .rst_n      (rst_n),

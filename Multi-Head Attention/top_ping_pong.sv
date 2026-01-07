@@ -120,10 +120,13 @@ module top_ping_pong #(
                 .W_NUM_CORES_B(W_NUM_CORES_B),
                 .W_TOTAL_MODULES(W_TOTAL_MODULES),
                 .W_COL_X(W_COL_X),
+                .W_ROW_X(W_ROW_X),
                 .TOTAL_INPUT_W_W(TOTAL_INPUT_W_W),
                 .ADDR_WIDTH_W(ADDR_WIDTH_W),
                 .W_IN_WIDTH(W_IN_WIDTH),
                 .W_MODULE_WIDTH(W_MODULE_WIDTH),
+                .W_MEMORY_SIZE(W_MEMORY_SIZE),
+                .W_TOTAL_DEPTH(W_TOTAL_DEPTH),
 
                 .N_NUM_CORES_A(N_NUM_CORES_A),
                 .N_NUM_CORES_B(N_NUM_CORES_B),
@@ -132,6 +135,9 @@ module top_ping_pong #(
                 .TOTAL_INPUT_W_N(TOTAL_INPUT_W_N),
                 .ADDR_WIDTH_N(ADDR_WIDTH_N),
                 .N_IN_WIDTH(N_IN_WIDTH),
+                .N_MEMORY_SIZE(N_MEMORY_SIZE),
+                .N_TOTAL_DEPTH(N_TOTAL_DEPTH),
+                .N_SLICE_WIDTH(N_SLICE_WIDTH),
                 .N_MODULE_WIDTH(N_MODULE_WIDTH)
             ) u_pingpong_buffers (
                 .clk(clk),
