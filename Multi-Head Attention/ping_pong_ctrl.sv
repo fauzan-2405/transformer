@@ -196,6 +196,9 @@ module ping_pong_ctrl #(
         end
         else begin
             state_reg             <= state_next;
+            acc_done_wrap_d       <= acc_done_wrap;
+            counter_acc_done      <= 0;
+
             // ------------------------------------------------------ WRITING PHASE ------------------------------------------------------
             if (in_valid) begin
                 write_now   <= 1'b1;
@@ -305,11 +308,11 @@ module ping_pong_ctrl #(
                 end
 
                 counter_acc_done <= 1;
-            end
-            
-            // Flag assigning for 'done' variable
-            if (flag != MAX_FLAG) begin
-                flag <= flag + 1;   
+
+                // Flag assigning for 'done' variable
+                if (flag != MAX_FLAG) begin
+                    flag <= flag + 1;   
+                end
             end
         end
     end
