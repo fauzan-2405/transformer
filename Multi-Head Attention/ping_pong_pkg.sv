@@ -12,8 +12,8 @@ package ping_pong_pkg;
 
     // For West Ping-Pong Buffer, PLEASE CHANGE THESE PARAMETERS ACCORDING TO YOUR USAGE
     parameter TOTAL_INPUT_W_W      = 2; 
-    parameter int W_ROW_X          = linear_proj_pkg::ROW_SIZE_MAT_C; // A_OUTER_DIMENSION in BLOCK_SIZE unit
-    parameter int W_COL_X          = linear_proj_pkg::COL_SIZE_MAT_C; // INNER DIMENSION in BLOCK_SIZE unit
+    parameter int W_ROW_X          = linear_proj_pkg::ROW_SIZE_MAT_C * linear_proj_pkg::NUM_CORES_A; // A_OUTER_DIMENSION in BLOCK_SIZE unit
+    parameter int W_COL_X          = linear_proj_pkg::COL_SIZE_MAT_C * linear_proj_pkg::TOTAL_MODULES_Q; // INNER DIMENSION in BLOCK_SIZE unit
     parameter int W_NUM_CORES_A    = self_attention_pkg::NUM_CORES_A_Qn_KnT;
     parameter int W_NUM_CORES_B    = 1;
     parameter int W_TOTAL_MODULES  = self_attention_pkg::TOTAL_MODULES_LP_Q; // How many modules used from the last multiplication for this west buffer
@@ -25,19 +25,21 @@ package ping_pong_pkg;
 
     // For North Ping-Pong Buffer, PLEASE CHANGE THESE PARAMETERS ACCORDING TO YOUR USAGE
     parameter TOTAL_INPUT_W_N      = 2;
-    parameter int N_COL_X          = W_ROW_X; // B_OUTER_DIMENSION or in other words COL_Y in BLOCK_SIZE unit
+    parameter int N_COL_X          = W_COL_X;   //WARNING, THERE IS A MISMATCH IN THE NAME!
+                                                // This is actually N_ROW_X, hence, the value is the same with W_COL_X
+                                                // I didn't revise it yet 
     parameter int N_NUM_CORES_A    = 1;
     parameter int N_NUM_CORES_B    = self_attention_pkg::NUM_CORES_B_Qn_KnT;
-    parameter int N_TOTAL_MODULES  = self_attention_pkg::TOTAL_MODULES_LP_Q; // How many modules used from the last multiplication for this west buffer
+    parameter int N_TOTAL_MODULES  = self_attention_pkg::TOTAL_MODULES_LP_K; // How many modules used from the last multiplication for this west buffer
     localparam N_SLICE_WIDTH       = WIDTH*PP_CHUNK_SIZE*N_NUM_CORES_B;
     localparam N_MODULE_WIDTH      = N_SLICE_WIDTH*TOTAL_INPUT_W_N;
-    localparam N_IN_WIDTH          = WIDTH*PP_CHUNK_SIZE*N_TOTAL_MODULES*N_NUM_CORES_A;
+    localparam N_IN_WIDTH          = N_SLICE_WIDTH * N_NUM_CORES_A * N_TOTAL_MODULES;
     localparam N_TOTAL_DEPTH       = N_COL_X;
     localparam N_MEMORY_SIZE       = N_TOTAL_DEPTH * N_MODULE_WIDTH;
     localparam int ADDR_WIDTH_N    = $clog2(N_TOTAL_DEPTH);
 
-    parameter int ROW_SIZE_MAT_C = W_ROW_X; // PLEASE REVISE THIS
-    parameter int COL_SIZE_MAT_C = N_COL_X; // PLEASE REVISE THIS
+    parameter int ROW_SIZE_MAT_C = W_ROW_X; 
+    parameter int COL_SIZE_MAT_C = N_COL_X; // PLEASE REVISE THIS BECAUSE N_COL_X == W_COL_X AKA NOT N_COL_Y
     parameter int MAX_FLAG_PP = (ROW_SIZE_MAT_C * COL_SIZE_MAT_C);
 
     
