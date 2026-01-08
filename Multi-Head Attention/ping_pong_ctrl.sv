@@ -9,7 +9,7 @@ module ping_pong_ctrl #(
     parameter ADDR_WIDTH_W      = 2,
     parameter ADDR_WIDTH_N      = 4,
     parameter W_COL_X           = 4, // Indicates how many columns from W_COL_X that being used as a west input
-    parameter N_COL_X           = 4, // Indicates how many columns from N_COL_X that being used as a north input
+    parameter N_ROW_X           = 4, // Indicates how many columns from N_ROW_X that being used as a north input
     parameter MAX_FLAG          = 16,
     parameter COL_Y             = 2,  // Indicates how many columns for the next resulting matrix
     parameter INNER_DIMENSION   = 2,
@@ -223,7 +223,7 @@ module ping_pong_ctrl #(
                         w_bank0_addrb_wr  <= w_bank0_addrb_wr + 1;
                     end
                    
-                    if (n_bank0_addra_wr == N_COL_X - 1) begin // North BRAM is fully filled
+                    if (n_bank0_addra_wr == N_ROW_X - 1) begin // North BRAM is fully filled
                         n_bank0_addra_wr    <= '0;
                         writing_phase[1]    <= ~writing_phase[1];
                     end else if (writing_phase[1]) begin
@@ -241,7 +241,7 @@ module ping_pong_ctrl #(
                         w_bank1_addrb_wr  <= w_bank1_addrb_wr + 1;
                     end
                     
-                    if (n_bank1_addra_wr == N_COL_X - 1) begin // North BRAM is fully filled
+                    if (n_bank1_addra_wr == N_ROW_X - 1) begin // North BRAM is fully filled
                         n_bank1_addra_wr    <= '0;
                         writing_phase[1]    <= ~writing_phase[1];
                     end else if (~writing_phase[1]) begin

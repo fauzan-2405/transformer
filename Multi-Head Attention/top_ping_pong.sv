@@ -55,11 +55,11 @@ module top_ping_pong #(
         .TOTAL_MODULES_W   (W_TOTAL_MODULES),
         .ADDR_WIDTH_N      (ADDR_WIDTH_N),
         .ADDR_WIDTH_W      (ADDR_WIDTH_W),
-        .N_COL_X           (N_COL_X),
+        .N_ROW_X           (N_ROW_X),
         .W_COL_X           (W_COL_X),
         .MAX_FLAG          (MAX_FLAG_PP),
-        .COL_Y             (N_COL_X),
-        .INNER_DIMENSION   (INNER_DIMENSION)
+        .COL_Y             (W_ROW_X),
+        .INNER_DIMENSION   (PP_INNER_DIMENSION)
     ) pingpong_controller (
         .clk                    (clk),
         .rst_n                  (rst_n),

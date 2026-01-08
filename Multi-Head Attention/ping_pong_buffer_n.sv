@@ -47,7 +47,7 @@ module ping_pong_buffer_n #(
         logic [MODULE_WIDTH-1:0] tmp;
         int pos = MODULE_WIDTH;
 
-        for (int b = 0; b < TOTAL_INPUT_W - 1; b++) begin
+        for (int b = 0; b < TOTAL_INPUT_W; b++) begin
             pos -= SLICE_WIDTH;
             tmp[pos +: SLICE_WIDTH] =
                 bus[b][IN_WIDTH - (idx+1)*SLICE_WIDTH +: SLICE_WIDTH];
