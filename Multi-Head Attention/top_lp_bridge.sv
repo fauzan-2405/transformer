@@ -4,6 +4,7 @@
 
 import linear_proj_pkg::*;
 import self_attention_pkg::*;
+import ping_pong_pkg::*;
 
 module top_lp_bridge #(
     parameter OUT_KEYS = WIDTH_OUT*CHUNK_SIZE*NUM_CORES_A*NUM_CORES_B*TOTAL_MODULES,
@@ -45,7 +46,7 @@ module top_lp_bridge #(
 
     top_linear_projection #(
         .OUT_KEYS(OUT_KEYS)
-    ) (
+    ) linear_projection_inst (
         .clk(clk), .rst_n(rst_n),
         
         .in_mat_ena(in_mat_ena),
