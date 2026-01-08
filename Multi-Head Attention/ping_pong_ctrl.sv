@@ -229,10 +229,6 @@ module ping_pong_ctrl #(
                     end else if (writing_phase[1]) begin
                         n_bank0_addra_wr  <= n_bank0_addra_wr + 1;
                     end
-
-                    if (~writing_phase[1] && ~writing_phase[0]) begin
-                        bank_valid[0]       <= 1'b1;
-                    end
                 end 
                 else if (state_reg == S_W1_R0) begin
                     // ---------- Bank 1 ----------
@@ -251,14 +247,21 @@ module ping_pong_ctrl #(
                     end else if (~writing_phase[1]) begin
                         n_bank1_addra_wr  <= n_bank1_addra_wr + 1;
                     end
-
-                    if (writing_phase[1] && writing_phase[0]) begin
-                        bank_valid[1]       <= 1'b1;
-                    end
                 end
             end else begin
                 w_slicing_idx       <= '0;
                 n_slicing_idx       <= '0;
+            end
+
+            // Toggling the write_phase
+            if (state_reg == S_W0_R1) begin
+                if (~writing_phase[1] && ~writing_phase[0]) begin
+                    bank_valid[0]       <= 1'b1;
+                end
+            end else if (state_reg == S_W1_R0) begin
+                if (writing_phase[1] && writing_phase[0]) begin
+                    bank_valid[1]       <= 1'b1;
+                end
             end
 
             // ------------------------------------------------------ READING PHASE ------------------------------------------------------
