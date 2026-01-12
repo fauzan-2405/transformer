@@ -37,10 +37,10 @@ package ping_pong_pkg;
     localparam N_MEMORY_SIZE       = N_TOTAL_DEPTH * N_MODULE_WIDTH;
     localparam int ADDR_WIDTH_N    = $clog2(N_TOTAL_DEPTH);
 
-    parameter int ROW_SIZE_MAT_C = W_ROW_X; 
+    parameter int ROW_SIZE_MAT_C_PP = W_ROW_X / TOTAL_INPUT_W_W; 
     //parameter int COL_SIZE_MAT_C = N_COL_X; 
-    parameter int COL_SIZE_MAT_C = N_COL_X;
-    parameter int MAX_FLAG_PP = (ROW_SIZE_MAT_C * COL_SIZE_MAT_C);
+    parameter int COL_SIZE_MAT_C_PP = W_ROW_X / TOTAL_INPUT_W_N;
+    parameter int MAX_FLAG_PP = (ROW_SIZE_MAT_C_PP * COL_SIZE_MAT_C_PP);
 
     
 endpackage

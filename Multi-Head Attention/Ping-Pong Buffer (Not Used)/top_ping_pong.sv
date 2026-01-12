@@ -58,7 +58,7 @@ module top_ping_pong #(
         .N_ROW_X           (N_ROW_X),
         .W_COL_X           (W_COL_X),
         .MAX_FLAG          (MAX_FLAG_PP),
-        .COL_Y             (W_ROW_X),
+        .COL_Y             (COL_SIZE_MAT_C_PP),
         .INNER_DIMENSION   (PP_INNER_DIMENSION)
     ) pingpong_controller (
         .clk                    (clk),
@@ -131,7 +131,7 @@ module top_ping_pong #(
                 .N_NUM_CORES_A(N_NUM_CORES_A),
                 .N_NUM_CORES_B(N_NUM_CORES_B),
                 .N_TOTAL_MODULES(N_TOTAL_MODULES),
-                .N_COL_X(N_COL_X),
+                .N_ROW_X(N_ROW_X),
                 .TOTAL_INPUT_W_N(TOTAL_INPUT_W_N),
                 .ADDR_WIDTH_N(ADDR_WIDTH_N),
                 .N_IN_WIDTH(N_IN_WIDTH),
