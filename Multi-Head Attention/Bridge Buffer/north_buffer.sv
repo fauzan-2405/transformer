@@ -41,6 +41,7 @@ module north_buffer #(
     input  logic [ADDR_WIDTH-1:0] rd_addr,
     output logic [MODULE_WIDTH-1:0] rd_dout
 );
+    // ------------------------------------------------------------------
     // MSB-first slicing function (UNCHANGED, correct)
     function automatic [MODULE_WIDTH-1:0] extract_module (
         input logic [IN_WIDTH-1:0] bus [TOTAL_INPUT_W],
@@ -58,6 +59,7 @@ module north_buffer #(
         return tmp;
     endfunction
 
+    // ------------------------------------------------------------------
     // True Dual-Port RAM
     xpm_memory_tdpram #(
         .MEMORY_SIZE            (MEMORY_SIZE),
