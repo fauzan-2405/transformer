@@ -17,7 +17,7 @@ module ping_pong_buffer_n #(
     parameter SLICE_WIDTH      = WIDTH*CHUNK_SIZE*NUM_CORES_B,
     parameter MODULE_WIDTH     = SLICE_WIDTH*TOTAL_INPUT_W,
     parameter IN_WIDTH         = N_SLICE_WIDTH * N_NUM_CORES_A * N_TOTAL_MODULES,
-    parameter TOTAL_DEPTH      = COL_X,    // ************** PLEASE REVISE THIS **************
+    parameter TOTAL_DEPTH      = COL_X,    
     parameter MEMORY_SIZE      = TOTAL_DEPTH * MODULE_WIDTH,
     parameter int ADDR_WIDTH   = $clog2(TOTAL_DEPTH)
 ) (
@@ -26,17 +26,12 @@ module ping_pong_buffer_n #(
 
     // Bank 0 Interface
     input logic                     bank0_ena,
+    input logic                     bank0_enb,
     input logic                     bank0_wea,
     input logic [ADDR_WIDTH-1:0]    bank0_addra,
+    input logic [ADDR_WIDTH-1:0]    bank0_addrb,
     input logic [IN_WIDTH-1:0]      bank0_din [TOTAL_INPUT_W],
-    output logic [MODULE_WIDTH-1:0] bank0_dout,
-
-    // Bank 1 Interface
-    input logic                     bank1_ena,
-    input logic                     bank1_wea,
-    input logic [ADDR_WIDTH-1:0]    bank1_addra,
-    input logic [IN_WIDTH-1:0]      bank1_din [TOTAL_INPUT_W],
-    output logic [MODULE_WIDTH-1:0] bank1_dout
+    output logic [MODULE_WIDTH-1:0] bank0_dout
 );
     // ************************************ Controller ************************************
     // MSB-first slicing function
@@ -58,68 +53,55 @@ module ping_pong_buffer_n #(
 
 
     // ************************************ BANK 0 ************************************
-    xpm_memory_spram
-    #(
-        .MEMORY_SIZE(MEMORY_SIZE),
-        .MEMORY_PRIMITIVE("auto"),
-        .MEMORY_INIT_FILE(),
-        .MEMORY_INIT_PARAM("0"),
-        .USE_MEM_INIT(1),
+    xpm_memory_tdpram #(
+        .MEMORY_SIZE            (MEMORY_SIZE),
+        .MEMORY_PRIMITIVE       ("auto"),
+        .MEMORY_INIT_FILE       (),
+        .MEMORY_INIT_PARAM      ("0"),
+        .USE_MEM_INIT           (1),
 
-        .WRITE_DATA_WIDTH_A(MODULE_WIDTH),
-        .READ_DATA_WIDTH_A(MODULE_WIDTH),
-        .BYTE_WRITE_WIDTH_A(MODULE_WIDTH),
-        .ADDR_WIDTH_A(ADDR_WIDTH),
+        // Port A (WRITE)
+        .WRITE_DATA_WIDTH_A     (MODULE_WIDTH),
+        .READ_DATA_WIDTH_A      (MODULE_WIDTH),
+        .BYTE_WRITE_WIDTH_A     (MODULE_WIDTH),
+        .ADDR_WIDTH_A           (ADDR_WIDTH),
 
-        .READ_LATENCY_A(1),
-        .WRITE_MODE_A("write_first"),
-        .READ_RESET_VALUE_A("0"),
-        .RST_MODE_A("SYNC")
-    )
-    bank0_n
+        // Port B (READ)
+        .WRITE_DATA_WIDTH_B     (MODULE_WIDTH),
+        .READ_DATA_WIDTH_B      (MODULE_WIDTH),
+        .BYTE_WRITE_WIDTH_B     (MODULE_WIDTH),
+        .ADDR_WIDTH_B           (ADDR_WIDTH),
+
+        .READ_LATENCY_A         (1),
+        .READ_LATENCY_B         (1),
+
+        .WRITE_MODE_A           ("write_first"),
+        .WRITE_MODE_B           ("read_first"),
+
+        .READ_RESET_VALUE_A     ("0"),
+        .READ_RESET_VALUE_B     ("0"),
+
+        .RST_MODE_A             ("SYNC"),
+        .RST_MODE_B             ("SYNC")
+    ) bank0_n
     (
-        .clka(clk),
-        .rsta(~rst_n),
+        // -------- Port A : Write --------
+        .clka   (clk),
+        .rsta   (~rst_n),
+        .ena    (bank0_ena),
+        .wea    (bank0_wea),
+        .addra  (bank0_addra),
+        .dina   (extract_module(bank0_din, n_slicing_idx)),
+        .douta  (),
 
-        .ena(bank0_ena),
-        .wea(bank0_wea),
-        .addra(bank0_addra),
-
-        .dina(extract_module(bank0_din, slicing_idx)),
-        .douta(bank0_dout)
-    );
-
-
-    // ************************************ BANK 1 ************************************
-    xpm_memory_spram
-    #(
-        .MEMORY_SIZE(MEMORY_SIZE),
-        .MEMORY_PRIMITIVE("auto"),
-        .MEMORY_INIT_FILE(),
-        .MEMORY_INIT_PARAM("0"),
-        .USE_MEM_INIT(1),
-
-        .WRITE_DATA_WIDTH_A(MODULE_WIDTH),
-        .READ_DATA_WIDTH_A(MODULE_WIDTH),
-        .BYTE_WRITE_WIDTH_A(MODULE_WIDTH),
-        .ADDR_WIDTH_A(ADDR_WIDTH),
-
-        .READ_LATENCY_A(1),
-        .WRITE_MODE_A("write_first"),
-        .READ_RESET_VALUE_A("0"),
-        .RST_MODE_A("SYNC")
-    )
-    bank1_n
-    (
-        .clka(clk),
-        .rsta(~rst_n),
-
-        .ena(bank1_ena),
-        .wea(bank1_wea),          
-        .addra(bank1_addra),
-
-        .dina(extract_module(bank1_din, slicing_idx)),
-        .douta(bank1_dout)
+        // -------- Port B : Read --------
+        .clkb   (clk),
+        .rstb   (~rst_n),
+        .enb    (bank0_enb),
+        .web    (1'b0),
+        .addrb  (bank0_addrb),
+        .dinb   ('0),
+        .doutb  (bank0_dout)
     );
 
 endmodule
