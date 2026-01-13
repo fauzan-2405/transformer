@@ -1,8 +1,7 @@
 // north_buffer.sv
-// Weight-stationary North buffer (Kn^T)
+// NORTH buffer for Kn^T (weight-stationary)
 // - Entire matrix stored
 // - Written once, read many times
-// - True Dual-Port RAM (write + read simultaneously)
 
 module north_buffer #(
     parameter WIDTH             = 16,
@@ -24,25 +23,25 @@ module north_buffer #(
 ) (
     input  logic clk,
     input  logic rst_n,
-
-    input  logic [$clog2(TOTAL_MODULES)-1:0] slicing_idx,
-
-    // =========================
-    // Write Port (Port A)
-    // =========================
-    input  logic                  wr_en,
-    input  logic [ADDR_WIDTH-1:0] wr_addr,
-    input  logic [IN_WIDTH-1:0]   wr_din [TOTAL_INPUT_W],
+    input  logic [$clog2(TOTAL_MODULES)-1:0] n_slicing_idx,
 
     // =========================
-    // Read Port (Port B)
+    // WRITE PORT (LP → NORTH)
     // =========================
-    input  logic                  rd_en,
-    input  logic [ADDR_WIDTH-1:0] rd_addr,
-    output logic [MODULE_WIDTH-1:0] rd_dout
+    input  logic                  n_wr_en,
+    input  logic [ADDR_WIDTH-1:0] n_wr_addr,
+    input  logic [IN_WIDTH-1:0]   n_wr_din [TOTAL_INPUT_W],
+
+    // =========================
+    // READ PORT (SA ← NORTH)
+    // =========================
+    input  logic                  n_rd_en,
+    input  logic [ADDR_WIDTH-1:0] n_rd_addr,
+    output logic [MODULE_WIDTH-1:0] n_rd_dout
 );
+
     // ------------------------------------------------------------------
-    // MSB-first slicing function (UNCHANGED, correct)
+    // Slice extractor (MSB-first, correct for Kn^T)
     function automatic [MODULE_WIDTH-1:0] extract_module (
         input logic [IN_WIDTH-1:0] bus [TOTAL_INPUT_W],
         input int idx
@@ -56,11 +55,11 @@ module north_buffer #(
                 bus[b][IN_WIDTH - (idx+1)*SLICE_WIDTH +: SLICE_WIDTH];
         end
 
-        return tmp;
+        extract_module = tmp;
     endfunction
 
     // ------------------------------------------------------------------
-    // True Dual-Port RAM
+    // True Dual-Port RAM (NORTH)
     xpm_memory_tdpram #(
         .MEMORY_SIZE            (MEMORY_SIZE),
         .MEMORY_PRIMITIVE       ("auto"),
@@ -92,23 +91,23 @@ module north_buffer #(
         .RST_MODE_A             ("SYNC"),
         .RST_MODE_B             ("SYNC")
     ) north_tdpram (
-        // ---------- Port A : Write ----------
+        // -------- Port A : Write --------
         .clka   (clk),
         .rsta   (~rst_n),
-        .ena    (wr_en),
-        .wea    (wr_en),
-        .addra  (wr_addr),
-        .dina   (extract_module(wr_din, slicing_idx)),
+        .ena    (n_wr_en),
+        .wea    (n_wr_en),
+        .addra  (n_wr_addr),
+        .dina   (extract_module(n_wr_din, n_slicing_idx)),
         .douta  (),
 
-        // ---------- Port B : Read ----------
+        // -------- Port B : Read --------
         .clkb   (clk),
         .rstb   (~rst_n),
-        .enb    (rd_en),
+        .enb    (n_rd_en),
         .web    (1'b0),
-        .addrb  (rd_addr),
+        .addrb  (n_rd_addr),
         .dinb   ('0),
-        .doutb  (rd_dout)
+        .doutb  (n_rd_dout)
     );
 
 endmodule

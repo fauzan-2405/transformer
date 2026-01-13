@@ -21,22 +21,24 @@ module west_buffer #(
 ) (
     input  logic clk,
     input  logic rst_n,
-    input  logic [$clog2(TOTAL_MODULES)-1:0] slicing_idx,
+    input  logic [$clog2(TOTAL_MODULES)-1:0] w_slicing_idx,
 
-    // -------------------- BANK 0 --------------------
-    input  logic                     bank0_ena,
-    input  logic                     bank0_enb,
-    input  logic                     bank0_wea,
-    input  logic                     bank0_web,
-    input  logic [ADDR_WIDTH-1:0]    bank0_addra,
-    input  logic [ADDR_WIDTH-1:0]    bank0_addrb,
-    input  logic [IN_WIDTH-1:0]      bank0_din [TOTAL_INPUT_W],
-    output logic [MODULE_WIDTH-1:0]  bank0_douta,
-    output logic [MODULE_WIDTH-1:0]  bank0_doutb
+    // =========================
+    // WEST BANK (TDPRAM)
+    // =========================
+    input  logic                     w_ena,
+    input  logic                     w_enb,
+    input  logic                     w_wea,
+    input  logic                     w_web,
+    input  logic [ADDR_WIDTH-1:0]    w_addra,
+    input  logic [ADDR_WIDTH-1:0]    w_addrb,
+    input  logic [IN_WIDTH-1:0]      w_din [TOTAL_INPUT_W],
+    output logic [MODULE_WIDTH-1:0]  w_douta,
+    output logic [MODULE_WIDTH-1:0]  w_doutb
 );
 
     // ------------------------------------------------------------------
-    // Slice extractor
+    // Slice extractor (MSB-first, TOTAL_INPUT_W aware)
     function automatic [MODULE_WIDTH-1:0] extract_module (
         input logic [IN_WIDTH-1:0] bus [TOTAL_INPUT_W],
         input int idx
@@ -56,7 +58,7 @@ module west_buffer #(
     endfunction
 
     // ------------------------------------------------------------------
-    // TDPRAM
+    // True Dual-Port RAM (WEST)
     xpm_memory_tdpram #(
         .MEMORY_SIZE           (MEMORY_SIZE),
         .MEMORY_PRIMITIVE      ("auto"),
@@ -84,24 +86,24 @@ module west_buffer #(
         .WRITE_MODE_B          ("write_first"),
         .READ_RESET_VALUE_B    ("0"),
         .RST_MODE_B            ("SYNC")
-    ) bank_w (
+    ) west_tdpram (
         // -------- Port A --------
         .clka   (clk),
         .rsta   (~rst_n),
-        .ena    (bank0_ena),
-        .wea    (bank0_wea),
-        .addra (bank0_addra),
-        .dina  (extract_module(bank0_din, slicing_idx)),
-        .douta (bank0_douta),
+        .ena    (w_ena),
+        .wea    (w_wea),
+        .addra  (w_addra),
+        .dina   (extract_module(w_din, w_slicing_idx)),
+        .douta  (w_douta),
 
         // -------- Port B --------
         .clkb   (clk),
         .rstb   (~rst_n),
-        .enb    (bank0_enb),
-        .web    (bank0_web),
-        .addrb (bank0_addrb),
-        .dinb  (extract_module(bank0_din, slicing_idx)),
-        .doutb (bank0_doutb)
+        .enb    (w_enb),
+        .web    (w_web),
+        .addrb  (w_addrb),
+        .dinb   (extract_module(w_din, w_slicing_idx)),
+        .doutb  (w_doutb)
     );
 
 endmodule
