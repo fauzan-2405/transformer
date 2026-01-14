@@ -88,7 +88,6 @@ module top_lp_bridge #(
 
     // For North Bank
     logic [N_IN_WIDTH-1:0] n_bank0_din_bridge [NUMBER_OF_BUFFER_INSTANCES][TOTAL_INPUT_W];
-    logic [N_IN_WIDTH-1:0] n_bank1_din_bridge [NUMBER_OF_BUFFER_INSTANCES][TOTAL_INPUT_W];
 
     genvar t, u;
     generate
@@ -99,7 +98,6 @@ module top_lp_bridge #(
                     assign w_bank1_din_bridge[0][t] = out_q1_wire[t];
 
                     assign n_bank0_din_bridge[0][t] = out_k1_wire[t];
-                    assign n_bank1_din_bridge[0][t] = out_k1_wire[t];
                 end /*
                 else if (u == 1) begin
                     assign w_bank0_din_bridge[1][t] = out_q2_wire[t];
@@ -153,7 +151,6 @@ module top_lp_bridge #(
 
         // -------- North --------
         .n_bank0_din(n_bank0_din_bridge),
-        .n_bank1_din(n_bank1_din_bridge),
         .n_dout     (n_dout_pp),
 
         // -------- Global --------
