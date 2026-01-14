@@ -33,7 +33,7 @@ package ping_pong_pkg;
     localparam N_SLICE_WIDTH       = WIDTH*PP_CHUNK_SIZE*N_NUM_CORES_B;
     localparam N_MODULE_WIDTH      = N_SLICE_WIDTH*TOTAL_INPUT_W_N;
     localparam N_IN_WIDTH          = N_SLICE_WIDTH * N_NUM_CORES_A * N_TOTAL_MODULES;
-    localparam N_TOTAL_DEPTH       = N_ROW_X;
+    localparam N_TOTAL_DEPTH       = N_ROW_X * N_COL_X;
     localparam N_MEMORY_SIZE       = N_TOTAL_DEPTH * N_MODULE_WIDTH;
     localparam int ADDR_WIDTH_N    = $clog2(N_TOTAL_DEPTH);
 

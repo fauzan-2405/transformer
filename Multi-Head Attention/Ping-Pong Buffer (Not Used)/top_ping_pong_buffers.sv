@@ -55,12 +55,10 @@ module top_ping_pong_buffers #(
 
     // North buffer control
     input  logic                  n_bank0_ena,
+    input  logic                  n_bank0_enb,
     input  logic                  n_bank0_wea,
     input  logic [ADDR_WIDTH_N-1:0] n_bank0_addra,
-
-    input  logic                  n_bank1_ena,
-    input  logic                  n_bank1_wea,
-    input  logic [ADDR_WIDTH_N-1:0] n_bank1_addra,
+    input  logic [ADDR_WIDTH_N-1:0] n_bank0_addrb,
 
     // ---------------- Data inputs ----------------
     // From linear projection
@@ -68,7 +66,6 @@ module top_ping_pong_buffers #(
     input  logic [W_IN_WIDTH-1:0] w_bank1_din [TOTAL_INPUT_W_W],
 
     input  logic [N_IN_WIDTH-1:0] n_bank0_din [TOTAL_INPUT_W_N],
-    input  logic [N_IN_WIDTH-1:0] n_bank1_din [TOTAL_INPUT_W_N],
 
     // ---------------- Data outputs ----------------
     // To systolic array
@@ -77,8 +74,7 @@ module top_ping_pong_buffers #(
     output logic [W_MODULE_WIDTH-1:0] w_bank1_douta,
     output logic [W_MODULE_WIDTH-1:0] w_bank1_doutb,
 
-    output logic [N_MODULE_WIDTH-1:0] n_bank0_dout,
-    output logic [N_MODULE_WIDTH-1:0] n_bank1_dout
+    output logic [N_MODULE_WIDTH-1:0] n_bank0_dout
 );
 
     // =====================================================================
@@ -132,7 +128,7 @@ module top_ping_pong_buffers #(
         .NUM_CORES_A   (N_NUM_CORES_A),
         .NUM_CORES_B   (N_NUM_CORES_B),
         .TOTAL_MODULES (N_TOTAL_MODULES),
-        .COL_X         (N_ROW_X),
+        .ROW_X         (N_ROW_X),
         .TOTAL_INPUT_W (TOTAL_INPUT_W_N),
         .SLICE_WIDTH   (N_SLICE_WIDTH),
         .MODULE_WIDTH  (N_MODULE_WIDTH),
@@ -147,17 +143,12 @@ module top_ping_pong_buffers #(
 
         // Bank 0
         .bank0_ena  (n_bank0_ena),
+        .bank0_enb  (n_bank0_enb),
         .bank0_wea  (n_bank0_wea),
         .bank0_addra(n_bank0_addra),
+        .bank0_addrb(n_bank0_addrb),
         .bank0_din  (n_bank0_din),
-        .bank0_dout (n_bank0_dout),
-
-        // Bank 1
-        .bank1_ena  (n_bank1_ena),
-        .bank1_wea  (n_bank1_wea),
-        .bank1_addra(n_bank1_addra),
-        .bank1_din  (n_bank1_din),
-        .bank1_dout (n_bank1_dout)
+        .bank0_dout (n_bank0_dout)
     );
 
 endmodule

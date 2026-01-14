@@ -32,14 +32,12 @@ module ping_pong_ctrl #(
 
     // ------------- North Input Interface -------------
     // Bank 0 Interface
-    output logic                     n_bank0_ena_ctrl,            
+    output logic                     n_bank0_ena_ctrl,         
+    output logic                     n_bank0_enb_ctrl,            
     output logic                     n_bank0_wea_ctrl, 
     output logic [ADDR_WIDTH_N-1:0]    n_bank0_addra_ctrl,
+    output logic [ADDR_WIDTH_N-1:0]    n_bank0_addrb_ctrl,
 
-    // Bank 1 Interface
-    output logic                     n_bank1_ena_ctrl,            
-    output logic                     n_bank1_wea_ctrl, 
-    output logic [ADDR_WIDTH_N-1:0]    n_bank1_addra_ctrl,
 
     output logic [$clog2(TOTAL_MODULES_W)-1:0] w_slicing_idx,
     output logic [$clog2(TOTAL_MODULES_N)-1:0] n_slicing_idx,
@@ -67,6 +65,7 @@ module ping_pong_ctrl #(
     assign acc_done_wrap_rising = ~acc_done_wrap_d & acc_done_wrap;
     logic [7:0] counter, counter_row, counter_col, flag;
     logic counter_acc_done;
+    logic [$clog2(N_ROW_X)-1:0] north_col_valid;
 
     // ------------------- For West Input -------------------
     // For bank 0
@@ -80,10 +79,7 @@ module ping_pong_ctrl #(
     // For north input, we explicitly use SPRAM so we only utilize port A
     // For bank 0
     logic [ADDR_WIDTH_N-1:0] n_bank0_addra_wr;
-    logic [ADDR_WIDTH_N-1:0] n_bank0_addra_rd;
-     // For bank 1
-    logic [ADDR_WIDTH_N-1:0] n_bank1_addra_wr;
-    logic [ADDR_WIDTH_N-1:0] n_bank1_addra_rd;
+    logic [ADDR_WIDTH_N-1:0] n_bank0_addrb_rd;
 
     // ************************************ FSM Next State Logic ************************************
     always @* begin
@@ -143,17 +139,10 @@ module ping_pong_ctrl #(
     // ------------------- For North Input -------------------
     // For bank 0
     assign n_bank0_ena_ctrl   = (state_reg != S_DONE) ? 1 : 0;
+    assign n_bank0_enb_ctrl   = (state_reg != S_DONE) ? 1 : 0;
     assign n_bank0_wea_ctrl   = (state_reg == S_W0_R1) ? ((write_now) ? 1 : 0) : 0;
-    assign n_bank0_addra_ctrl = 
-                                (state_reg == S_W0_R1) ? n_bank0_addra_wr : 
-                                (state_reg == S_W1_R0) ? n_bank0_addra_rd : '0;
-
-     // For bank 1
-    assign n_bank1_ena_ctrl   = (state_reg != S_DONE) ? 1 : 0;
-    assign n_bank1_wea_ctrl   = (state_reg == S_W1_R0) ? ((write_now) ? 1 : 0) : 0;
-    assign n_bank1_addra_ctrl = 
-                                (state_reg == S_W1_R0) ? n_bank1_addra_wr : 
-                                (state_reg == S_W0_R1) ? n_bank1_addra_rd : '0;
+    assign n_bank0_addra_ctrl = (state_reg == S_W0_R1) ? n_bank0_addra_wr : '0;
+    assign n_bank0_addrb_ctrl = (state_reg == S_W1_R0) ? n_bank0_addrb_rd : '0;
 
 
     // ************************************ FSM Sequential Logic ************************************
@@ -166,6 +155,7 @@ module ping_pong_ctrl #(
             counter_acc_done    <= 0;
             acc_done_wrap_d     <= 0;
             flag                <= 0;
+            north_col_valid     <= '0;
 
             internal_rst_n      <= 1'b0;
             internal_reset_acc  <= 1'b0;
@@ -183,10 +173,7 @@ module ping_pong_ctrl #(
 
             // North Input Bank Controllers
             n_bank0_addra_wr      <= '0;
-            n_bank0_addra_rd      <= '0;
-
-            n_bank1_addra_wr      <= '0;
-            n_bank1_addra_rd      <= '0;
+            n_bank0_addrb_rd      <= '0;
 
             writing_phase         <= 2'b11;   // At reset, both directions will write (see README.MD for further explanation)
             bank_valid            <= 2'b00;   // To tell this bank[i] contains valid data / never read this bank
@@ -211,6 +198,13 @@ module ping_pong_ctrl #(
                 w_slicing_idx       <= w_slicing_idx + 1;
                 n_slicing_idx       <= n_slicing_idx + 1;
 
+                n_bank0_addra_wr    <= n_bank0_addra_wr + 1; // North bank always write
+                if (n_bank0_addra_wr % (INNER_DIMENSION/BLOCK_SIZE) == (INNER_DIMENSION/BLOCK_SIZE - 1)) begin
+                    if (north_col_valid < N_ROW_X) begin
+                        north_col_valid <= north_col_valid + 1;
+                    end
+                end
+
                 // Address Generation, when slicing idx change:
                 if (state_reg == S_W0_R1) begin
                     // ---------- Bank 0 ----------
@@ -223,12 +217,12 @@ module ping_pong_ctrl #(
                         w_bank0_addrb_wr  <= w_bank0_addrb_wr + 1;
                     end
                    
-                    if (n_bank0_addra_wr == N_ROW_X - 1) begin // North BRAM is fully filled
+                    /*if (n_bank0_addra_wr == N_ROW_X - 1) begin // North BRAM is fully filled
                         n_bank0_addra_wr    <= '0;
                         writing_phase[1]    <= ~writing_phase[1];
                     end else if (writing_phase[1]) begin
                         n_bank0_addra_wr  <= n_bank0_addra_wr + 1;
-                    end
+                    end*/
                 end 
                 else if (state_reg == S_W1_R0) begin
                     // ---------- Bank 1 ----------
@@ -241,12 +235,12 @@ module ping_pong_ctrl #(
                         w_bank1_addrb_wr  <= w_bank1_addrb_wr + 1;
                     end
                     
-                    if (n_bank1_addra_wr == N_ROW_X - 1) begin // North BRAM is fully filled
+                    /*if (n_bank1_addra_wr == N_ROW_X - 1) begin // North BRAM is fully filled
                         n_bank1_addra_wr    <= '0;
                         writing_phase[1]    <= ~writing_phase[1];
                     end else if (~writing_phase[1]) begin
                         n_bank1_addra_wr  <= n_bank1_addra_wr + 1;
-                    end
+                    end*/
                 end
             end else begin
                 w_slicing_idx       <= '0;
@@ -271,50 +265,54 @@ module ping_pong_ctrl #(
                 internal_rst_n <= ~systolic_finish_wrap;
             end
             
-            if (systolic_finish_wrap && (bank_valid[0] ^ bank_valid[1])) begin
-                internal_reset_acc <= ~acc_done_wrap;
-                // counter indicates the matrix C element iteration
-                if (counter == ((INNER_DIMENSION/BLOCK_SIZE) - 1)) begin 
-                    counter <=0;
-                end
-                else begin
-                    counter <= counter + 1;
-                end
-                // Address controller
-                if (state_reg == S_W0_R1) begin
-                    w_bank1_addra_rd <= counter + (INNER_DIMENSION/BLOCK_SIZE)*(counter_row*2);       // same as the old one but port A used for even addresses (starting from 0)
-                    w_bank1_addrb_rd <= counter + (INNER_DIMENSION/BLOCK_SIZE)*(counter_row*2 + 1);   // and port B used for odd addresses (starting from 1)
-                    n_bank1_addra_rd <= counter + (INNER_DIMENSION/BLOCK_SIZE)*counter_col;
-                end else if (state_reg == S_W1_R0) begin
-                    w_bank0_addra_rd <= counter + (INNER_DIMENSION/BLOCK_SIZE)*(counter_row*2);
-                    w_bank0_addrb_rd <= counter + (INNER_DIMENSION/BLOCK_SIZE)*(counter_row*2 + 1);   
-                    n_bank0_addra_rd <= counter + (INNER_DIMENSION/BLOCK_SIZE)*counter_col;
-                end
-                
-            end
-
-            // Column/Row Update
-            if (acc_done_wrap_rising && (bank_valid[0] ^ bank_valid[1])) begin
-                // Check if we already at the end of the MAT Y column
-                if (counter_col == (COL_Y - 1)) begin
-                    counter_col <= 0;
-                    //counter_row <= counter_row + 1;   // This is the old formula if we want to traverse all rows
-                    counter_row <= 0;                   // This is the new formula because we operate in one row only
-                    
-                    if (state_reg == S_W0_R1) begin // Terminate the process
-                        bank_valid[1] <= 1'b0;
-                    end else if (state_reg == S_W1_R0) begin
-                        bank_valid[0] <= 1'b0;
+            if (north_col_valid > counter_col) begin
+                if (systolic_finish_wrap && (bank_valid[0] ^ bank_valid[1])) begin
+                    internal_reset_acc <= ~acc_done_wrap;
+                    // counter indicates the matrix C element iteration
+                    if (counter == ((INNER_DIMENSION/BLOCK_SIZE) - 1)) begin 
+                        counter <=0;
                     end
-                end else begin
-                    counter_col <= counter_col + 1;
+                    else begin
+                        counter <= counter + 1;
+                    end
+                    // Address controller
+                    n_bank0_addrb_rd <= counter + (INNER_DIMENSION/BLOCK_SIZE)*counter_col; // North matrix will always read 
+
+                    if (state_reg == S_W0_R1) begin
+                        w_bank1_addra_rd <= counter + (INNER_DIMENSION/BLOCK_SIZE)*(counter_row*2);       // same as the old one but port A used for even addresses (starting from 0)
+                        w_bank1_addrb_rd <= counter + (INNER_DIMENSION/BLOCK_SIZE)*(counter_row*2 + 1);   // and port B used for odd addresses (starting from 1)
+                        //n_bank1_addra_rd <= counter + (INNER_DIMENSION/BLOCK_SIZE)*counter_col;
+                    end else if (state_reg == S_W1_R0) begin
+                        w_bank0_addra_rd <= counter + (INNER_DIMENSION/BLOCK_SIZE)*(counter_row*2);
+                        w_bank0_addrb_rd <= counter + (INNER_DIMENSION/BLOCK_SIZE)*(counter_row*2 + 1);   
+                        //n_bank0_addrb_rd <= counter + (INNER_DIMENSION/BLOCK_SIZE)*counter_col;
+                    end
+                    
                 end
 
-                counter_acc_done <= 1;
+                // Column/Row Update
+                if (acc_done_wrap_rising && (bank_valid[0] ^ bank_valid[1])) begin
+                    // Check if we already at the end of the MAT Y column
+                    if (counter_col == (COL_Y - 1)) begin
+                        counter_col <= 0;
+                        //counter_row <= counter_row + 1;   // This is the old formula if we want to traverse all rows
+                        counter_row <= 0;                   // This is the new formula because we operate in one row only
+                        
+                        if (state_reg == S_W0_R1) begin // Terminate the process
+                            bank_valid[1] <= 1'b0;
+                        end else if (state_reg == S_W1_R0) begin
+                            bank_valid[0] <= 1'b0;
+                        end
+                    end else begin
+                        counter_col <= counter_col + 1;
+                    end
 
-                // Flag assigning for 'done' variable
-                if (flag != MAX_FLAG) begin
-                    flag <= flag + 1;   
+                    counter_acc_done <= 1;
+
+                    // Flag assigning for 'done' variable
+                    if (flag != MAX_FLAG) begin
+                        flag <= flag + 1;   
+                    end
                 end
             end
         end

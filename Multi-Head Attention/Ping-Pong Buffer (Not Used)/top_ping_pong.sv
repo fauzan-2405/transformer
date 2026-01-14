@@ -16,7 +16,6 @@ module top_ping_pong #(
 
     // For North Bank
     input logic [N_IN_WIDTH-1:0] n_bank0_din [NUMBER_OF_BUFFER_INSTANCES][TOTAL_INPUT_W_N],
-    input logic [N_IN_WIDTH-1:0] n_bank1_din [NUMBER_OF_BUFFER_INSTANCES][TOTAL_INPUT_W_N],
     output logic [N_MODULE_WIDTH-1:0] n_dout [NUMBER_OF_BUFFER_INSTANCES],
 
     // Global Controllers
@@ -37,12 +36,10 @@ module top_ping_pong #(
 
     // North bank control
     logic n_bank0_ena_ctrl;
+    logic n_bank0_enb_ctrl;
     logic n_bank0_wea_ctrl;
     logic [ADDR_WIDTH_N-1:0] n_bank0_addra_ctrl;
-
-    logic n_bank1_ena_ctrl;
-    logic n_bank1_wea_ctrl;
-    logic [ADDR_WIDTH_N-1:0] n_bank1_addra_ctrl;
+    logic [ADDR_WIDTH_N-1:0] n_bank0_addrb_ctrl;
 
     // Slicing + global control
     logic [$clog2(W_TOTAL_MODULES)-1:0] w_slicing_idx;
@@ -84,12 +81,10 @@ module top_ping_pong #(
 
         // -------- North Interface --------
         .n_bank0_ena_ctrl       (n_bank0_ena_ctrl),
-        .n_bank0_wea_ctrl       (n_bank0_wea_ctrl),
-        .n_bank0_addra_ctrl     (n_bank0_addra_ctrl),
-
-        .n_bank1_ena_ctrl       (n_bank1_ena_ctrl),
-        .n_bank1_wea_ctrl       (n_bank1_wea_ctrl),
-        .n_bank1_addra_ctrl     (n_bank1_addra_ctrl),
+        .n_bank0_enb_ctrl       (n_bank0_enb_ctrl),
+        .n_bank0_wea_ctrl       (n_bank0_wea_ctrl),     // n_bank0_web_ctrl is always 0 because it is used to read 
+        .n_bank0_addra_ctrl     (n_bank0_addra_ctrl),   // For writing
+        .n_bank0_addrb_ctrl     (n_bank0_addrb_ctrl),   // For reading
 
         // -------- Global Control --------
         .w_slicing_idx          (w_slicing_idx),
@@ -108,7 +103,6 @@ module top_ping_pong #(
     logic [W_MODULE_WIDTH-1:0] w_bank1_doutb_i [NUMBER_OF_BUFFER_INSTANCES];
 
     logic [N_MODULE_WIDTH-1:0] n_bank0_dout_i [NUMBER_OF_BUFFER_INSTANCES];
-    logic [N_MODULE_WIDTH-1:0] n_bank1_dout_i [NUMBER_OF_BUFFER_INSTANCES];
 
     genvar i;
     generate
@@ -162,25 +156,21 @@ module top_ping_pong #(
                 .w_bank1_addrb(w_bank1_addrb_ctrl),
 
                 .n_bank0_ena(n_bank0_ena_ctrl),
+                .n_bank0_enb(n_bank0_enb_ctrl),
                 .n_bank0_wea(n_bank0_wea_ctrl),
                 .n_bank0_addra(n_bank0_addra_ctrl),
-
-                .n_bank1_ena(n_bank1_ena_ctrl),
-                .n_bank1_wea(n_bank1_wea_ctrl),
-                .n_bank1_addra(n_bank1_addra_ctrl),
+                .n_bank0_addrb(n_bank0_addrb_ctrl),
 
                 // Instance-specific data
                 .w_bank0_din(w_bank0_din[i]),
                 .w_bank1_din(w_bank1_din[i]),
                 .n_bank0_din(n_bank0_din[i]),
-                .n_bank1_din(n_bank1_din[i]),
 
                 .w_bank0_douta(w_bank0_douta_i[i]),
                 .w_bank0_doutb(w_bank0_doutb_i[i]),
                 .w_bank1_douta(w_bank1_douta_i[i]),
                 .w_bank1_doutb(w_bank1_doutb_i[i]),
-                .n_bank0_dout(n_bank0_dout_i[i]),
-                .n_bank1_dout(n_bank1_dout_i[i])
+                .n_bank0_dout(n_bank0_dout_i[i])
             );
 
         end
@@ -204,9 +194,7 @@ module top_ping_pong #(
                                     : w_bank0_doutb_i[k];
 
             // ---------------- NORTH (single input) ----------------
-            assign n_dout[k] = (state_now == 1'b0)
-                                ? n_bank1_dout_i[k]
-                                : n_bank0_dout_i[k];
+            assign n_dout[k] = n_bank0_dout_i[k];
 
         end
     endgenerate
