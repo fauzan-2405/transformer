@@ -9,15 +9,15 @@ module ping_pong_buffer_n #(
     parameter NUM_CORES_A       = 2, // DO NOT FORGET to swap NUM_CORES_A with NUM_CORES_B (TOTAL_MODULES) in this
     parameter TOTAL_MODULES     = 3, // buffer because this is used to transpose the matrix
     parameter NUM_CORES_B       = 1,
-    parameter COL_X             = 16, // COL SIZE of matrix X (producer), we calculate it using C_COL_MAT_SIZE formula!!
+    parameter ROW_X             = 16, 
     parameter TOTAL_INPUT_W     = 2,
 
     localparam CHUNK_SIZE       = top_pkg::TOP_CHUNK_SIZE,
     localparam BLOCK_SIZE       = top_pkg::TOP_BLOCK_SIZE,
     parameter SLICE_WIDTH      = WIDTH*CHUNK_SIZE*NUM_CORES_B,
     parameter MODULE_WIDTH     = SLICE_WIDTH*TOTAL_INPUT_W,
-    parameter IN_WIDTH         = N_SLICE_WIDTH * N_NUM_CORES_A * N_TOTAL_MODULES,
-    parameter TOTAL_DEPTH      = COL_X,    
+    parameter IN_WIDTH         = SLICE_WIDTH * NUM_CORES_A * TOTAL_MODULES,
+    parameter TOTAL_DEPTH      = ROW_X,    
     parameter MEMORY_SIZE      = TOTAL_DEPTH * MODULE_WIDTH,
     parameter int ADDR_WIDTH   = $clog2(TOTAL_DEPTH)
 ) (
@@ -91,7 +91,7 @@ module ping_pong_buffer_n #(
         .ena    (bank0_ena),
         .wea    (bank0_wea),
         .addra  (bank0_addra),
-        .dina   (extract_module(bank0_din, n_slicing_idx)),
+        .dina   (extract_module(bank0_din, slicing_idx)),
         .douta  (),
 
         // -------- Port B : Read --------
