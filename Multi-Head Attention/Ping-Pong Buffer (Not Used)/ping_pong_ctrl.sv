@@ -10,6 +10,7 @@ module ping_pong_ctrl #(
     parameter ADDR_WIDTH_N      = 4,
     parameter W_COL_X           = 4, // Indicates how many columns from W_COL_X that being used as a west input
     parameter N_ROW_X           = 4, // Indicates how many columns from N_ROW_X that being used as a north input
+    parameter N_COL_X           = 4,
     parameter MAX_FLAG          = 16,
     parameter COL_Y             = 2,  // Indicates how many columns for the next resulting matrix
     parameter INNER_DIMENSION   = 2,
@@ -140,14 +141,17 @@ module ping_pong_ctrl #(
     // For bank 0
     assign n_bank0_ena_ctrl   = (state_reg != S_DONE) ? 1 : 0;
     assign n_bank0_enb_ctrl   = (state_reg != S_DONE) ? 1 : 0;
-    assign n_bank0_wea_ctrl   = (state_reg == S_W0_R1) ? ((write_now) ? 1 : 0) : 0;
-    assign n_bank0_addra_ctrl = (state_reg == S_W0_R1) ? n_bank0_addra_wr : '0;
-    assign n_bank0_addrb_ctrl = (state_reg == S_W1_R0) ? n_bank0_addrb_rd : '0;
+    assign n_bank0_wea_ctrl   = ((state_reg == S_W0_R1) || (state_reg == S_W1_R0)) &&
+                                (n_bank0_addra_wr < (N_COL_X * N_ROW_X)) &&
+                                write_now;
+    assign n_bank0_addra_ctrl = ((state_reg == S_W1_R0) || (state_reg == S_W0_R1)) ? n_bank0_addra_wr : '0;
+    assign n_bank0_addrb_ctrl = ((state_reg == S_W1_R0) || (state_reg == S_W0_R1)) ? n_bank0_addrb_rd : '0;
 
 
     // ************************************ FSM Sequential Logic ************************************
     always @(posedge clk) begin 
         if (!rst_n) begin
+            state_reg           <= S_IDLE;
             // Address generation
             counter             <= 0;
             counter_col         <= 0;
@@ -198,43 +202,45 @@ module ping_pong_ctrl #(
                 w_slicing_idx       <= w_slicing_idx + 1;
                 n_slicing_idx       <= n_slicing_idx + 1;
 
-                n_bank0_addra_wr    <= n_bank0_addra_wr + 1; // North bank always write
+                // Checking the availability for north bank for the first time
                 if (n_bank0_addra_wr % (INNER_DIMENSION/BLOCK_SIZE) == (INNER_DIMENSION/BLOCK_SIZE - 1)) begin
                     if (north_col_valid < N_ROW_X) begin
                         north_col_valid <= north_col_valid + 1;
                     end
                 end
 
-                // Address Generation, when slicing idx change:
+                // North Address Generation
+                if (n_bank0_addra_wr == (N_COL_X*N_ROW_X) - 1) begin // North BRAM is fully filled
+                    n_bank0_addra_wr    <= '0;
+                end else begin
+                    n_bank0_addra_wr    <= n_bank0_addra_wr + 1; // North bank always write
+                end
+
+                // West Address Generation, when slicing idx change:
                 if (state_reg == S_W0_R1) begin
                     // ---------- Bank 0 ----------
                     if ((w_bank0_addra_wr == W_COL_X -1) && (w_bank0_addrb_wr == 2*W_COL_X - 1)) begin // Both West BRAMs are fully filled
                         w_bank0_addra_wr    <= '0;
                         w_bank0_addrb_wr    <= W_COL_X; // Because we started at the new line
-                        writing_phase[0]    <= ~writing_phase[0]; 
+                        writing_phase[0]    <= ~writing_phase[0];
+                        writing_phase[1]    <= ~writing_phase[1]; 
                     end else if (writing_phase[0]) begin
                         w_bank0_addra_wr  <= w_bank0_addra_wr + 1;
                         w_bank0_addrb_wr  <= w_bank0_addrb_wr + 1;
                     end
-                   
-                    /*if (n_bank0_addra_wr == N_ROW_X - 1) begin // North BRAM is fully filled
-                        n_bank0_addra_wr    <= '0;
-                        writing_phase[1]    <= ~writing_phase[1];
-                    end else if (writing_phase[1]) begin
-                        n_bank0_addra_wr  <= n_bank0_addra_wr + 1;
-                    end*/
-                end 
-                else if (state_reg == S_W1_R0) begin
+                end else if (state_reg == S_W1_R0) begin
                     // ---------- Bank 1 ----------
                     if ((w_bank1_addra_wr == W_COL_X -1) && (w_bank1_addrb_wr) == 2*W_COL_X - 1) begin // Both West BRAMs are fully filled
                         w_bank1_addra_wr    <= '0;
                         w_bank1_addrb_wr    <= W_COL_X; // Because we started at the new line
-                        writing_phase[0]    <= ~writing_phase[0]; 
+                        writing_phase[0]    <= ~writing_phase[0];
+                        writing_phase[1]    <= ~writing_phase[1]; 
                     end else if (~writing_phase[0]) begin
                         w_bank1_addra_wr  <= w_bank1_addra_wr + 1;
                         w_bank1_addrb_wr  <= w_bank1_addrb_wr + 1;
                     end
                     
+                    // Old code for documentation purposes (this section is also appear when S_W0_R1 but with different bank n writing phase ofc)
                     /*if (n_bank1_addra_wr == N_ROW_X - 1) begin // North BRAM is fully filled
                         n_bank1_addra_wr    <= '0;
                         writing_phase[1]    <= ~writing_phase[1];
@@ -265,7 +271,7 @@ module ping_pong_ctrl #(
                 internal_rst_n <= ~systolic_finish_wrap;
             end
             
-            if (north_col_valid > counter_col) begin
+            if (north_col_valid >= counter_col) begin
                 if (systolic_finish_wrap && (bank_valid[0] ^ bank_valid[1])) begin
                     internal_reset_acc <= ~acc_done_wrap;
                     // counter indicates the matrix C element iteration
@@ -319,7 +325,7 @@ module ping_pong_ctrl #(
     end
     
     assign out_valid = counter_acc_done;
-    assign enable_matmul = (state_reg != S_DONE) ? 1 : 0;
+    assign enable_matmul = (state_reg != S_DONE) && (north_col_valid >= counter_col);
     assign internal_reset_acc_ctrl  = internal_reset_acc;
     assign internal_rst_n_ctrl      = internal_rst_n;
     assign state_now                = (state_reg == S_W0_R1) ? 0 : 

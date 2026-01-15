@@ -53,6 +53,7 @@ module top_ping_pong #(
         .ADDR_WIDTH_N      (ADDR_WIDTH_N),
         .ADDR_WIDTH_W      (ADDR_WIDTH_W),
         .N_ROW_X           (N_ROW_X),
+        .N_COL_X           (N_COL_X),
         .W_COL_X           (W_COL_X),
         .MAX_FLAG          (MAX_FLAG_PP),
         .COL_Y             (COL_SIZE_MAT_C_PP),
