@@ -14,12 +14,12 @@ module buffer_n #(
 
     localparam CHUNK_SIZE       = top_pkg::TOP_CHUNK_SIZE,
     localparam BLOCK_SIZE       = top_pkg::TOP_BLOCK_SIZE,
-    parameter SLICE_WIDTH      = WIDTH*CHUNK_SIZE*NUM_CORES_B,
-    parameter MODULE_WIDTH     = SLICE_WIDTH*TOTAL_INPUT_W,
-    parameter IN_WIDTH         = SLICE_WIDTH * NUM_CORES_A * TOTAL_MODULES,
-    parameter TOTAL_DEPTH      = ROW_X * COL_X,    
-    parameter MEMORY_SIZE      = TOTAL_DEPTH * MODULE_WIDTH,
-    parameter int ADDR_WIDTH   = $clog2(TOTAL_DEPTH)
+    localparam SLICE_WIDTH      = WIDTH*CHUNK_SIZE*NUM_CORES_B,
+    localparam MODULE_WIDTH     = SLICE_WIDTH*TOTAL_INPUT_W,
+    localparam IN_WIDTH         = SLICE_WIDTH * NUM_CORES_A * TOTAL_MODULES,
+    localparam TOTAL_DEPTH      = ROW_X * COL_X,    
+    localparam MEMORY_SIZE      = TOTAL_DEPTH * MODULE_WIDTH,
+    localparam int ADDR_WIDTH   = $clog2(TOTAL_DEPTH)
 ) (
     input logic clk, rst_n,
     input logic [$clog2(TOTAL_MODULES)-1:0] slicing_idx,
