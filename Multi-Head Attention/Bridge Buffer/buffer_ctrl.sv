@@ -12,13 +12,15 @@ module buffer_ctrl #(
     parameter W_ROW_X           = 4,
     parameter N_ROW_X           = 4, // Indicates how many columns from N_ROW_X that being used as a north input
     parameter N_COL_X           = 4,
+    parameter N_TOTAL_DEPTH     = 16,
     parameter MAX_FLAG          = 16,
     parameter COL_Y             = 2,  // Indicates how many columns for the next resulting matrix
     parameter INNER_DIMENSION   = 2,
     localparam BLOCK_SIZE       = 2
 ) (
     input logic clk, rst_n,
-    input logic in_valid,
+    input logic in_valid_w,
+    input logic in_valid_n,
     input logic acc_done_wrap, systolic_finish_wrap,
 
     // ------------- West Input Interface -------------
@@ -55,7 +57,7 @@ module buffer_ctrl #(
     fsm_state_t state_reg, state_next;
 
     logic [1:0] bank_valid, writing_phase;
-    logic write_now;
+    logic write_now_w, write_now_n;
         
     // ------------- Logics for address generation -------------
     logic internal_rst_n, internal_reset_acc;
@@ -64,6 +66,7 @@ module buffer_ctrl #(
     assign acc_done_wrap_rising = ~acc_done_wrap_d & acc_done_wrap;
     logic [7:0] counter, counter_row, counter_col, flag;
     logic counter_acc_done;
+    logic [$clog2(N_ROW_X):0] n_ready;// Revise the size later!
 
     // ------------------- For West Input -------------------
     // For bank 0
@@ -80,19 +83,15 @@ module buffer_ctrl #(
         state_next = state_reg;
         case (state_reg)
             S_IDLE: begin
-                state_next = (in_valid) ? S_W0_R1 : S_IDLE;
+                state_next = (in_valid_n) ? S_W0_R1 : S_IDLE;
             end
 
-            S_W0_R1: begin // Bank 0 is writing and Bank 1 is reading
-                state_next = 
-                            (flag == MAX_FLAG) ? S_DONE :
-                            (bank_valid[0] == 1) ? S_W1_R0 : S_W0_R1;
+            S_LOAD_N: begin // Load North Matrix + compute for the first time
+                state_next = (n_bank0_addra_wr == N_TOTAL_DEPTH - 1) ? S_LOAD_N_FINISHED : S_LOAD_N;
             end
 
-            S_W1_R0: begin // Bank 0 is reading and Bank 1 is writing
-                state_next = 
-                            (flag == MAX_FLAG) ? S_DONE :
-                            (bank_valid[1] == 1) ? S_W0_R1 : S_W1_R0;
+            S_LOAD_N_FINISHED: begin // The entire north matrix is loaded, begin computing like usual
+                state_next = (flag == MAX_FLAG) ? S_DONE : S_LOAD_N_FINISHED;
             end
 
             S_DONE : begin
@@ -107,38 +106,19 @@ module buffer_ctrl #(
 
     // ------------------- For West Input -------------------
     // For bank 0
-    assign w_bank0_ena_ctrl   = (state_reg != S_DONE) ? 1 : 0;
-    assign w_bank0_enb_ctrl   = (state_reg != S_DONE) ? 1 : 0;
-    assign w_bank0_wea_ctrl   = (state_reg == S_W0_R1) ? ((write_now) ? 1 : 0) : 0;
-    assign w_bank0_web_ctrl   = (state_reg == S_W0_R1) ? ((write_now) ? 1 : 0) : 0;
-    assign w_bank0_addra_ctrl = 
-                                (state_reg == S_W0_R1) ? w_bank0_addra_wr : 
-                                (state_reg == S_W1_R0) ? w_bank0_addra_rd : '0;
-    assign w_bank0_addrb_ctrl = 
-                                (state_reg == S_W0_R1) ? w_bank0_addrb_wr : 
-                                (state_reg == S_W1_R0) ? w_bank0_addrb_rd : '0;
-    
-    // For bank 1
-    assign w_bank1_ena_ctrl   = (state_reg != S_DONE) ? 1 : 0;
-    assign w_bank1_enb_ctrl   = (state_reg != S_DONE) ? 1 : 0;
-    assign w_bank1_wea_ctrl   = (state_reg == S_W1_R0) ? ((write_now) ? 1 : 0) : 0;
-    assign w_bank1_web_ctrl   = (state_reg == S_W1_R0) ? ((write_now) ? 1 : 0) : 0;
-    assign w_bank1_addra_ctrl = 
-                                (state_reg == S_W1_R0) ? w_bank1_addra_wr : 
-                                (state_reg == S_W0_R1) ? w_bank1_addra_rd : '0;
-    assign w_bank1_addrb_ctrl = 
-                                (state_reg == S_W1_R0) ? w_bank1_addrb_wr : 
-                                (state_reg == S_W0_R1) ? w_bank1_addrb_rd : '0;
+    assign w_bank0_ena_ctrl   = (state_reg == S_LOAD_N);
+    assign w_bank0_enb_ctrl   = (state_reg != S_DONE) && (state_reg != S_IDLE);
+    assign w_bank0_wea_ctrl   = ((state_reg == S_LOAD_N) || (state_reg == S_LOAD_N)) ? ((write_now_w) ? 1 : 0) : 0;
+    assign w_bank0_addra_ctrl = ((state_reg == S_LOAD_N) || (state_reg == S_LOAD_N)) ? w_bank0_addra_wr : '0;
+    assign w_bank0_addrb_ctrl = ((state_reg != S_DONE) && (state_reg != S_IDLE)) ? w_bank0_addrb_rd : '0;
   
     // ------------------- For North Input -------------------
     // For bank 0
-    assign n_bank0_ena_ctrl   = (state_reg != S_DONE) ? 1 : 0;
-    assign n_bank0_enb_ctrl   = (state_reg != S_DONE) ? 1 : 0;
-    assign n_bank0_wea_ctrl   = ((state_reg == S_W0_R1) || (state_reg == S_W1_R0)) &&
-                                (n_bank0_addra_wr < (N_COL_X * N_ROW_X)) &&
-                                write_now;
-    assign n_bank0_addra_ctrl = ((state_reg == S_W1_R0) || (state_reg == S_W0_R1)) ? n_bank0_addra_wr : '0;
-    assign n_bank0_addrb_ctrl = ((state_reg == S_W1_R0) || (state_reg == S_W0_R1)) ? n_bank0_addrb_rd : '0;
+    assign n_bank0_ena_ctrl   = (state_reg != S_LOAD_N);
+    assign n_bank0_enb_ctrl   = (state_reg != S_DONE) && (state_reg != S_IDLE);
+    assign n_bank0_wea_ctrl   = (state_reg == S_LOAD_N) ? ((write_now_n) ? 1 : 0) : 0;
+    assign n_bank0_addra_ctrl = (state_reg == S_LOAD_N) ? n_bank0_addra_wr : '0;
+    assign n_bank0_addrb_ctrl = ((state_reg != S_DONE) && (state_reg != S_IDLE)) ? n_bank0_addrb_rd : '0;
 
 
     // ************************************ FSM Sequential Logic ************************************
@@ -148,45 +128,161 @@ module buffer_ctrl #(
             // Address generation
             counter             <= 0;
             counter_col         <= 0;
-            counter_row         <= 0; // Technically speaking, because we just operate in one row, counter_row value is always 0 (indicating 1/first row)
+            counter_row         <= 0;
             counter_acc_done    <= 0;
             acc_done_wrap_d     <= 0;
             flag                <= 0;
-            north_col_valid     <= '0;
+            n_ready             <= '0;
 
             internal_rst_n      <= 1'b0;
             internal_reset_acc  <= 1'b0;
 
             // West Input Bank Controllers
             w_bank0_addra_wr      <= '0;
-            w_bank0_addrb_wr      <= W_COL_X; // Because we started at the new line
-            w_bank0_addra_rd      <= '0;
             w_bank0_addrb_rd      <= '0;
-            
-            w_bank1_addra_wr      <= '0;
-            w_bank1_addrb_wr      <= W_COL_X; // Because we started at the new line
-            w_bank1_addra_rd      <= '0;
-            w_bank1_addrb_rd      <= '0;
 
             // North Input Bank Controllers
             n_bank0_addra_wr      <= '0;
             n_bank0_addrb_rd      <= '0;
 
-            writing_phase         <= 2'b11;   // At reset, both directions will write (see README.MD for further explanation)
-            bank_valid            <= 2'b00;   // To tell this bank[i] contains valid data / never read this bank
             write_now             <= 0;
-            w_slicing_idx         <= '0;      // For slicing the WEST input into MODULE_WIDTH using extract_module func
+            w_slicing_idx         <= '0;      // For slicing the WEST input into SLICE_WIDTH using extract_module func
             n_slicing_idx         <= '0;      // For slicing the NORTH input into SLICE_WIDTH (see ping_pong_buffer_n.sv) using extract_module func
         end
         else begin
             state_reg             <= state_next;
             acc_done_wrap_d       <= acc_done_wrap;
             counter_acc_done      <= 0;
+
+            // ------------------------------------------------------ WRITING PHASE ------------------------------------------------------
+            if (in_valid_w) begin
+                write_now_w   <= 1'b1;
+            end else begin
+                // Turning off the write enable for west matrix
+                if (write_now_w && (w_slicing_idx == TOTAL_MODULES_W - 1)) begin
+                    write_now_w   <= 1'b0;
+                end
+            end
+
+            if (in_valid_n) begin
+                write_now_n   <= 1'b1;
+            end else begin
+                // Turning off the write enable for north matrix
+                if (write_now_n && (n_slicing_idx == TOTAL_MODULES_N - 1)) begin
+                    write_now_n   <= 1'b0;
+                end
+            end
+
+            //  --------------- Slicing Index ---------------
+            if ((write_now_w) || (write_now_n)) begin
+                if (write_now_w) begin
+                    w_slicing_idx       <= w_slicing_idx + 1;
+                end
+                if (write_now_n) begin
+                    n_slicing_idx       <= n_slicing_idx + 1;
+                end
+
+                // Checking the availability for north bank for the first time
+                if (n_bank0_addra_wr % (INNER_DIMENSION/BLOCK_SIZE) == (INNER_DIMENSION/BLOCK_SIZE - 1)) begin
+                    if (n_ready < N_ROW_X) begin
+                        n_ready <= n_ready + 1;
+                    end
+                end
+
+                // North Address Generation, when slicing idx change:
+                n_bank0_addra_wr    <= n_bank0_addra_wr + 1
+
+                // West Address Generation, when slicing idx change:
+                if (state_reg == S_LOAD_N) begin
+                    // ---------- Bank 0 ----------
+                    if ((w_bank0_addra_wr == W_COL_X -1) && (w_bank0_addrb_wr == 2*W_COL_X - 1)) begin // Both West BRAMs are fully filled
+                        w_bank0_addra_wr    <= '0;
+                        w_bank0_addrb_wr    <= W_COL_X; // Because we started at the new line
+                        writing_phase[0]    <= ~writing_phase[0];
+                        writing_phase[1]    <= ~writing_phase[1]; 
+                    end else if (writing_phase[0]) begin
+                        w_bank0_addra_wr  <= w_bank0_addra_wr + 1;
+                        w_bank0_addrb_wr  <= w_bank0_addrb_wr + 1;
+                    end
+                end else if (state_reg == S_W1_R0) begin
+                    // ---------- Bank 1 ----------
+                    if ((w_bank1_addra_wr == W_COL_X -1) && (w_bank1_addrb_wr) == 2*W_COL_X - 1) begin // Both West BRAMs are fully filled
+                        w_bank1_addra_wr    <= '0;
+                        w_bank1_addrb_wr    <= W_COL_X; // Because we started at the new line
+                        writing_phase[0]    <= ~writing_phase[0];
+                        writing_phase[1]    <= ~writing_phase[1]; 
+                    end else if (~writing_phase[0]) begin
+                        w_bank1_addra_wr  <= w_bank1_addra_wr + 1;
+                        w_bank1_addrb_wr  <= w_bank1_addrb_wr + 1;
+                    end
+                    
+                    // Old code for documentation purposes (this section is also appear when S_W0_R1 but with different bank n writing phase ofc)
+                    /*if (n_bank1_addra_wr == N_ROW_X - 1) begin // North BRAM is fully filled
+                        n_bank1_addra_wr    <= '0;
+                        writing_phase[1]    <= ~writing_phase[1];
+                    end else if (~writing_phase[1]) begin
+                        n_bank1_addra_wr  <= n_bank1_addra_wr + 1;
+                    end*/
+                end
+            end else begin
+                w_slicing_idx       <= '0;
+                n_slicing_idx       <= '0;
+            end
+
+            // ------------------------------------------------------ READING PHASE ------------------------------------------------------
+            // Internal Reset Control
+            if (en_module) begin
+                internal_rst_n  <= ~systolic_finish_wrap;
+            end
+
+            if (systolic_finish_wrap) begin
+                internal_reset_acc <= ~acc_done_wrap;
+            end
+
+            // Counter Update
+            if (systolic_finish_wrap) begin
+                // counter indicates the matrix C element iteration
+                if (counter == ((INNER_DIMENSION/BLOCK_SIZE) - 1)) begin 
+                    counter <=0;
+                end
+                else begin
+                    counter <= counter + 1;
+                end
+                // Address controller
+                /* These are the old controllers when I use only 1 port for input matrix
+                in_mat_rd_addrb <= counter + (INNER_DIMENSION/BLOCK_SIZE)*counter_row;
+                we_mat_rd_addrb <= counter + (INNER_DIMENSION/BLOCK_SIZE)*counter_col;
+                */
+                in_mat_rd_addra <= counter + (INNER_DIMENSION/BLOCK_SIZE)*(counter_row*2); // same as the old one but port A used for even addresses (starting from 0)
+                in_mat_rd_addrb <= counter + (INNER_DIMENSION/BLOCK_SIZE)*(counter_row*2 + 1); // and port B used for odd addresses (starting from 1)`
+                w_mat_rd_addrb <= counter + (INNER_DIMENSION/BLOCK_SIZE)*counter_col;
+            end
+
+            // Column/Row Update
+            if (acc_done_wrap_rising) begin
+                // counter_row indicates the i-th row of the matrix C that we are working right now
+                // counter_col indicates the i-th column of the matrix C that we are working right now
+
+                // Check if we already at the end of the MAT C column
+                if (counter_col == (COL_SIZE_MAT_C - 1)) begin
+                    counter_col <= 0;
+                    counter_row <= counter_row + 1;
+                end else begin
+                    counter_col <= counter_col + 1;
+                end
+
+                counter_acc_done <= 1;
+
+                // Flag assigning for 'done' variable
+                if (flag != MAX_FLAG) begin
+                    flag <= flag + 1;   
+                end
+            end
         end
     end
     
     assign out_valid = counter_acc_done;
-    assign enable_matmul = (state_reg != S_DONE) && (north_col_valid >= counter_col);
+    assign enable_matmul = (state_reg != S_DONE) ;
     assign internal_reset_acc_ctrl  = internal_reset_acc;
     assign internal_rst_n_ctrl      = internal_rst_n;
     assign state_now                = (state_reg == S_W0_R1) ? 0 : 
