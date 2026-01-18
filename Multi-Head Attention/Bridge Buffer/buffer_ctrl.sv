@@ -13,6 +13,7 @@ module buffer_ctrl #(
     parameter N_ROW_X           = 4, // Indicates how many columns from N_ROW_X that being used as a north input
     parameter N_COL_X           = 4,
     parameter N_TOTAL_DEPTH     = 16,
+    parameter W_TOTAL_DEPTH     = 10,
     parameter MAX_FLAG          = 16,
     parameter COL_Y             = 2,  // Indicates how many columns for the next resulting matrix
     parameter INNER_DIMENSION   = 2,
@@ -67,6 +68,7 @@ module buffer_ctrl #(
     logic [7:0] counter, counter_row, counter_col, flag;
     logic counter_acc_done;
     logic [$clog2(N_ROW_X):0] n_ready;// Revise the size later!
+    logic [$clog2(W_ROW_X):0] w_ready;// Revise the size later!
 
     // ------------------- For West Input -------------------
     // For bank 0
@@ -86,7 +88,7 @@ module buffer_ctrl #(
                 state_next = (in_valid_n) ? S_W0_R1 : S_IDLE;
             end
 
-            S_LOAD_N: begin // Load North Matrix + compute for the first time
+            S_LOAD_N: begin // Load North Matrix + compute for the first time (if w matrix available)
                 state_next = (n_bank0_addra_wr == N_TOTAL_DEPTH - 1) ? S_LOAD_N_FINISHED : S_LOAD_N;
             end
 
@@ -133,6 +135,7 @@ module buffer_ctrl #(
             acc_done_wrap_d     <= 0;
             flag                <= 0;
             n_ready             <= '0;
+            w_ready             <= '0;
 
             internal_rst_n      <= 1'b0;
             internal_reset_acc  <= 1'b0;
@@ -174,88 +177,60 @@ module buffer_ctrl #(
             end
 
             //  --------------- Slicing Index ---------------
-            if ((write_now_w) || (write_now_n)) begin
-                if (write_now_w) begin
-                    w_slicing_idx       <= w_slicing_idx + 1;
+            if (write_now_w) begin
+                w_slicing_idx       <= w_slicing_idx + 1;
+                if (w_bank0_addra_wr == W_TOTAL_DEPTH -1) begin
+                    w_bank0_addra_wr    <= '0; // Move to first address again after traversing until the end of the W address
+                end else begin
+                    w_bank0_addra_wr    <= w_bank0_addra_wr + 1; // West Address Generation, when slicing idx change
+                    if (w_bank0_addra_wr % (INNER_DIMENSION/BLOCK_SIZE) == (INNER_DIMENSION/BLOCK_SIZE - 1)) begin
+                        if (w_ready < W_ROW_X) begin
+                            w_ready <= w_ready + 1;
+                        end
+                    end
                 end
-                if (write_now_n) begin
-                    n_slicing_idx       <= n_slicing_idx + 1;
-                end
+            end else begin
+                w_slicing_idx       <= '0;
+            end
 
+            if (write_now_n) begin
+                n_slicing_idx       <= n_slicing_idx + 1;
+                n_bank0_addra_wr    <= n_bank0_addra_wr + 1; // North Address Generation, when slicing idx change
                 // Checking the availability for north bank for the first time
                 if (n_bank0_addra_wr % (INNER_DIMENSION/BLOCK_SIZE) == (INNER_DIMENSION/BLOCK_SIZE - 1)) begin
                     if (n_ready < N_ROW_X) begin
                         n_ready <= n_ready + 1;
                     end
                 end
-
-                // North Address Generation, when slicing idx change:
-                n_bank0_addra_wr    <= n_bank0_addra_wr + 1
-
-                // West Address Generation, when slicing idx change:
-                if (state_reg == S_LOAD_N) begin
-                    // ---------- Bank 0 ----------
-                    if ((w_bank0_addra_wr == W_COL_X -1) && (w_bank0_addrb_wr == 2*W_COL_X - 1)) begin // Both West BRAMs are fully filled
-                        w_bank0_addra_wr    <= '0;
-                        w_bank0_addrb_wr    <= W_COL_X; // Because we started at the new line
-                        writing_phase[0]    <= ~writing_phase[0];
-                        writing_phase[1]    <= ~writing_phase[1]; 
-                    end else if (writing_phase[0]) begin
-                        w_bank0_addra_wr  <= w_bank0_addra_wr + 1;
-                        w_bank0_addrb_wr  <= w_bank0_addrb_wr + 1;
-                    end
-                end else if (state_reg == S_W1_R0) begin
-                    // ---------- Bank 1 ----------
-                    if ((w_bank1_addra_wr == W_COL_X -1) && (w_bank1_addrb_wr) == 2*W_COL_X - 1) begin // Both West BRAMs are fully filled
-                        w_bank1_addra_wr    <= '0;
-                        w_bank1_addrb_wr    <= W_COL_X; // Because we started at the new line
-                        writing_phase[0]    <= ~writing_phase[0];
-                        writing_phase[1]    <= ~writing_phase[1]; 
-                    end else if (~writing_phase[0]) begin
-                        w_bank1_addra_wr  <= w_bank1_addra_wr + 1;
-                        w_bank1_addrb_wr  <= w_bank1_addrb_wr + 1;
-                    end
-                    
-                    // Old code for documentation purposes (this section is also appear when S_W0_R1 but with different bank n writing phase ofc)
-                    /*if (n_bank1_addra_wr == N_ROW_X - 1) begin // North BRAM is fully filled
-                        n_bank1_addra_wr    <= '0;
-                        writing_phase[1]    <= ~writing_phase[1];
-                    end else if (~writing_phase[1]) begin
-                        n_bank1_addra_wr  <= n_bank1_addra_wr + 1;
-                    end*/
-                end
             end else begin
-                w_slicing_idx       <= '0;
                 n_slicing_idx       <= '0;
             end
 
             // ------------------------------------------------------ READING PHASE ------------------------------------------------------
             // Internal Reset Control
-            if (en_module) begin
+            if (enable_matmul) begin
                 internal_rst_n  <= ~systolic_finish_wrap;
             end
 
-            if (systolic_finish_wrap) begin
-                internal_reset_acc <= ~acc_done_wrap;
-            end
+            if ((w_ready >= 1) && (n_ready >= 1)) begin
+                if (systolic_finish_wrap) begin
+                    internal_reset_acc <= ~acc_done_wrap;
 
-            // Counter Update
-            if (systolic_finish_wrap) begin
-                // counter indicates the matrix C element iteration
-                if (counter == ((INNER_DIMENSION/BLOCK_SIZE) - 1)) begin 
-                    counter <=0;
+                    // Address controller
+                    w_bank0_addrb_rd <= counter + (INNER_DIMENSION/BLOCK_SIZE)*counter_row; 
+                    n_bank0_addrb_rd <= counter + (INNER_DIMENSION/BLOCK_SIZE)*counter_col;
+
+                    // counter indicates the matrix C element iteration
+                    if (counter == ((INNER_DIMENSION/BLOCK_SIZE) - 1)) begin 
+                        counter <= '0;
+                        // Substract the *_ready to check if the next set is available or not
+                        w_ready <= w_ready - 1;
+                        n_ready <= n_ready - 1;
+                    end
+                    else begin
+                        counter <= counter + 1;
+                    end
                 end
-                else begin
-                    counter <= counter + 1;
-                end
-                // Address controller
-                /* These are the old controllers when I use only 1 port for input matrix
-                in_mat_rd_addrb <= counter + (INNER_DIMENSION/BLOCK_SIZE)*counter_row;
-                we_mat_rd_addrb <= counter + (INNER_DIMENSION/BLOCK_SIZE)*counter_col;
-                */
-                in_mat_rd_addra <= counter + (INNER_DIMENSION/BLOCK_SIZE)*(counter_row*2); // same as the old one but port A used for even addresses (starting from 0)
-                in_mat_rd_addrb <= counter + (INNER_DIMENSION/BLOCK_SIZE)*(counter_row*2 + 1); // and port B used for odd addresses (starting from 1)`
-                w_mat_rd_addrb <= counter + (INNER_DIMENSION/BLOCK_SIZE)*counter_col;
             end
 
             // Column/Row Update
@@ -264,9 +239,14 @@ module buffer_ctrl #(
                 // counter_col indicates the i-th column of the matrix C that we are working right now
 
                 // Check if we already at the end of the MAT C column
-                if (counter_col == (COL_SIZE_MAT_C - 1)) begin
+                if (counter_col == (COL_Y - 1)) begin
                     counter_col <= 0;
-                    counter_row <= counter_row + 1;
+                    // Check if the counter_row exceeded the W_TOTAL_DEPTH so we rollback to the first set
+                    if ((INNER_DIMENSION/BLOCK_SIZE)*(counter_row + 1) >= W_TOTAL_DEPTH) begin
+                        counter_row <= '0;
+                    end else begin
+                        counter_row <= counter_row + 1;
+                    end
                 end else begin
                     counter_col <= counter_col + 1;
                 end
@@ -278,6 +258,7 @@ module buffer_ctrl #(
                     flag <= flag + 1;   
                 end
             end
+            
         end
     end
     
@@ -285,7 +266,7 @@ module buffer_ctrl #(
     assign enable_matmul = (state_reg != S_DONE) ;
     assign internal_reset_acc_ctrl  = internal_reset_acc;
     assign internal_rst_n_ctrl      = internal_rst_n;
-    assign state_now                = (state_reg == S_W0_R1) ? 0 : 
-                                      (state_reg == S_W1_R0) ? 1 : 0;
+    assign state_now                = (state_reg == S_LOAD_N) ? 0 : 
+                                      (state_reg == S_LOAD_N_FINISHED) ? 1 : 0;
 
 endmodule
