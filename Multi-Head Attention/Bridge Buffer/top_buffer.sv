@@ -12,7 +12,7 @@ module top_buffer #(
 
     // For West Bank
     input logic [W0_IN_WIDTH-1:0] w_bank0_din [NUMBER_OF_BUFFER_INSTANCES][TOTAL_INPUT_W_W0],
-    output logic [W0_MODULE_WIDTH-1:0] w_dout [NUMBER_OF_BUFFER_INSTANCES],
+    output logic [W0_SLICE_WIDTH-1:0] w_dout [NUMBER_OF_BUFFER_INSTANCES][TOTAL_INPUT_W_W0],
 
     // For North Bank
     input logic [N0_IN_WIDTH-1:0] n_bank0_din [NUMBER_OF_BUFFER_INSTANCES][TOTAL_INPUT_W_N0],
@@ -92,7 +92,7 @@ module top_buffer #(
     );
 
     // ************************************ PING PONG BUFFERS ************************************
-    logic [W0_MODULE_WIDTH-1:0] w_bank0_dout_i [NUMBER_OF_BUFFER_INSTANCES];
+    logic [N0_MODULE_WIDTH-1:0] w_bank0_dout_i [NUMBER_OF_BUFFER_INSTANCES];
 
     logic [N0_MODULE_WIDTH-1:0] n_bank0_dout_i [NUMBER_OF_BUFFER_INSTANCES];
 
@@ -157,12 +157,13 @@ module top_buffer #(
     endgenerate
 
     // ************************************ OUTPUT SELECTION ************************************
-    genvar k;
+    genvar k, l;
     generate
         for (k = 0; k < NUMBER_OF_BUFFER_INSTANCES; k++) begin : GEN_BANK_MUX
-
-            // ---------------- WEST (single input) ----------------
-            assign w_dout[k][0] = w_bank0_dout_i[k];
+            for (l = 0; l < TOTAL_INPUT_W_W0; l++) begin
+                // ---------------- WEST (single input) ----------------
+                assign w_dout[k][l] = w_bank0_dout_i[k][(TOTAL_INPUT_W_W0*W0_SLICE_WIDTH - 1) - l*W0_SLICE_WIDTH -: W0_SLICE_WIDTH]; // MSB slice
+            end
 
             // ---------------- NORTH (single input) ----------------
             assign n_dout[k] = n_bank0_dout_i[k];

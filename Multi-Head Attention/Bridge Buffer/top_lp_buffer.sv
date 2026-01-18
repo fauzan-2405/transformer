@@ -83,15 +83,15 @@ module top_lp_buffer #(
 
     // ************************************ TOP BUFFER  ************************************
     // For West Bank
-    logic [W_IN_WIDTH-1:0] w_bank0_din_bridge [NUMBER_OF_BUFFER_INSTANCES][TOTAL_INPUT_W]; // [1] because the NUMBER_OF_BUFFER_INSTANCES for this test is just 1
+    logic [W0_IN_WIDTH-1:0] w_bank0_din_bridge [NUMBER_OF_BUFFER_INSTANCES][TOTAL_INPUT_W_W0]; // [1] because the NUMBER_OF_BUFFER_INSTANCES for this test is just 1
 
     // For North Bank
-    logic [N_IN_WIDTH-1:0] n_bank0_din_bridge [NUMBER_OF_BUFFER_INSTANCES][TOTAL_INPUT_W];
+    logic [N0_IN_WIDTH-1:0] n_bank0_din_bridge [NUMBER_OF_BUFFER_INSTANCES][TOTAL_INPUT_W_N0];
 
     genvar t, u;
     generate
         for (u = 0; u < NUMBER_OF_BUFFER_INSTANCES; u++) begin
-            for (t = 0; t < TOTAL_INPUT_W; t++) begin
+            for (t = 0; t < TOTAL_INPUT_W_W0; t++) begin
                 if (u == 0) begin
                     assign w_bank0_din_bridge[0][t] = out_q1_wire[t];
 
@@ -116,8 +116,8 @@ module top_lp_buffer #(
         end
     endgenerate
 
-    logic [W_MODULE_WIDTH-1:0] w_dout_b0 [NUMBER_OF_BUFFER_INSTANCES];
-    logic [N_MODULE_WIDTH-1:0] n_dout_b0 [NUMBER_OF_BUFFER_INSTANCES];
+    logic [W0_SLICE_WIDTH-1:0] w_dout_b0 [NUMBER_OF_BUFFER_INSTANCES][TOTAL_INPUT_W_W0];
+    logic [N0_MODULE_WIDTH-1:0] n_dout_b0 [NUMBER_OF_BUFFER_INSTANCES];
 
     logic sig_internal_rst_n_ctrl;
     logic sig_internal_reset_acc_ctrl;
