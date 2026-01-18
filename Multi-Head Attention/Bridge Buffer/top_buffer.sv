@@ -6,7 +6,8 @@ module top_buffer #(
     parameter NUMBER_OF_BUFFER_INSTANCES = 4
 ) (
     input logic clk, rst_n,
-    input logic in_valid,
+    input logic in_valid_w,
+    input logic in_valid_n,
     input logic acc_done_wrap, systolic_finish_wrap,
 
     // For West Bank
@@ -23,7 +24,7 @@ module top_buffer #(
     output logic out_valid,
     output logic enable_matmul
 );
-    // ************************************ PING-PONG CONTROLLER ************************************
+    // ************************************ BUFFER CONTROLLER ************************************
     // West bank control
     logic w_bank0_ena_ctr;
     logic w_bank0_enb_ctrl;
@@ -58,10 +59,11 @@ module top_buffer #(
         .MAX_FLAG          (MAX_FLAG_B0),
         .COL_Y             (COL_SIZE_MAT_C_B0),
         .INNER_DIMENSION   (INNER_DIMENSION)
-    ) pingpong_controller (
+    ) buffer_controller (
         .clk                    (clk),
         .rst_n                  (rst_n),
-        .in_valid               (in_valid),
+        .in_valid_w             (in_valid_w),
+        .in_valid_n             (in_valid_n),
         .acc_done_wrap          (acc_done_wrap),
         .systolic_finish_wrap   (systolic_finish_wrap),
 
@@ -97,7 +99,6 @@ module top_buffer #(
     genvar i;
     generate
         for (i = 0; i < NUMBER_OF_BUFFER_INSTANCES; i++) begin : GEN_BUFFER
-
             top_buffer_buffers #(
                 .WIDTH(WIDTH),
                 .W_NUM_CORES_A(W_NUM_CORES_A),
