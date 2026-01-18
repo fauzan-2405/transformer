@@ -16,7 +16,7 @@ package buffer0_pkg;
     localparam W0_SLICE_WIDTH       = WIDTH*(top_pkg::TOP_CHUNK_SIZE)*W0_NUM_CORES_A;
     localparam W0_MODULE_WIDTH      = W0_SLICE_WIDTH*TOTAL_INPUT_W_W0;
     localparam W0_IN_WIDTH          = W0_SLICE_WIDTH * W0_NUM_CORES_B * W0_TOTAL_MODULES;
-    localparam W0_TOTAL_DEPTH       = W0_ROW_X * W0_COL_X; // Can be reduced even further
+    localparam W0_TOTAL_DEPTH       = W0_ROW_X * W0_COL_X; // Can be reduced even further (maybe == N_TOTAL_DEPTH because we will wait at the same time as the entire north matrix is loaded, then do the circular address computation)
     localparam W0_MEMORY_SIZE       = W0_TOTAL_DEPTH * W0_MODULE_WIDTH;
     localparam int ADDR_WIDTH_W0    = $clog2(W0_TOTAL_DEPTH);
 
