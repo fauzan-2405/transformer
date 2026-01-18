@@ -1,8 +1,8 @@
-// top_buffer.sv
+// buffer_wrapper.sv
 // Wrapper for buffer_w + buffer_n
 // Controller signals are assumed to be driven externally (buffer_ctrl)
 
-module top_buffer #(
+module buffer_wrapper #(
     parameter WIDTH             = 16,
 
     // West Buffer
