@@ -26,7 +26,7 @@ module top_buffer #(
 );
     // ************************************ BUFFER CONTROLLER ************************************
     // West bank control
-    logic w_bank0_ena_ctr;
+    logic w_bank0_ena_ctrl;
     logic w_bank0_enb_ctrl;
     logic w_bank0_wea_ctrl;
     logic [ADDR_WIDTH_W0-1:0] w_bank0_addra_ctrl, w_bank0_addrb_ctrl;
@@ -50,7 +50,7 @@ module top_buffer #(
         .ADDR_WIDTH_W      (ADDR_WIDTH_W),
 
         .W_COL_X           (W0_COL_X),
-        .W_ROW_X           (W0_ROW_X)
+        .W_ROW_X           (W0_ROW_X),
         .N_ROW_X           (N0_ROW_X),
         .N_COL_X           (N0_COL_X),
         
@@ -99,8 +99,8 @@ module top_buffer #(
     genvar i;
     generate
         for (i = 0; i < NUMBER_OF_BUFFER_INSTANCES; i++) begin : GEN_BUFFER
-            top_buffer_buffers #(
-                .WIDTH(WIDTH),
+            buffer_wrapper #(
+                .WIDTH(B0_WIDTH),
                 .W_NUM_CORES_A(W_NUM_CORES_A),
                 .W_NUM_CORES_B(W_NUM_CORES_B),
                 .W_TOTAL_MODULES(W_TOTAL_MODULES),
@@ -124,7 +124,7 @@ module top_buffer #(
                 .N_TOTAL_DEPTH(N_TOTAL_DEPTH),
                 .N_SLICE_WIDTH(N_SLICE_WIDTH),
                 .N_MODULE_WIDTH(N_MODULE_WIDTH)
-            ) u_pingpong_buffers (
+            ) u_buffers (
                 .clk(clk),
                 .rst_n(rst_n),
 
@@ -161,7 +161,7 @@ module top_buffer #(
         for (k = 0; k < NUMBER_OF_BUFFER_INSTANCES; k++) begin : GEN_BANK_MUX
 
             // ---------------- WEST (single input) ----------------
-            assign w_dout[k][0] = w_bank0_dout_i;
+            assign w_dout[k][0] = w_bank0_dout_i[k];
 
             // ---------------- NORTH (single input) ----------------
             assign n_dout[k] = n_bank0_dout_i[k];

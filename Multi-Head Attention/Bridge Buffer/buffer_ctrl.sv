@@ -85,7 +85,7 @@ module buffer_ctrl #(
         state_next = state_reg;
         case (state_reg)
             S_IDLE: begin
-                state_next = (in_valid_n) ? S_W0_R1 : S_IDLE;
+                state_next = (in_valid_n) ? S_LOAD_N : S_IDLE;
             end
 
             S_LOAD_N: begin // Load North Matrix + compute for the first time (if w matrix available)
@@ -148,7 +148,8 @@ module buffer_ctrl #(
             n_bank0_addra_wr      <= '0;
             n_bank0_addrb_rd      <= '0;
 
-            write_now             <= 0;
+            write_now_n           <= 0;
+            write_now_w           <= 0;
             w_slicing_idx         <= '0;      // For slicing the WEST input into SLICE_WIDTH using extract_module func
             n_slicing_idx         <= '0;      // For slicing the NORTH input into SLICE_WIDTH (see ping_pong_buffer_n.sv) using extract_module func
         end

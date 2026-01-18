@@ -73,7 +73,7 @@ module buffer_wrapper #(
     // =====================================================================
     // WEST PING-PONG BUFFER
     // =====================================================================
-    ping_pong_buffer_w #(
+    buffer_w #(
         .WIDTH         (WIDTH),
         .NUM_CORES_A   (W_NUM_CORES_A),
         .NUM_CORES_B   (W_NUM_CORES_B),
@@ -86,7 +86,7 @@ module buffer_wrapper #(
         .TOTAL_DEPTH   (W_TOTAL_DEPTH),
         .MEMORY_SIZE   (W_MEMORY_SIZE),
         .ADDR_WIDTH    (ADDR_WIDTH_W)
-    ) u_ping_pong_buffer_w (
+    ) u_buffer_w (
         .clk        (clk),
         .rst_n      (rst_n),
         .slicing_idx(w_slicing_idx),
@@ -104,7 +104,7 @@ module buffer_wrapper #(
     // =====================================================================
     // NORTH PING-PONG BUFFER
     // =====================================================================
-    ping_pong_buffer_n #(
+    buffer_n #(
         .WIDTH         (WIDTH),
         .NUM_CORES_A   (N_NUM_CORES_A),
         .NUM_CORES_B   (N_NUM_CORES_B),
@@ -117,7 +117,7 @@ module buffer_wrapper #(
         .TOTAL_DEPTH   (N_TOTAL_DEPTH),
         .MEMORY_SIZE   (N_MEMORY_SIZE),
         .ADDR_WIDTH    (ADDR_WIDTH_N)
-    ) u_ping_pong_buffer_n (
+    ) u_buffer_n (
         .clk        (clk),
         .rst_n      (rst_n),
         .slicing_idx(n_slicing_idx),
