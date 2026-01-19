@@ -78,7 +78,7 @@ module tb_top_lp_bridge;
         $display("[%0t] TB start", $time);
 
         // Load input matrix
-        $readmemb("mat_A_lp_bridge.mem", mem_A);
+        $readmemh("mat_A_lp_bridge.mem", mem_A);
 
         // Default values
         in_mat_ena = 0; in_mat_wea = 0;
