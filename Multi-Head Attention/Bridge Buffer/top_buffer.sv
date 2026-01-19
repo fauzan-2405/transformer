@@ -109,6 +109,7 @@ module top_buffer #(
                 .TOTAL_INPUT_W_W    (TOTAL_INPUT_W_W0),
                 .ADDR_WIDTH_W       (ADDR_WIDTH_W0),
                 .W_IN_WIDTH         (W0_IN_WIDTH),
+                .W_SLICE_WIDTH      (W0_SLICE_WIDTH),
                 .W_MODULE_WIDTH     (W0_MODULE_WIDTH),
                 .W_MEMORY_SIZE      (W0_MEMORY_SIZE),
                 .W_TOTAL_DEPTH      (W0_TOTAL_DEPTH),

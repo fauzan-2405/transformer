@@ -108,16 +108,16 @@ module buffer_ctrl #(
 
     // ------------------- For West Input -------------------
     // For bank 0
-    assign w_bank0_ena_ctrl   = (state_reg == S_LOAD_N);
-    assign w_bank0_enb_ctrl   = (state_reg != S_DONE) && (state_reg != S_IDLE);
+    assign w_bank0_ena_ctrl   = ((state_reg == S_LOAD_N) || (state_reg == S_LOAD_N_FINISHED));
+    assign w_bank0_enb_ctrl   = ((state_reg == S_LOAD_N) || (state_reg == S_LOAD_N_FINISHED)) ? ((w_ready >= 1) ? 1 : 0) : 0;
     assign w_bank0_wea_ctrl   = ((state_reg == S_LOAD_N) || (state_reg == S_LOAD_N_FINISHED)) ? ((write_now_w) ? 1 : 0) : 0;
     assign w_bank0_addra_ctrl = ((state_reg == S_LOAD_N) || (state_reg == S_LOAD_N_FINISHED)) ? w_bank0_addra_wr : '0;
     assign w_bank0_addrb_ctrl = ((state_reg != S_DONE) && (state_reg != S_IDLE)) ? w_bank0_addrb_rd : '0;
   
     // ------------------- For North Input -------------------
     // For bank 0
-    assign n_bank0_ena_ctrl   = (state_reg != S_LOAD_N);
-    assign n_bank0_enb_ctrl   = (state_reg != S_DONE) && (state_reg != S_IDLE);
+    assign n_bank0_ena_ctrl   = (state_reg == S_LOAD_N);
+    assign n_bank0_enb_ctrl   = ((state_reg == S_LOAD_N) || (state_reg == S_LOAD_N_FINISHED)) ? ((n_ready >= 1) ? 1 : 0) : 0;
     assign n_bank0_wea_ctrl   = (state_reg == S_LOAD_N) ? ((write_now_n) ? 1 : 0) : 0;
     assign n_bank0_addra_ctrl = (state_reg == S_LOAD_N) ? n_bank0_addra_wr : '0;
     assign n_bank0_addrb_ctrl = ((state_reg != S_DONE) && (state_reg != S_IDLE)) ? n_bank0_addrb_rd : '0;

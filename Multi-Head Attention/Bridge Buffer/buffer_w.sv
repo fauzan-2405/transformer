@@ -82,7 +82,7 @@ module buffer_w #(
 
         .RST_MODE_A             ("SYNC"),
         .RST_MODE_B             ("SYNC")
-    ) bank0_n
+    ) bank0_w
     (
         // -------- Port A : Write --------
         .clka   (clk),
