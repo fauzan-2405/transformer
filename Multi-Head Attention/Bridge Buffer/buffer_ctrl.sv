@@ -8,6 +8,7 @@ module buffer_ctrl #(
     parameter TOTAL_MODULES_W     = 4,
     parameter ADDR_WIDTH_W      = 2,
     parameter ADDR_WIDTH_N      = 4,
+    parameter W_TOTAL_IN        = 4,
     parameter W_COL_X           = 4, // Indicates how many columns from W_COL_X that being used as a west input
     parameter W_ROW_X           = 4,
     parameter N_ROW_X           = 4, // Indicates how many columns from N_ROW_X that being used as a north input
@@ -68,7 +69,8 @@ module buffer_ctrl #(
     logic [7:0] counter, counter_row, counter_col, flag;
     logic counter_acc_done;
     logic [$clog2(N_TOTAL_DEPTH):0] n_ready;// Revise the size later!
-    logic [$clog2(W_TOTAL_DEPTH):0] w_ready;// Revise the size later!
+    logic [$clog2(W_TOTAL_DEPTH):0] w_ready, w_uploaded;// Revise the size later!
+    logic all_w;
 
     // ------------------- For West Input -------------------
     // For bank 0
@@ -136,6 +138,8 @@ module buffer_ctrl #(
             flag                <= 0;
             n_ready             <= '0;
             w_ready             <= '0;
+            w_uploaded          <= '0;
+            all_w               <= 0;
 
             internal_rst_n      <= 1'b0;
             internal_reset_acc  <= 1'b0;
@@ -160,7 +164,13 @@ module buffer_ctrl #(
 
             // ------------------------------------------------------ WRITING PHASE ------------------------------------------------------
             if (in_valid_w) begin
-                write_now_w   <= 1'b1;
+                if (all_w) begin
+                    write_now_w     <= 1'b0;
+                    w_uploaded      <= w_uploaded ;
+                end else begin
+                    write_now_w     <= 1'b1;
+                    w_uploaded      <= w_uploaded + 1;
+                end
             end else begin
                 // Turning off the write enable for west matrix
                 if (write_now_w && (w_slicing_idx == TOTAL_MODULES_W - 1)) begin
@@ -183,12 +193,15 @@ module buffer_ctrl #(
                 if (w_bank0_addra_wr == W_TOTAL_DEPTH -1) begin
                     w_bank0_addra_wr    <= '0; // Move to first address again after traversing until the end of the W address
                 end else begin
+                    if (w_uploaded == W_TOTAL_IN) begin // All west matrix had been uploaded
+                        all_w               <= 1'b1;
+                    end
                     w_bank0_addra_wr    <= w_bank0_addra_wr + 1; // West Address Generation, when slicing idx change
                 end
                 // Checking the availability for west bank
                 if (w_bank0_addra_wr % (INNER_DIMENSION/BLOCK_SIZE) == (INNER_DIMENSION/BLOCK_SIZE - 1)) begin
                     if (w_ready < W_ROW_X) begin
-                        w_ready <= w_ready + 1;
+                        w_ready     <= w_ready + 1;
                     end
                 end
             end else begin
@@ -233,6 +246,8 @@ module buffer_ctrl #(
                         counter <= counter + 1;
                     end
                 end
+            end else begin
+                internal_reset_acc  <= 0;
             end
 
             // Column/Row Update
@@ -260,12 +275,11 @@ module buffer_ctrl #(
                     flag <= flag + 1;   
                 end
             end
-            
         end
     end
     
     assign out_valid = counter_acc_done;
-    assign enable_matmul = (state_reg != S_DONE) ;
+    assign enable_matmul = (state_reg != S_DONE);
     assign internal_reset_acc_ctrl  = internal_reset_acc;
     assign internal_rst_n_ctrl      = internal_rst_n;
     assign state_now                = (state_reg == S_LOAD_N) ? 0 : 

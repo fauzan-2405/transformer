@@ -49,6 +49,7 @@ module top_buffer #(
         .ADDR_WIDTH_N      (ADDR_WIDTH_N0),
         .ADDR_WIDTH_W      (ADDR_WIDTH_W0),
 
+        .W_TOTAL_IN        (W0_TOTAL_IN),
         .W_COL_X           (W0_COL_X),
         .W_ROW_X           (W0_ROW_X),
         .N_ROW_X           (N0_ROW_X),

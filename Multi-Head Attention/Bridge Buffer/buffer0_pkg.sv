@@ -20,6 +20,7 @@ package buffer0_pkg;
     localparam W0_TOTAL_DEPTH       = W0_ROW_X * W0_COL_X; // Can be reduced even further (maybe == N_TOTAL_DEPTH because we will wait at the same time as the entire north matrix is loaded, then do the circular address computation)
     localparam W0_MEMORY_SIZE       = W0_TOTAL_DEPTH * W0_MODULE_WIDTH;
     localparam int ADDR_WIDTH_W0    = $clog2(W0_TOTAL_DEPTH);
+    localparam W0_TOTAL_IN          = W0_ROW_X * W0_COL_X / TOTAL_INPUT_W_W0;
 
     // For North Buffer, PLEASE CHANGE THESE PARAMETERS ACCORDING TO YOUR USAGE
     parameter TOTAL_INPUT_W_N0      = 2;
@@ -35,8 +36,8 @@ package buffer0_pkg;
     localparam N0_MEMORY_SIZE       = N0_TOTAL_DEPTH * N0_MODULE_WIDTH;
     localparam int ADDR_WIDTH_N0    = $clog2(N0_TOTAL_DEPTH);
 
-    parameter int ROW_SIZE_MAT_C_B0 = W0_ROW_X / TOTAL_INPUT_W_W0; 
-    parameter int COL_SIZE_MAT_C_B0 = N0_COL_X / TOTAL_INPUT_W_N0;
+    parameter int ROW_SIZE_MAT_C_B0 = W0_ROW_X; 
+    parameter int COL_SIZE_MAT_C_B0 = N0_COL_X;
     parameter int MAX_FLAG_B0       = (ROW_SIZE_MAT_C_B0 * COL_SIZE_MAT_C_B0);
 
     
