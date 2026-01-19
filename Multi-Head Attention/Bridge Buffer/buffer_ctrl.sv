@@ -67,8 +67,8 @@ module buffer_ctrl #(
     assign acc_done_wrap_rising = ~acc_done_wrap_d & acc_done_wrap;
     logic [7:0] counter, counter_row, counter_col, flag;
     logic counter_acc_done;
-    logic [$clog2(N_ROW_X):0] n_ready;// Revise the size later!
-    logic [$clog2(W_ROW_X):0] w_ready;// Revise the size later!
+    logic [$clog2(N_TOTAL_DEPTH):0] n_ready;// Revise the size later!
+    logic [$clog2(W_TOTAL_DEPTH):0] w_ready;// Revise the size later!
 
     // ------------------- For West Input -------------------
     // For bank 0
@@ -184,10 +184,11 @@ module buffer_ctrl #(
                     w_bank0_addra_wr    <= '0; // Move to first address again after traversing until the end of the W address
                 end else begin
                     w_bank0_addra_wr    <= w_bank0_addra_wr + 1; // West Address Generation, when slicing idx change
-                    if (w_bank0_addra_wr % (INNER_DIMENSION/BLOCK_SIZE) == (INNER_DIMENSION/BLOCK_SIZE - 1)) begin
-                        if (w_ready < W_ROW_X) begin
-                            w_ready <= w_ready + 1;
-                        end
+                end
+                // Checking the availability for west bank
+                if (w_bank0_addra_wr % (INNER_DIMENSION/BLOCK_SIZE) == (INNER_DIMENSION/BLOCK_SIZE - 1)) begin
+                    if (w_ready < W_ROW_X) begin
+                        w_ready <= w_ready + 1;
                     end
                 end
             end else begin
@@ -222,7 +223,7 @@ module buffer_ctrl #(
                     n_bank0_addrb_rd <= counter + (INNER_DIMENSION/BLOCK_SIZE)*counter_col;
 
                     // counter indicates the matrix C element iteration
-                    if (counter == ((INNER_DIMENSION/BLOCK_SIZE) - 1)) begin 
+                    if (counter == ((INNER_DIMENSION/BLOCK_SIZE))) begin 
                         counter <= '0;
                         // Substract the *_ready to check if the next set is available or not
                         w_ready <= w_ready - 1;
