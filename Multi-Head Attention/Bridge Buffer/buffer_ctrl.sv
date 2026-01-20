@@ -227,7 +227,11 @@ module buffer_ctrl #(
                 internal_rst_n  <= ~systolic_finish_wrap;
             end
 
-            if ((w_ready >= 1) && (n_ready >= 1)) begin
+            // Ready counter rules:
+            // - Case 1 (LOAD_N_FINISHED & all_w): no decrement
+            // - Case 2 (LOAD_N_FINISHED & !all_w): w_ready--
+            // - Case 3 (normal): w_ready--, n_ready--
+            if (((w_ready >= 1) && (n_ready >= 1)) || (state_reg == S_LOAD_N_FINISHED)) begin
                 if (systolic_finish_wrap) begin
                     internal_reset_acc <= ~acc_done_wrap;
 
@@ -235,20 +239,35 @@ module buffer_ctrl #(
                     w_bank0_addrb_rd <= counter + (INNER_DIMENSION/BLOCK_SIZE)*counter_row; 
                     n_bank0_addrb_rd <= counter + (INNER_DIMENSION/BLOCK_SIZE)*counter_col;
 
-                    // counter indicates the matrix C element iteration
-                    if (counter == ((INNER_DIMENSION/BLOCK_SIZE))) begin 
+                    // Counter terminal condition
+                    if (counter ==
+                        ((state_reg == S_LOAD_N_FINISHED && all_w)
+                            ? (INNER_DIMENSION/BLOCK_SIZE - 1)
+                            : (INNER_DIMENSION/BLOCK_SIZE))) begin
+
                         counter <= '0;
-                        // Substract the *_ready to check if the next set is available or not
-                        w_ready <= w_ready - 1;
-                        n_ready <= n_ready - 1;
+
+                        // w_ready decrement: NOT in case 1
+                        if (!(state_reg == S_LOAD_N_FINISHED && all_w)) begin
+                            w_ready <= w_ready - 1;
+                        end
+
+                        // n_ready decrement: only outside S_LOAD_N_FINISHED
+                        if (state_reg != S_LOAD_N_FINISHED) begin
+                            n_ready <= n_ready - 1;
+                        end
                     end
                     else begin
                         counter <= counter + 1;
                     end
                 end
-            end else begin
-                internal_reset_acc  <= 0;
             end
+            else begin
+                if (counter_acc_done) begin
+                    internal_reset_acc <= 1'b0;
+                end
+            end
+
 
             // Column/Row Update
             if (acc_done_wrap_rising) begin
