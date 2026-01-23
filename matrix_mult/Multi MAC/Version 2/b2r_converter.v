@@ -107,9 +107,12 @@ module b2r_converter #(
 
             STATE_SLICE_RD:
             begin
-                //state_next = ((ram_read_addr  >= SLICE_ROWS - 1) && (slice_load_counter_d >= SLICE_ROWS - 1)) ? STATE_OUTPUT : STATE_SLICE_RD;
+                if (COL / (NUM_CORES_H*BLOCK_SIZE) == 1) begin
+                    state_next = ((ram_read_addr  >= SLICE_ROWS - 1) && (slice_load_counter_d >= SLICE_ROWS - 1)) ? STATE_OUTPUT : STATE_SLICE_RD;
+                end else begin
+                    state_next = ((ram_read_addr  == SLICE_ROWS + counter_row - slice_load_counter) && (slice_load_counter_d >= SLICE_ROWS - 1)) ? STATE_OUTPUT : STATE_SLICE_RD;
+                end
                 //state_next = (ram_read_addr  == SLICE_ROWS + counter_row - slice_load_counter) ? STATE_OUTPUT : STATE_SLICE_RD;
-                state_next = ((ram_read_addr  == SLICE_ROWS + counter_row - slice_load_counter) && (slice_load_counter_d >= SLICE_ROWS - 1)) ? STATE_OUTPUT : STATE_SLICE_RD;
             end
 
             STATE_OUTPUT:
@@ -162,6 +165,7 @@ module b2r_converter #(
             slice_load_counter <= 0;
             slice_ready     <= 0;
             counter_row_index <= 0;
+            out_data        <= 0;
         end else begin
             if (en) begin
                 counter_out_d <= counter_out;
