@@ -22,7 +22,12 @@ module self_attention_head #(
     output logic acc_done_wrap_Qn_KnT
 );
     // ************************** Matmul Module Qn x Kn^T **************************
-    logic [(WIDTH_OUT*CHUNK_SIZE*NUM_CORES_A_Qn_KnT*NUM_CORES_B_Qn_KnT*TOTAL_MODULES_LP_Q)-1:0] out_matmul_Qn_KnT [TOTAL_INPUT_W_Qn_KnT]
+    logic [(WIDTH_OUT*CHUNK_SIZE*NUM_CORES_A_Qn_KnT*NUM_CORES_B_Qn_KnT*TOTAL_MODULES_LP_Q)-1:0] 
+        out_matmul_Qn_KnT [NUMBER_OF_BUFFER_INSTANCES][TOTAL_INPUT_W_Qn_KnT];
+
+    logic [$clog2(NUMBER_OF_BUFFER_INSTANCES)-1:0] sig_acc_done_wrap_Qn_KnT;
+    logic [$clog2(NUMBER_OF_BUFFER_INSTANCES)-1:0] sig_sys_finish_wrap_Qn_KnT;
+
     genvar i;
     generate
         for (i = 0; i < NUMBER_OF_BUFFER_INSTANCES; i++) begin : GEN_MATMUL_QN_KNT
@@ -47,38 +52,49 @@ module self_attention_head #(
                 .reset_acc(reset_acc_Qn_KnT),
                 .input_w(input_w_Qn_KnT[i]), 
                 .input_n(input_n_Qn_KnT[i]), 
-                .acc_done_wrap(acc_done_wrap_Qn_KnT), 
-                .systolic_finish_wrap(sys_finish_wrap_Qn_KnT),
+                .acc_done_wrap(sig_acc_done_wrap_Qn_KnT[i]), 
+                .systolic_finish_wrap(sig_sys_finish_wrap_Qn_KnT[i]),
                 .out_multi_matmul(out_matmul_Qn_KnT)
             );
         end
     endgenerate
-    
+
+    assign sys_finish_wrap_Qn_KnT = &sig_sys_finish_wrap_Qn_KnT;
+    assign acc_done_wrap_Qn_KnT = &sig_acc_done_wrap_Qn_KnT;
 
 
     // ************************** 4-BIT SHIFTER **************************
-    logic [(WIDTH_OUT*CHUNK_SIZE*NUM_CORES_A*NUM_CORES_B*TOTAL_MODULES_LP_Q)-1:0] out_shifted [TOTAL_INPUT_W_Qn_KnT];
+    logic [(WIDTH_OUT*CHUNK_SIZE*NUM_CORES_A_Qn_KnT*NUM_CORES_B_Qn_KnT*TOTAL_MODULES_LP_Q)-1:0] 
+        out_shifted [NUMBER_OF_BUFFER_INSTANCES][TOTAL_INPUT_W_Qn_KnT];
 
-    rshift #(
-        .WIDTH_A(WIDTH_A),
-        .FRAC_WIDTH_A(FRAC_WIDTH_A),
-        .WIDTH_B(WIDTH_B),
-        .FRAC_WIDTH_B(FRAC_WIDTH_B),
-        .WIDTH_OUT(WIDTH_OUT),
-        .FRAC_WIDTH_OUT(FRAC_WIDTH_OUT),
-        .BLOCK_SIZE(BLOCK_SIZE),
-        .CHUNK_SIZE(CHUNK_SIZE),
-        .TOTAL_MODULES(TOTAL_MODULES_LP_Q),
-        .TOTAL_INPUT_W(TOTAL_INPUT_W_Qn_KnT),
-        .NUM_CORES_A(NUM_CORES_A_Qn_KnT),
-        .NUM_CORES_B(NUM_CORES_B_Qn_KnT)
-    ) rshift_four_bit (
-        .clk(clk), .rst_n(rst_n),
-        .in_valid(acc_done_wrap_Qn_KnT),
-        .in_4bit_rshift(out_matmul_Qn_KnT),
-        .out_valid()
-        .out_shifted(out_shifted)
-    );
+    logic [$clog2(NUMBER_OF_BUFFER_INSTANCES)-1:0] out_valid_shifted
+
+    genvar j;
+    generate
+        for (j = 0; j < NUMBER_OF_BUFFER_INSTANCES; j++) begin : GEN_RSHIFT
+            rshift #(
+                .WIDTH_A(WIDTH_A),
+                .FRAC_WIDTH_A(FRAC_WIDTH_A),
+                .WIDTH_B(WIDTH_B),
+                .FRAC_WIDTH_B(FRAC_WIDTH_B),
+                .WIDTH_OUT(WIDTH_OUT),
+                .FRAC_WIDTH_OUT(FRAC_WIDTH_OUT),
+                .BLOCK_SIZE(BLOCK_SIZE),
+                .CHUNK_SIZE(CHUNK_SIZE),
+                .TOTAL_MODULES(TOTAL_MODULES_LP_Q),
+                .TOTAL_INPUT_W(TOTAL_INPUT_W_Qn_KnT),
+                .NUM_CORES_A(NUM_CORES_A_Qn_KnT),
+                .NUM_CORES_B(NUM_CORES_B_Qn_KnT)
+            ) rshift_four_bit (
+                .clk(clk), .rst_n(rst_n),
+                .in_valid(out_valid_Qn_KnT),
+                .in_4bit_rshift(out_matmul_Qn_KnT[i]),
+                .out_valid(out_valid_shifted[i])
+                .out_shifted(out_shifted[i])
+            );
+        end
+    endgenerate
+    
 
     // ************************** B2R CONVERTER **************************
     
