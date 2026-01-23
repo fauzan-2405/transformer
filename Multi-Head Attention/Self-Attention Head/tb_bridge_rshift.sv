@@ -3,7 +3,7 @@
 import linear_proj_pkg::*;
 import self_attention_pkg::*;
 
-module tb_top_lp_buffer;
+module tb_bridge_rshift;
 
     // ============================================================
     // Localparams (match packages)
@@ -41,7 +41,8 @@ module tb_top_lp_buffer;
          NUM_CORES_A_Qn_KnT*
          NUM_CORES_B_Qn_KnT*
          TOTAL_MODULES_LP_Q)-1:0
-    ] out_lp_bridge [TOTAL_INPUT_W];
+    ] out_bridge_shifted [TOTAL_INPUT_W];
+    logic out_valid_shifted;
 
     // ============================================================
     // Memory for stimulus
@@ -51,7 +52,7 @@ module tb_top_lp_buffer;
     // ============================================================
     // DUT
     // ============================================================
-    top_lp_buffer #(
+    top_bridge_rshift #(
         .OUT_KEYS(OUT_KEYS),
         .NUMBER_OF_BUFFER_INSTANCES(1)
     ) dut (
@@ -68,7 +69,8 @@ module tb_top_lp_buffer;
         .in_mat_wr_addrb(in_mat_wr_addrb),
         .in_mat_dinb(in_mat_dinb),
 
-        .out_lp_bridge(out_lp_bridge)
+        .out_valid_shifted(out_valid_shifted)
+        .out_bridge_shifted(out_bridge_shifted)
     );
 
     // ============================================================
@@ -78,7 +80,7 @@ module tb_top_lp_buffer;
         $display("[%0t] TB start", $time);
 
         // Load input matrix
-        $readmemb("mat_A_lp_bridge.mem", mem_A);
+        $readmemh("mat_A_lp_bridge.mem", mem_A);
 
         // Default values
         in_mat_ena = 0; in_mat_wea = 0;
@@ -129,12 +131,6 @@ module tb_top_lp_buffer;
         $display("[%0t] Waiting for pipeline activity...", $time);
         repeat (2000) @(posedge clk);
 
-        // Dump some outputs
-        for (int t = 0; t < TOTAL_INPUT_W; t++) begin
-            $display("out_lp_bridge[%0d] = %h", t, out_lp_bridge[t]);
-        end
-
-        $display("[%0t] TB finished", $time);
         $finish;
     end
 
