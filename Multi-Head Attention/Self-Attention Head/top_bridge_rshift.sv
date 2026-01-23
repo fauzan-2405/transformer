@@ -154,7 +154,7 @@ module top_bridge_rshift #(
     );
 
     // ************************************ NEXT MATMUL  ************************************
-    logic [(WIDTH_OUT*CHUNK_SIZE*NUM_CORES_A_Qn_KnT*NUM_CORES_B_Qn_KnT*TOTAL_MODULES_LP_Q)-1:0] out_lp_bridge [TOTAL_INPUT_W]
+    logic [(WIDTH_OUT*CHUNK_SIZE*NUM_CORES_A_Qn_KnT*NUM_CORES_B_Qn_KnT*TOTAL_MODULES_LP_Q)-1:0] out_lp_bridge [TOTAL_INPUT_W];
 
     multi_matmul_wrapper #(
         .WIDTH_A(WIDTH_A),
@@ -200,7 +200,7 @@ module top_bridge_rshift #(
         .clk(clk), .rst_n(rst_n),
         .in_valid(sig_out_valid),
         .in_4bit_rshift(out_lp_bridge),
-        .out_valid(out_valid_shifted)
+        .out_valid(out_valid_shifted),
         .out_shifted(out_bridge_shifted)
     );
 

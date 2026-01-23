@@ -69,7 +69,7 @@ module tb_bridge_rshift;
         .in_mat_wr_addrb(in_mat_wr_addrb),
         .in_mat_dinb(in_mat_dinb),
 
-        .out_valid_shifted(out_valid_shifted)
+        .out_valid_shifted(out_valid_shifted),
         .out_bridge_shifted(out_bridge_shifted)
     );
 
