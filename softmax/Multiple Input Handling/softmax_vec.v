@@ -173,7 +173,7 @@ module softmax_vec #(
             
             S_DONE: 
             begin
-                state_next = (en && start) ? S_LOAD : S_IDLE;
+                state_next = (!rst_n) ? S_IDLE : S_DONE;
             end
         endcase
 
