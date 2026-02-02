@@ -1,17 +1,17 @@
-// softmax_vec.v 
+// softmax_vec.v
 // if TOTAL_ELEMENTS % TILE_SIZE != 0 then we will assume the last tile that contains last elements will be padded to zero
 //
 
 module softmax_vec #(
     parameter WIDTH          = 32,
     parameter FRAC_WIDTH     = 16,
-    parameter TOTAL_ELEMENTS = 64,   // set small for sim; can be 2754 in HW
-    parameter TILE_SIZE      = 8,
+    parameter TOTAL_ELEMENTS = 1024,   // set small for sim; can be 2754 in HW
+    parameter TILE_SIZE      = 16,
     parameter USE_AMULT      = 0     // passed to exp_vec
 )(
     input  wire                          clk,
     input  wire                          rst_n,
-    input  wire                          en, 
+    input  wire                          en,
     input  wire                          start,
 
     // Input tile stream, MS chunk = element 0
@@ -36,8 +36,8 @@ module softmax_vec #(
     // Local Parameters
     localparam [WIDTH-1:0] LN2_Q    = 32'h0000B172; // ~0.693147 in Q16.16
     localparam ADDRE                = $clog2(TOTAL_ELEMENTS);               // to count elements
-    localparam ADDRS                = $clog2((TOTAL_ELEMENTS+2)/2);         // to count how many sum operations have done 
-    localparam COUNT_SUM            = (TOTAL_ELEMENTS % TILE_SIZE) == 0 ? TOTAL_ELEMENTS/TILE_SIZE : ((TOTAL_ELEMENTS/TILE_SIZE) + 1); 
+    localparam ADDRS                = $clog2((TOTAL_ELEMENTS+2)/2);         // to count how many sum operations have done
+    localparam COUNT_SUM            = (TOTAL_ELEMENTS % TILE_SIZE) == 0 ? TOTAL_ELEMENTS/TILE_SIZE : ((TOTAL_ELEMENTS/TILE_SIZE) + 1);
     localparam SUM_WIDTH            = WIDTH + $clog2(TOTAL_ELEMENTS + 1); // sum_exp width size
     localparam RAM_DATA_WIDTH       = WIDTH * TILE_SIZE;
     localparam RAM_DEPTH            = (TOTAL_ELEMENTS + TILE_SIZE - 1) / TILE_SIZE;
@@ -53,7 +53,7 @@ module softmax_vec #(
 
     reg [2:0] state_reg, state_next, state_reg_d;
     integer i;
- 
+
     // Counters and registers
     reg [ADDRE:0] e_loaded;                     // How many elements loaded into RAM
     reg [ADDRE:0] e_read;                       // How many elements consumed in pass1 (for sum)
@@ -77,19 +77,19 @@ module softmax_vec #(
         .read_addr0(ram_read_addr0),
         .read_addr1(ram_read_addr1),
         .din(X_tile_in),
-        .dout0(ram_dout0), 
-        .dout1(ram_dout1)  
+        .dout0(ram_dout0),
+        .dout1(ram_dout1)
     );
-    
+
     // ----------------- EXP FUNCTION UNIT ----------------
     // Registers used to pack-unpack
     reg [RAM_DATA_WIDTH-1:0] exp_in_flat0;              // Input data from RAM to exp_vec(): Flattened Xi - max_value
-    reg [RAM_DATA_WIDTH-1:0] exp_in_flat1;    
+    reg [RAM_DATA_WIDTH-1:0] exp_in_flat1;
     wire [RAM_DATA_WIDTH-1:0] exp_out_flat0;            // Output data from exp_vec()
     wire [RAM_DATA_WIDTH-1:0] exp_out_flat1;
     reg signed [WIDTH-1:0] exp_out_nflat0 [0:TILE_SIZE-1];      // Unflattened exp(xi-max_value) result
     reg signed [WIDTH-1:0] exp_out_nflat1 [0:TILE_SIZE-1];
-    
+
     // exp function unit to calculate exp(xi-max_value)
     exp_vec #(
         .WIDTH(WIDTH), .FRAC(FRAC_WIDTH), .TILE_SIZE(TILE_SIZE), .USE_AMULT(USE_AMULT)
@@ -132,7 +132,7 @@ module softmax_vec #(
     end
 
     // ----------------- LNU UNIT ----------------
-    // Range reduction regs => ln(sum_exp) = ln(m) + k*ln(2)  
+    // Range reduction regs => ln(sum_exp) = ln(m) + k*ln(2)
     wire signed [WIDTH-1:0] ln_sum_out;
 
     lnu_range_adapter_1to8 #(.WIDTH(WIDTH), .FRAC(FRAC_WIDTH), .SUM_WIDTH(SUM_WIDTH))
@@ -146,9 +146,10 @@ module softmax_vec #(
     // ----------------- FSM NEXT STATE ----------------
     always @(*) begin
         state_next = state_reg;
-        case (state_reg) 
+        case (state_reg)
             S_IDLE: begin
-                state_next = (en && start) ? S_LOAD : S_IDLE;
+                //state_next = (en && start) ? S_LOAD : S_IDLE;
+                state_next = (en) ? S_LOAD : S_IDLE;
             end
 
             S_LOAD: // Pass 0: Store tiles and track max
@@ -170,10 +171,10 @@ module softmax_vec #(
             begin
                 state_next = (remain == 0) ? S_DONE : S_PASS_2;
             end
-            
-            S_DONE: 
+
+            S_DONE:
             begin
-                state_next = (!rst_n) ? S_IDLE : S_DONE;
+                state_next = (!rst_n) ? S_IDLE: S_DONE;
             end
         endcase
 
@@ -197,7 +198,7 @@ module softmax_vec #(
             minus_d         <= 0;
             e_count_sum     <= {ADDRS{1'b0}};
             sum_exp         <= {SUM_WIDTH{1'b0}};
-            
+
             tile_out_valid  <= 0;
             out_phase       <= 0;
             out_phase_d     <= 0;
@@ -217,7 +218,7 @@ module softmax_vec #(
             state_reg_d <= state_reg;
             out_phase_d <= out_phase;
             minus_d     <= minus;
-            
+
             // Case for state_next
             case (state_next)
                 S_PASS_1: begin
@@ -236,19 +237,19 @@ module softmax_vec #(
                         take_even = valid_count;
                         take_odd  = 0;
                     end
-    
+
                     // advance read counters/addresses
                     e_read <= e_read + take_even + take_odd;
-    
+
                     // Bump even/odd tile addresses if we actually consumed a full tile from each
                     if (take_even == TILE_SIZE)
                         if (ram_read_addr0 + 2 <= (TOTAL_ELEMENTS / TILE_SIZE)) ram_read_addr0 <= ram_read_addr0 + 2; // next even
                     if (take_odd == TILE_SIZE)
                         if (ram_read_addr1 + 2 < (TOTAL_ELEMENTS / TILE_SIZE)) ram_read_addr1  <= ram_read_addr1  + 2; // next odd
-                        
+
                     minus        <= (ram_read_addr1 == ram_read_addr0+1);
                 end
-                
+
                 S_PASS_2: begin
                     remain = (TOTAL_ELEMENTS > e_streamed) ? (TOTAL_ELEMENTS - e_streamed) : 0;
 
@@ -267,8 +268,8 @@ module softmax_vec #(
                     if (take_even == TILE_SIZE)
                         if (ram_read_addr0 + 2 <= (TOTAL_ELEMENTS / TILE_SIZE)) ram_read_addr0 <= ram_read_addr0 + 2; // next even
                     if (take_odd == TILE_SIZE)
-                        if (ram_read_addr1 + 2 < (TOTAL_ELEMENTS / TILE_SIZE)) ram_read_addr1  <= ram_read_addr1  + 2; // next odd\ 
-                    
+                        if (ram_read_addr1 + 2 < (TOTAL_ELEMENTS / TILE_SIZE)) ram_read_addr1  <= ram_read_addr1  + 2; // next odd\
+
                     // Emit per-tile stream:
                     if (out_phase == 0) begin
                         e_streamed      <= e_streamed + take_even;
@@ -287,10 +288,10 @@ module softmax_vec #(
                     end
                 end
             endcase
-           
+
             // Case for state_reg
             case (state_reg)
-                S_LOAD: begin       // Pass 0: Store tiles and track max 
+                S_LOAD: begin       // Pass 0: Store tiles and track max
                     // Write tile into RAM while looking for the max_value
                     if (tile_in_valid && (e_loaded < TOTAL_ELEMENTS)) begin
                         for (i = 0; i < TILE_SIZE; i = i+1) begin
@@ -332,26 +333,25 @@ module softmax_vec #(
                         done            <= 1;
                     end
                 end
-                
+
                 S_DONE: begin
                 end
             endcase
-            
+
             // Case for state_reg_d
             case (state_reg_d)
                 S_PASS_1: begin
                     if (e_count_sum < COUNT_SUM) begin
-                        if (minus_d) begin
-                                sum_exp <= sum_exp + acc0 + acc1;
-                                e_count_sum <= e_count_sum + 2;
-                            end else begin
-                                sum_exp <= sum_exp + acc0;
-                                e_count_sum <= e_count_sum + 1;
-                            end 
+                       if (minus_d) begin
+                            sum_exp <= sum_exp + acc0 + acc1;
+                            e_count_sum <= e_count_sum + 2;
+                        end else begin
+                            sum_exp <= sum_exp + acc0;
+                            e_count_sum <= e_count_sum + 1;
                         end
+                    end
                 end
             endcase
         end
     end
 endmodule
-
