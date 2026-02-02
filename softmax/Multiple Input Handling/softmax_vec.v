@@ -12,7 +12,6 @@ module softmax_vec #(
     input  wire                          clk,
     input  wire                          rst_n,
     input  wire                          en,
-    input  wire                          start,
 
     // Input tile stream, MS chunk = element 0
     input  wire [TILE_SIZE*WIDTH-1:0]    X_tile_in,
@@ -154,7 +153,7 @@ module softmax_vec #(
 
             S_LOAD: // Pass 0: Store tiles and track max
             begin
-                state_next = (e_loaded == TOTAL_ELEMENTS-TILE_SIZE) ? S_PASS_1 : S_LOAD;
+                state_next = (e_loaded == TOTAL_ELEMENTS) ? S_PASS_1 : S_LOAD;
             end
 
             S_PASS_1: // Pass 1: Read from the RAM, calculate the exp, and sum exp
