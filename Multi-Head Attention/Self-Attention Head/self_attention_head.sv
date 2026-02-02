@@ -7,7 +7,7 @@ import buffer0_pkg::TOTAL_INPUT_W_W0;
 import self_attention_pkg::*;
 
 module self_attention_head #(
-    parameter NUMBER_OF_BUFFER_INSTANCES = 4
+    localparam TOTAL_SOFTMAX_ROW = NUM_CORES_A_Qn_KnT * BLOCK_SIZE
 ) (
     input clk, rst_n,
     input en_Qn_KnT,
@@ -17,10 +17,18 @@ module self_attention_head #(
     input logic [W0_SLICE_WIDTH-1:0] input_w_Qn_KnT [TOTAL_INPUT_W_W0];
     input logic [N0_MODULE_WIDTH-1:0] input_n_Qn_KnT;
 
+    input logic internal_rst_n_b2r,
+
+    input logic softmax_en,
+    input logic softmax_valid [TOTAL_SOFTMAX_ROW],
+    input logic internal_rst_n_softmax,
+
     // Output
     output logic sys_finish_wrap_Qn_KnT, 
     output logic acc_done_wrap_Qn_KnT,
+    //output logic [WIDTH_OUT*COL_B2R_CONVERTER-1:0] out_b2r_data [TOTAL_INPUT_W_Qn_KnT], // To controller
     output logic slice_done_b2r_wrap,
+    output logic out_ready_b2r_wrap   // To Controller
 );
     // ************************** Matmul Module Qn x Kn^T **************************
     logic [(WIDTH_OUT*CHUNK_SIZE*NUM_CORES_A_Qn_KnT*NUM_CORES_B_Qn_KnT*TOTAL_MODULES_LP_Q)-1:0] 
@@ -87,9 +95,8 @@ module self_attention_head #(
     // ************************** B2R CONVERTER **************************
     logic [$clog2(TOTAL_INPUT_W_Qn_KnT)-1:0] slice_done_b2r;
     logic [$clog2(TOTAL_INPUT_W_Qn_KnT)-1:0] out_ready_b2r;
-    assign slice_done_b2r_wrap = &slice_done_b2r;
-    
-    logic [WIDTH_OUT*COL_B2R_CONVERTER-1:0] out_b2r_data [TOTAL_INPUT_W_Qn_KnT];
+    assign slice_done_b2r_wrap  = &slice_done_b2r;
+    assign out_ready_b2r_wrap   = &out_ready_b2r; 
 
     genvar i;
     generate
@@ -102,7 +109,7 @@ module self_attention_head #(
                 .BLOCK_SIZE(BLOCK_SIZE),
                 .CHUNK_SIZE(CHUNK_SIZE),
                 .NUM_CORES_H(NUM_CORES_H_B2R),
-                .NUM_CORES_V(NUM_CORES_V_B2R)
+                .NUM_CORES_V(NUM_CORES_V_B2R)       // Maybe do not forget to multiply it with TOTAL_MODULES?
             ) converter_b2r (
                 .clk(clk),
                 .rst_n(internal_rst_n_b2r),
@@ -122,7 +129,7 @@ module self_attention_head #(
     genvar j,k;
     generate
         for (j = 0; j < TOTAL_INPUT_W_Qn_KnT; j++) begin
-            for (k = 0; k < NUM_CORES_A_Qn_KnT*BLOCK_SIZE; k++) begin
+            for (k = 0; k < TOTAL_SOFTMAX_ROW; k++) begin
                 softmax_vec #(
                     .WIDTH(WIDTH_OUT),
                     .FRAC_WIDTH(FRAC_WIDTH_OUT),
@@ -131,12 +138,11 @@ module self_attention_head #(
                     .USE_AMULT(1'b0)
                 ) softmax_unit (
                     .clk(clk),
-                    .rst_n(),
-                    .en(),
-                    .start(),
+                    .rst_n(internal_rst_n_softmax),
+                    .en(softmax_en),
                     
-                    .X_tile_in(out_b2r_data[j][]),
-                    .tile_in_valid(out_ready_b2r[j]),
+                    .X_tile_in(out_b2r_data[j]), 
+                    .tile_in_valid(softmax_valid[k]), 
                     
                     .Y_tile_out(),
                     .tile_out_valid(),
