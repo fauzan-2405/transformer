@@ -26,6 +26,7 @@ module self_attention_ctrl #(
     localparam NUM_TILES    = COL / TILE_SIZE;
     localparam TILE_WIDTH   = WIDTH * TILE_SIZE;
 
+    logic slice_done_b2r_wrap_reg;
     logic streaming;
     logic [$clog2(NUM_TILES)-1:0] tile_idx;                 // Indicate the index of the tile that we give to the softmax
     logic [$clog2(TOTAL_SOFTMAX_ROW)-1:0] softmax_in_valid; // Indicate which softmax is valid to take the input
@@ -46,9 +47,8 @@ module self_attention_ctrl #(
                 softmax_valid[i] <= 0;
             end
         end else begin
-            if (slice_done_b2r_wrap) begin
-                internal_rst_n_b2r <= ~slice_done_b2r_wrap;
-            end
+            slice_done_b2r_wrap_reg <= slice_done_b2r_wrap;
+            internal_rst_n_b2r      <= ~slice_done_b2r_wrap_reg;
 
             // tile_in valid for softmax
             if (out_ready_b2r_wrap) begin
@@ -61,17 +61,27 @@ module self_attention_ctrl #(
                 // Update tile index to indicate what is the next tile_idx that we working on
                 if (tile_idx != NUM_TILES - 1) begin
                     tile_idx    <= tile_idx + 1; 
+                end else begin
                 end
             end
 
             if (streaming) begin
+                // Toggling the correct softmax_valid for the corresponding softmax
                 for (i = 0; i < TOTAL_SOFTMAX_ROW; i++) begin
                     softmax_valid[i] <= (i == softmax_in_valid);
                 end
 
-
+                // Advancing the softmax_valid through the entire TOTAL_SOFTMAX_ROW
                 if (softmax_in_valid != TOTAL_SOFTMAX_ROW) begin
                     softmax_in_valid <= softmax_in_valid + 1;
+                end else begin
+                    // If we already reached the TOTAL_SOFTMAX_ROW:
+                    softmax_in_valid <= '0;
+                    streaming        <= 0;           
+                end
+            end else begin
+                for (i = 0; i < TOTAL_SOFTMAX_ROW; i++) begin
+                    softmax_valid[i] <= 1'b0;
                 end
             end
 
