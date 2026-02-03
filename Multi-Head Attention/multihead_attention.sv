@@ -1,6 +1,10 @@
 // multihead_attention.sv
 // top module that contains top_linear_projection + top_self_attention_head
 
+import linear_proj_pkg::*;
+import self_attention_pkg::*;
+import buffer0_pkg::*;
+
 module multihead_attention #(
     parameter NUMBER_OF_BUFFER_INSTANCES = 1
 ) (
@@ -15,11 +19,12 @@ module multihead_attention #(
     input logic [ADDR_WIDTH_A-1:0] in_mat_wr_addrb,
     input logic [DATA_WIDTH_A-1:0] in_mat_dinb,
 
+    // Temporary output to see the intermediate results
     output logic [TILE_SIZE_SOFTMAX*WIDTH_OUT-1:0] out_softmax_data [TOTAL_INPUT_W_Qn_KnT][TOTAL_SOFTMAX_ROW],
     output logic out_softmax_valid [TOTAL_INPUT_W_Qn_KnT][TOTAL_SOFTMAX_ROW]
 );
 
-    // ************************************ TOP LINEAR PROJECTION ************************************
+    // ********************************************* TOP LINEAR PROJECTION *********************************************
     logic [(OUT_KEYS)-1:0] out_q1_wire [TOTAL_INPUT_W];
     /*
     logic [(OUT_KEYS)-1:0] out_q2_wire [TOTAL_INPUT_W];
@@ -76,12 +81,10 @@ module multihead_attention #(
         .done(lp_done)
     );
 
-    // ************************************ TOP BUFFER  ************************************
-    // For West Bank
-    logic [W0_IN_WIDTH-1:0] w_bank0_din_bridge [NUMBER_OF_BUFFER_INSTANCES][TOTAL_INPUT_W_W0]; // [1] because the NUMBER_OF_BUFFER_INSTANCES for this test is just 1
 
-    // For North Bank
-    logic [N0_IN_WIDTH-1:0] n_bank0_din_bridge [NUMBER_OF_BUFFER_INSTANCES][TOTAL_INPUT_W_N0];
+    // ********************************************* TOP BUFFER  *********************************************
+    logic [W0_IN_WIDTH-1:0] w_bank0_din_bridge [NUMBER_OF_BUFFER_INSTANCES][TOTAL_INPUT_W_W0]; // For West Bank
+    logic [N0_IN_WIDTH-1:0] n_bank0_din_bridge [NUMBER_OF_BUFFER_INSTANCES][TOTAL_INPUT_W_N0]; // For North Bank
 
     genvar t, u;
     generate
@@ -147,5 +150,26 @@ module multihead_attention #(
         .enable_matmul           (sig_enable_matmul)
     );
 
+
+    // ********************************************* TOP SELF ATTENTION HEAD *********************************************
+    //logic [TILE_SIZE_SOFTMAX*WIDTH_OUT-1:0] out_softmax_data [TOTAL_INPUT_W_Qn_KnT][TOTAL_SOFTMAX_ROW];
+    //logic out_softmax_valid [TOTAL_INPUT_W_Qn_KnT][TOTAL_SOFTMAX_ROW];
+
+    top_self_attention_head #(
+        .NUMBER_OF_BUFFER_INSTANCES(NUMBER_OF_BUFFER_INSTANCES)
+    ) self_attention_inst (
+        .clk                    (clk),
+        .rst_n                  (rst_n),
+        .rst_n_Qn_KnT           (rst_n_Qn_KnT),
+        .reset_acc_Qn_KnT       (sig_internal_reset_acc_ctrl),
+        .out_valid_Qn_KnT       (sig_out_valid),
+
+        .input_w_Qn_KnT         (w_dout_b0),
+        .input_n_Qn_KnT         (n_dout_b0),
+        
+        // Temporary output
+        .out_softmax_data(out_softmax_data),
+        .out_softmax_valid(out_softmax_valid)
+    )
 
 endmodule
