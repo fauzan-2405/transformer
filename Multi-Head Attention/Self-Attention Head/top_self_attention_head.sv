@@ -47,14 +47,16 @@ module top_self_attention_head #(
                 .input_w_Qn_KnT(input_w_Qn_KnT[i]),
                 .input_n_Qn_KnT(input_n_Qn_KnT[i]),
 
+                // To/From bridge buffer
+                .sys_finish_wrap_Qn_KnT(sys_finish_wrap_Qn_KnT),
+                .acc_done_wrap_Qn_KnT(acc_done_wrap_Qn_KnT),
+
+                // To/From controller
                 .internal_rst_n_b2r(internal_rst_n_b2r_sig),
                 
                 .softmax_en(softmax_en_sig),
                 .softmax_valid(softmax_valid_sig),
                 .internal_rst_n_softmax(internal_rst_n_softmax_sig),
-                
-                .sys_finish_wrap_Qn_KnT(sys_finish_wrap_Qn_KnT),
-                .acc_done_wrap_Qn_KnT(acc_done_wrap_Qn_KnT),
 
                 .slice_done_b2r_wrap(slice_done_b2r_wrap_sig),
                 .out_ready_b2r_wrap(out_ready_b2r_wrap_sig),
