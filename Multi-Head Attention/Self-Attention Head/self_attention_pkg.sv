@@ -27,7 +27,7 @@ package self_attention_pkg;
     parameter NUM_CORES_H_B2R    = NUM_CORES_B_Qn_KnT*TOTAL_MODULES_LP_Q;
     parameter NUM_CORES_V_B2R    = NUM_CORES_A_Qn_KnT;
 
-    parameter TOTAL_ELEMENTS_SOFTMAX = B_OUTER_DIMENSION_Qn_KnT; // Column size, in decimal
-    parameter TILE_SIZE_SOFTMAX      = COL_B2R_CONVERTER;
+    parameter TOTAL_ELEMENTS_SOFTMAX = B_OUTER_DIMENSION_Qn_KnT;    // Column size, in decimal
+    parameter TILE_SIZE_SOFTMAX      = COL_B2R_CONVERTER;           // In decimal
 
 endpackage
