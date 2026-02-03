@@ -26,9 +26,12 @@ module self_attention_head #(
     // Output
     output logic sys_finish_wrap_Qn_KnT, 
     output logic acc_done_wrap_Qn_KnT,
-    //output logic [WIDTH_OUT*COL_B2R_CONVERTER-1:0] out_b2r_data [TOTAL_INPUT_W_Qn_KnT], // To controller
+    
     output logic slice_done_b2r_wrap,
     output logic out_ready_b2r_wrap   // To Controller
+
+    output logic [TILE_SIZE_SOFTMAX*WIDTH_OUT-1:0] out_softmax_data [TOTAL_INPUT_W_Qn_KnT][TOTAL_SOFTMAX_ROW],
+    output logic out_softmax_valid [TOTAL_INPUT_W_Qn_KnT][TOTAL_SOFTMAX_ROW]
 );
     // ************************** Matmul Module Qn x Kn^T **************************
     logic [(WIDTH_OUT*CHUNK_SIZE*NUM_CORES_A_Qn_KnT*NUM_CORES_B_Qn_KnT*TOTAL_MODULES_LP_Q)-1:0] 
@@ -109,11 +112,12 @@ module self_attention_head #(
                 .BLOCK_SIZE(BLOCK_SIZE),
                 .CHUNK_SIZE(CHUNK_SIZE),
                 .NUM_CORES_H(NUM_CORES_H_B2R),
-                .NUM_CORES_V(NUM_CORES_V_B2R)       // Maybe do not forget to multiply it with TOTAL_MODULES?
+                .NUM_CORES_V(NUM_CORES_V_B2R)       
             ) converter_b2r (
                 .clk(clk),
                 .rst_n(internal_rst_n_b2r),
                 .en(1'b1),
+                .in_data(out_shifted[i])
                 .in_valid(out_valid_shifted[i]),
                 .slice_done(slice_done_b2r[i]),
                 .output_ready(out_ready_b2r[i]),
@@ -126,6 +130,9 @@ module self_attention_head #(
 
 
     // ************************** SOFTMAX **************************
+    //logic [TILE_SIZE_SOFTMAX*WIDTH_OUT-1:0] out_softmax_data [TOTAL_INPUT_W_Qn_KnT][TOTAL_SOFTMAX_ROW];
+    //logic out_softmax_valid [TOTAL_INPUT_W_Qn_KnT][TOTAL_SOFTMAX_ROW];
+
     genvar j,k;
     generate
         for (j = 0; j < TOTAL_INPUT_W_Qn_KnT; j++) begin
@@ -135,7 +142,7 @@ module self_attention_head #(
                     .FRAC_WIDTH(FRAC_WIDTH_OUT),
                     .TOTAL_ELEMENTS(TOTAL_ELEMENTS_SOFTMAX),
                     .TILE_SIZE(TILE_SIZE_SOFTMAX),
-                    .USE_AMULT(1'b0)
+                    .USE_AMULT(0)
                 ) softmax_unit (
                     .clk(clk),
                     .rst_n(internal_rst_n_softmax),
@@ -144,8 +151,8 @@ module self_attention_head #(
                     .X_tile_in(out_b2r_data[j]), 
                     .tile_in_valid(softmax_valid[k]), 
                     
-                    .Y_tile_out(),
-                    .tile_out_valid(),
+                    .Y_tile_out(out_softmax_data[j][k]),
+                    .tile_out_valid(out_softmax_valid),[j][k],
                     .done()
                 );
             end
