@@ -1,6 +1,6 @@
 // softmax_vec.v
 // if TOTAL_ELEMENTS % TILE_SIZE != 0 then we will assume the last tile that contains last elements will be padded to zero
-//  WE USE THIS IN SSELF ATTENTION (NEW)
+// This is the old softmax before we connecting it with the MULTIHEAD
 
 module softmax_vec #(
     parameter WIDTH          = 32,
