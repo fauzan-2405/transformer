@@ -23,22 +23,89 @@ module softmax_vec #(
 
     output reg                           done
 );
+    localparam INT_WIDTH                = 32;
+    localparam INT_FRAC                 = 16;
+
     // Function to slice the x_flat
-    function signed [WIDTH-1:0] slice_flat;
-        input [WIDTH*TILE_SIZE-1:0] x_flat;
+    function signed [INT_WIDTH-1:0] slice_flat;
+        input [INT_WIDTH*TILE_SIZE-1:0] x_flat;
         input integer idx;
         begin
-            slice_flat = x_flat[(TILE_SIZE-1-idx)*WIDTH +: WIDTH];
+            slice_flat = x_flat[(TILE_SIZE-1-idx)*INT_WIDTH +: INT_WIDTH];
         end
     endfunction
 
+    // Function to convert each element into Q16.16
+    function automatic signed [31:0] to_q16_16;
+        input signed [WIDTH-1:0] x_in;
+        integer shift;
+        reg signed [31:0] x_ext;
+    begin
+        // Sign-extend input to 32 bits
+        x_ext = {{(INT_WIDTH-WIDTH){x_in[WIDTH-1]}}, x_in};
+
+        // Adjust fractional bits
+        shift = INT_FRAC - FRAC_WIDTH;
+
+        if (shift > 0)
+            to_q16_16 = x_ext <<< shift;   // increase fractional precision
+        else
+            to_q16_16 = x_ext >>> (-shift); // reduce fractional precision
+    end
+    endfunction
+
+    // Function to convert the entire X_tile_in into Q16.16
+    function automatic signed [TILE_SIZE*INT_WIDTH-1:0] convert_tile_to_q16_16;
+        input signed [TILE_SIZE*WIDTH-1:0] x_flat;
+        integer i;
+        reg signed [WIDTH-1:0]     x_elem;
+        reg signed [INT_WIDTH-1:0] x_rescaled;
+    begin
+        for (i = 0; i < TILE_SIZE; i = i + 1) begin
+            // Extract element i (MS chunk = element 0)
+            x_elem = x_flat[(TILE_SIZE-1-i)*WIDTH +: WIDTH];
+
+            // Resize + rescale fractional bits
+            if (FRAC_WIDTH < INT_FRAC) begin
+                x_rescaled = {{(INT_WIDTH-WIDTH){x_elem[WIDTH-1]}}, x_elem}
+                            <<< (INT_FRAC - FRAC_WIDTH);
+            end
+            else if (FRAC_WIDTH > INT_FRAC) begin
+                x_rescaled = {{(INT_WIDTH-WIDTH){x_elem[WIDTH-1]}}, x_elem}
+                            >>> (FRAC_WIDTH - INT_FRAC);
+            end
+            else begin
+                x_rescaled = {{(INT_WIDTH-WIDTH){x_elem[WIDTH-1]}}, x_elem};
+            end
+
+            // Pack back
+            convert_tile_to_q16_16[(TILE_SIZE-1-i)*INT_WIDTH +: INT_WIDTH] = x_rescaled;
+        end
+    end
+    endfunction
+
+
+    // Function to convert each element from Q16.16 into its Q{WIDTH}
+    function automatic signed [WIDTH-1:0] from_q16_16;
+        input signed [INT_WIDTH-1:0] x_q16;
+        integer shift;
+    begin
+        shift = INT_FRAC - FRAC_WIDTH;
+        if (shift >= 0)
+            from_q16_16 = x_q16 >>> shift;
+        else
+            from_q16_16 = x_q16 <<< (-shift);
+    end
+    endfunction
+
+
     // Local Parameters
-    localparam [WIDTH-1:0] LN2_Q    = 32'h0000B172; // ~0.693147 in Q16.16
+    localparam SUM_WIDTH            = INT_WIDTH + $clog2(TOTAL_ELEMENTS + 1); // sum_exp width size
+    localparam [INT_WIDTH-1:0] LN2_Q    = 32'h0000B172; // ~0.693147 in Q16.16
     localparam ADDRE                = $clog2(TOTAL_ELEMENTS);               // to count elements
     localparam ADDRS                = $clog2((TOTAL_ELEMENTS+2)/2);         // to count how many sum operations have done
     localparam COUNT_SUM            = (TOTAL_ELEMENTS % TILE_SIZE) == 0 ? TOTAL_ELEMENTS/TILE_SIZE : ((TOTAL_ELEMENTS/TILE_SIZE) + 1);
-    localparam SUM_WIDTH            = WIDTH + $clog2(TOTAL_ELEMENTS + 1); // sum_exp width size
-    localparam RAM_DATA_WIDTH       = WIDTH * TILE_SIZE;
+    localparam RAM_DATA_WIDTH       = INT_WIDTH * TILE_SIZE;
     localparam RAM_DEPTH            = (TOTAL_ELEMENTS + TILE_SIZE - 1) / TILE_SIZE;
     localparam ADDRW                = $clog2(RAM_DEPTH);                     // to count words (tiles)
 
@@ -58,7 +125,7 @@ module softmax_vec #(
     reg [ADDRE:0] e_read;                       // How many elements consumed in pass1 (for sum)
     reg [ADDRE:0] e_accumulated;                // optional tracker while accumulating
 
-    reg signed [WIDTH-1:0] max_val;             // Max value of Xi (Xi max)
+    reg signed [INT_WIDTH-1:0] max_val;             // Max value of Xi (Xi max)
 
     // ----------------- RAM ----------------
     reg [ADDRW-1:0] ram_read_addr0, ram_read_addr1;
@@ -75,7 +142,7 @@ module softmax_vec #(
         .write_addr(ram_write_addr),
         .read_addr0(ram_read_addr0),
         .read_addr1(ram_read_addr1),
-        .din(X_tile_in),
+        .din(convert_tile_to_q16_16(X_tile_in)),
         .dout0(ram_dout0),
         .dout1(ram_dout1)
     );
@@ -86,18 +153,18 @@ module softmax_vec #(
     reg [RAM_DATA_WIDTH-1:0] exp_in_flat1;
     wire [RAM_DATA_WIDTH-1:0] exp_out_flat0;            // Output data from exp_vec()
     wire [RAM_DATA_WIDTH-1:0] exp_out_flat1;
-    reg signed [WIDTH-1:0] exp_out_nflat0 [0:TILE_SIZE-1];      // Unflattened exp(xi-max_value) result
-    reg signed [WIDTH-1:0] exp_out_nflat1 [0:TILE_SIZE-1];
+    reg signed [INT_WIDTH-1:0] exp_out_nflat0 [0:TILE_SIZE-1];      // Unflattened exp(xi-max_value) result
+    reg signed [INT_WIDTH-1:0] exp_out_nflat1 [0:TILE_SIZE-1];
 
     // exp function unit to calculate exp(xi-max_value)
     exp_vec #(
-        .WIDTH(WIDTH), .FRAC(FRAC_WIDTH), .TILE_SIZE(TILE_SIZE), .USE_AMULT(USE_AMULT)
+        .WIDTH(INT_WIDTH), .FRAC(INT_FRAC), .TILE_SIZE(TILE_SIZE), .USE_AMULT(USE_AMULT)
     ) EXP_0 (
         .X_flat(exp_in_flat0), .Y_flat(exp_out_flat0)
     );
 
     exp_vec #(
-        .WIDTH(WIDTH), .FRAC(FRAC_WIDTH), .TILE_SIZE(TILE_SIZE), .USE_AMULT(USE_AMULT)
+        .WIDTH(INT_WIDTH), .FRAC(INT_FRAC), .TILE_SIZE(TILE_SIZE), .USE_AMULT(USE_AMULT)
     ) EXP_1 (
         .X_flat(exp_in_flat1), .Y_flat(exp_out_flat1)
     );
@@ -106,8 +173,8 @@ module softmax_vec #(
     integer ui;
     always @* begin
         for (ui = 0; ui < TILE_SIZE; ui = ui+1) begin
-            exp_out_nflat0[ui] = exp_out_flat0[(TILE_SIZE-1-ui)*WIDTH +: WIDTH];
-            exp_out_nflat1[ui] = exp_out_flat1[(TILE_SIZE-1-ui)*WIDTH +: WIDTH];
+            exp_out_nflat0[ui] = exp_out_flat0[(TILE_SIZE-1-ui)*INT_WIDTH +: INT_WIDTH];
+            exp_out_nflat1[ui] = exp_out_flat1[(TILE_SIZE-1-ui)*INT_WIDTH +: INT_WIDTH];
         end
     end
 
@@ -124,17 +191,17 @@ module softmax_vec #(
             acc0 = {SUM_WIDTH{1'b0}};
             acc1 = {SUM_WIDTH{1'b0}};
             for (si =0; si < TILE_SIZE; si = si+1) begin
-                acc0 = acc0 + {{(SUM_WIDTH-WIDTH){exp_out_nflat0[si][WIDTH-1]}}, exp_out_nflat0[si]};
-                acc1 = acc1 + {{(SUM_WIDTH-WIDTH){exp_out_nflat1[si][WIDTH-1]}}, exp_out_nflat1[si]};
+                acc0 = acc0 + {{(SUM_WIDTH-INT_WIDTH){exp_out_nflat0[si][INT_WIDTH-1]}}, exp_out_nflat0[si]};
+                acc1 = acc1 + {{(SUM_WIDTH-INT_WIDTH){exp_out_nflat1[si][INT_WIDTH-1]}}, exp_out_nflat1[si]};
             end
         end
     end
 
     // ----------------- LNU UNIT ----------------
     // Range reduction regs => ln(sum_exp) = ln(m) + k*ln(2)
-    wire signed [WIDTH-1:0] ln_sum_out;
+    wire signed [INT_WIDTH-1:0] ln_sum_out;
 
-    lnu_range_adapter_1to8 #(.WIDTH(WIDTH), .FRAC(FRAC_WIDTH), .SUM_WIDTH(SUM_WIDTH))
+    lnu_range_adapter_1to8 #(.WIDTH(INT_WIDTH), .FRAC(INT_FRAC), .SUM_WIDTH(SUM_WIDTH))
         LNU (.x_sum_exp(sum_exp), .y_ln_out(ln_sum_out));
 
     // ----------------- PASS 2 SUPPORT ----------------
@@ -208,7 +275,7 @@ module softmax_vec #(
             take_odd        <= 0;
             valid_count     <= 0;
 
-            Y_tile_out      <= {RAM_DATA_WIDTH{1'b0}};
+            Y_tile_out      <= {TILE_SIZE*WIDTH{1'b0}};
 
             exp_in_flat0    <= {RAM_DATA_WIDTH{1'b0}};
             exp_in_flat1    <= {RAM_DATA_WIDTH{1'b0}};
@@ -273,14 +340,20 @@ module softmax_vec #(
                     if (out_phase == 0) begin
                         e_streamed      <= e_streamed + take_even;
                         if (state_reg_d == S_PASS_2) begin
-                            Y_tile_out      <= exp_out_flat1;
+                            for (i = 0; i < TILE_SIZE; i = i+1) begin
+                                Y_tile_out[(TILE_SIZE-1-i)*WIDTH +: WIDTH]
+                                    <= from_q16_16(exp_out_flat1[(TILE_SIZE-1-i)*INT_WIDTH +: INT_WIDTH]);
+                            end
                             tile_out_valid  <= 1'b1;
                         end
                         out_phase       <= (take_even != 0) ? 1'b1 : 1'b0; // if odd valid then emit it next
                     end else begin
                         e_streamed      <= e_streamed + take_odd;
                         if (state_reg_d == S_PASS_2)begin
-                            Y_tile_out      <= exp_out_flat0;
+                            for (i = 0; i < TILE_SIZE; i = i+1) begin
+                                Y_tile_out[(TILE_SIZE-1-i)*WIDTH +: WIDTH]
+                                    <= from_q16_16(exp_out_flat0[(TILE_SIZE-1-i)*INT_WIDTH +: INT_WIDTH]);
+                            end
                             tile_out_valid  <= 1'b1;
                         end
                         out_phase       <= 1'b0;
@@ -296,8 +369,8 @@ module softmax_vec #(
                         for (i = 0; i < TILE_SIZE; i = i+1) begin
                             if ((e_loaded + i) < TOTAL_ELEMENTS) begin
                                 // Element i of this tile
-                                if (slice_flat(X_tile_in, i) > max_val) begin
-                                    max_val <= slice_flat(X_tile_in, i);
+                                if (to_q16_16(slice_flat(X_tile_in, i)) > max_val) begin
+                                    max_val <= to_q16_16(slice_flat(X_tile_in, i));
                                 end
                             end
                         end
@@ -311,8 +384,8 @@ module softmax_vec #(
                 S_PASS_1: begin    // Pass 1: Calculate the exp and sum_exp
                     // Pack into exp_in_flat
                     for (i = 0; i < TILE_SIZE; i=i+1) begin
-                        exp_in_flat0[(TILE_SIZE-1-i)*WIDTH +: WIDTH] <= slice_flat(ram_dout0, i) - max_val;
-                        exp_in_flat1[(TILE_SIZE-1-i)*WIDTH +: WIDTH] <= slice_flat(ram_dout1, i) - max_val;
+                        exp_in_flat0[(TILE_SIZE-1-i)*INT_WIDTH +: INT_WIDTH] <= slice_flat(ram_dout0, i) - max_val;
+                        exp_in_flat1[(TILE_SIZE-1-i)*INT_WIDTH +: INT_WIDTH] <= slice_flat(ram_dout1, i) - max_val;
                     end
                 end
 
@@ -324,8 +397,8 @@ module softmax_vec #(
 
                 S_PASS_2: begin     // Pass_2: Calculate each exp(Xi - max_value -ln(sum_exp))
                     for (i = 0; i < TILE_SIZE; i = i+1) begin
-                        exp_in_flat0[(TILE_SIZE-1-i)*WIDTH +: WIDTH] <= slice_flat(ram_dout0, i) - max_val - ln_sum_out;
-                        exp_in_flat1[(TILE_SIZE-1-i)*WIDTH +: WIDTH] <= slice_flat(ram_dout1, i) - max_val - ln_sum_out;
+                        exp_in_flat0[(TILE_SIZE-1-i)*INT_WIDTH +: INT_WIDTH] <= slice_flat(ram_dout0, i) - max_val - ln_sum_out;
+                        exp_in_flat1[(TILE_SIZE-1-i)*INT_WIDTH +: INT_WIDTH] <= slice_flat(ram_dout1, i) - max_val - ln_sum_out;
                     end
                     if (state_next == S_DONE) begin
                         tile_out_valid  <= 0;
