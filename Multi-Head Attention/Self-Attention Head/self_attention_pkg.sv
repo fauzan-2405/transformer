@@ -22,8 +22,8 @@ package self_attention_pkg;
     parameter TOTAL_MODULES_LP_K    = linear_proj_pkg::TOTAL_MODULES_K;
     parameter TOTAL_MODULES_LP_V    = linear_proj_pkg::TOTAL_MODULES_V; 
 
-    parameter ROW_B2R_CONVERTER  = NUM_CORES_A_Qn_KnT*(top_pkg::BLOCK_SIZE);
-    parameter COL_B2R_CONVERTER  = NUM_CORES_B_Qn_KnT*TOTAL_MODULES_LP_K*(top_pkg::BLOCK_SIZE);
+    parameter ROW_B2R_CONVERTER  = NUM_CORES_A_Qn_KnT*(top_pkg::TOP_BLOCK_SIZE);
+    parameter COL_B2R_CONVERTER  = NUM_CORES_B_Qn_KnT*TOTAL_MODULES_LP_K*(top_pkg::TOP_BLOCK_SIZE);
     parameter NUM_CORES_H_B2R    = NUM_CORES_B_Qn_KnT*TOTAL_MODULES_LP_Q;
     parameter NUM_CORES_V_B2R    = NUM_CORES_A_Qn_KnT;
 

@@ -3,19 +3,20 @@
 import buffer0_pkg::W0_SLICE_WIDTH;
 import buffer0_pkg::N0_MODULE_WIDTH;
 import buffer0_pkg::TOTAL_INPUT_W_W0;
+import linear_proj_pkg::*;
 
 import self_attention_pkg::*;
 
 module self_attention_head #(
-    localparam TOTAL_SOFTMAX_ROW = NUM_CORES_A_Qn_KnT * BLOCK_SIZE
+    parameter TOTAL_SOFTMAX_ROW = NUM_CORES_A_Qn_KnT * BLOCK_SIZE
 ) (
     input clk, rst_n,
     input en_Qn_KnT,
     input rst_n_Qn_KnT,
     input reset_acc_Qn_KnT,
     input out_valid_Qn_KnT,
-    input logic [W0_SLICE_WIDTH-1:0] input_w_Qn_KnT [TOTAL_INPUT_W_W0];
-    input logic [N0_MODULE_WIDTH-1:0] input_n_Qn_KnT;
+    input logic [W0_SLICE_WIDTH-1:0] input_w_Qn_KnT [TOTAL_INPUT_W_W0],
+    input logic [N0_MODULE_WIDTH-1:0] input_n_Qn_KnT,
 
     input logic internal_rst_n_b2r,
 
@@ -28,7 +29,7 @@ module self_attention_head #(
     output logic acc_done_wrap_Qn_KnT,
     
     output logic slice_done_b2r_wrap,
-    output logic out_ready_b2r_wrap   // To Controller
+    output logic out_ready_b2r_wrap,   // To Controller
 
     output logic [TILE_SIZE_SOFTMAX*WIDTH_OUT-1:0] out_softmax_data [TOTAL_INPUT_W_Qn_KnT][TOTAL_SOFTMAX_ROW],
     output logic out_softmax_valid [TOTAL_INPUT_W_Qn_KnT][TOTAL_SOFTMAX_ROW]
@@ -63,15 +64,11 @@ module self_attention_head #(
         .out_multi_matmul(out_matmul_Qn_KnT)
     );
 
-    assign sys_finish_wrap_Qn_KnT;
-    assign acc_done_wrap_Qn_KnT;
-
-
     // ************************** 4-BIT SHIFTER **************************
     logic [(WIDTH_OUT*CHUNK_SIZE*NUM_CORES_A_Qn_KnT*NUM_CORES_B_Qn_KnT*TOTAL_MODULES_LP_Q)-1:0] 
         out_shifted [TOTAL_INPUT_W_Qn_KnT];
 
-    logic out_valid_shifted
+    logic out_valid_shifted;
 
     rshift #(
         .WIDTH_A(WIDTH_A),
@@ -90,7 +87,7 @@ module self_attention_head #(
         .clk(clk), .rst_n(rst_n),
         .in_valid(out_valid_Qn_KnT),
         .in_4bit_rshift(out_matmul_Qn_KnT),
-        .out_valid(out_valid_shifted)
+        .out_valid(out_valid_shifted),
         .out_shifted(out_shifted)
     );
     
@@ -98,6 +95,7 @@ module self_attention_head #(
     // ************************** B2R CONVERTER **************************
     logic [$clog2(TOTAL_INPUT_W_Qn_KnT)-1:0] slice_done_b2r;
     logic [$clog2(TOTAL_INPUT_W_Qn_KnT)-1:0] out_ready_b2r;
+    logic [(TILE_SIZE_SOFTMAX*WIDTH_OUT)-1:0] out_b2r_data [TOTAL_INPUT_W_Qn_KnT];
     assign slice_done_b2r_wrap  = &slice_done_b2r;
     assign out_ready_b2r_wrap   = &out_ready_b2r; 
 
@@ -117,7 +115,7 @@ module self_attention_head #(
                 .clk(clk),
                 .rst_n(internal_rst_n_b2r),
                 .en(1'b1),
-                .in_data(out_shifted[i])
+                .in_data(out_shifted[i]),
                 .in_valid(out_valid_shifted[i]),
                 .slice_done(slice_done_b2r[i]),
                 .output_ready(out_ready_b2r[i]),
@@ -152,7 +150,7 @@ module self_attention_head #(
                     .tile_in_valid(softmax_valid[k]), 
                     
                     .Y_tile_out(out_softmax_data[j][k]),
-                    .tile_out_valid(out_softmax_valid),[j][k],
+                    .tile_out_valid(out_softmax_valid[j][k]),
                     .done()
                 );
             end

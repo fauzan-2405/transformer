@@ -6,6 +6,8 @@ import self_attention_pkg::*;
 import buffer0_pkg::*;
 
 module multihead_attention #(
+    localparam TOTAL_SOFTMAX_ROW = NUM_CORES_A_Qn_KnT * BLOCK_SIZE,
+    parameter OUT_KEYS = WIDTH_OUT*CHUNK_SIZE*NUM_CORES_A*NUM_CORES_B*TOTAL_MODULES,
     parameter NUMBER_OF_BUFFER_INSTANCES = 1
 ) (
     input logic clk, rst_n,
@@ -160,7 +162,8 @@ module multihead_attention #(
     ) self_attention_inst (
         .clk                    (clk),
         .rst_n                  (rst_n),
-        .rst_n_Qn_KnT           (rst_n_Qn_KnT),
+        .en_Qn_KnT              (sig_enable_matmul)
+        .rst_n_Qn_KnT           (sig_internal_rst_n_ctrl),
         .reset_acc_Qn_KnT       (sig_internal_reset_acc_ctrl),
         .out_valid_Qn_KnT       (sig_out_valid),
 
@@ -170,6 +173,6 @@ module multihead_attention #(
         // Temporary output
         .out_softmax_data(out_softmax_data),
         .out_softmax_valid(out_softmax_valid)
-    )
+    );
 
 endmodule

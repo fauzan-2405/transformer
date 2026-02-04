@@ -4,6 +4,7 @@
 import self_attention_pkg::*;
 
 module top_self_attention_head #(
+    parameter TOTAL_SOFTMAX_ROW = NUM_CORES_A_Qn_KnT * BLOCK_SIZE,
     parameter NUMBER_OF_BUFFER_INSTANCES = 1
 ) (
     input clk, rst_n,
@@ -19,7 +20,7 @@ module top_self_attention_head #(
     output logic acc_done_wrap_Qn_KnT,
 
     // Temporary output to see the intermediate results
-    output logic [TILE_SIZE_SOFTMAX*WIDTH_OUT-1:0] out_softmax_data [TOTAL_INPUT_W_Qn_KnT][TOTAL_SOFTMAX_ROW],
+    output logic [(TILE_SIZE_SOFTMAX*SA_WIDTH_OUT)-1:0] out_softmax_data [TOTAL_INPUT_W_Qn_KnT][TOTAL_SOFTMAX_ROW],
     output logic out_softmax_valid [TOTAL_INPUT_W_Qn_KnT][TOTAL_SOFTMAX_ROW]
     
 );
@@ -37,9 +38,12 @@ module top_self_attention_head #(
     genvar i;
     generate
         for (i = 0; i < NUMBER_OF_BUFFER_INSTANCES; i++) begin
-            self_attention_head_unit (
+            self_attention_head #(
+                .TOTAL_SOFTMAX_ROW(TOTAL_SOFTMAX_ROW)
+            ) (
                 .clk(clk),
                 .rst_n(rst_n),
+                .en_Qn_KnT(en_Qn_KnT),
                 .rst_n_Qn_KnT(rst_n_Qn_KnT),
                 .reset_acc_Qn_KnT(reset_acc_Qn_KnT),
                 .out_valid_Qn_KnT(out_valid_Qn_KnT),
@@ -75,7 +79,7 @@ module top_self_attention_head #(
         .COL                (COL_B2R_CONVERTER),
         .TILE_SIZE          (TILE_SIZE_SOFTMAX),
         .NUM_CORES_A_Qn_KnT (NUM_CORES_A_Qn_KnT),
-        .BLOCK_SIZE         (top_pkg::BLOCK_SIZE)
+        .BLOCK_SIZE         (top_pkg::TOP_BLOCK_SIZE)
     ) self_attention_ctrl_u (
         .clk(clk),
         .rst_n(rst_n),
