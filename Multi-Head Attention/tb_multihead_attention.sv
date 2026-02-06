@@ -13,6 +13,7 @@ module tb_multihead_attention;
     localparam OUT_KEYS      = WIDTH_OUT*CHUNK_SIZE*
                               NUM_CORES_A*NUM_CORES_B*TOTAL_MODULES;
     localparam int ADDR_WIDTH_A = $clog2(MEMORY_SIZE_A / DATA_WIDTH_A);
+    localparam TOTAL_SOFTMAX_ROW = NUM_CORES_A_Qn_KnT * BLOCK_SIZE;
 
     // ============================================================
     // Clock & Reset

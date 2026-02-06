@@ -40,7 +40,7 @@ module top_self_attention_head #(
         for (i = 0; i < NUMBER_OF_BUFFER_INSTANCES; i++) begin
             self_attention_head #(
                 .TOTAL_SOFTMAX_ROW(TOTAL_SOFTMAX_ROW)
-            ) (
+            ) self_attention_head_u (
                 .clk(clk),
                 .rst_n(rst_n),
                 .en_Qn_KnT(en_Qn_KnT),
@@ -84,7 +84,7 @@ module top_self_attention_head #(
         .clk(clk),
         .rst_n(rst_n),
         .slice_done_b2r_wrap(slice_done_b2r_wrap_sig),
-        .out_ready_b2r(out_ready_b2r_wrap_sig),
+        .out_ready_b2r_Wrap(out_ready_b2r_wrap_sig),
         .internal_rst_n_b2r(internal_rst_n_b2r_sig),
 
         .internal_rst_n_softmax(internal_rst_n_softmax_sig),
