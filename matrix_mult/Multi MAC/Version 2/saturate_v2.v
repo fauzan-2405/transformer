@@ -8,19 +8,22 @@ module saturate_v2 #(
     parameter FRAC_IN = 16,
     parameter FRAC_OUT = 8
 )(
-    input clk, rst_n,
+    //input clk, rst_n,
     input signed [IN_WIDTH-1:0] in,
     output wire signed [OUT_WIDTH-1:0] out
 );
+    // Generic saturation limits
+    localparam signed [OUT_WIDTH-1:0] MAX_OUT = {1'b0, {(OUT_WIDTH-1){1'b1}}};
+    localparam signed [OUT_WIDTH-1:0] MIN_OUT = {1'b1, {(OUT_WIDTH-1){1'b0}}};
 
     wire signed [IN_WIDTH-1:0] shifted = in >>> (FRAC_IN - FRAC_OUT);
 
     // Clamp to max/min if overflow
-    wire signed [OUT_WIDTH-1:0] max_val = {1'b0, {(OUT_WIDTH-1){1'b1}}};
-    wire signed [OUT_WIDTH-1:0] min_val = {1'b1, {(OUT_WIDTH-1){1'b0}}};
+    wire signed [IN_WIDTH-1:0] max_val = {{(IN_WIDTH-OUT_WIDTH){1'b0}}, MAX_OUT};
+    wire signed [IN_WIDTH-1:0] min_val = {{(IN_WIDTH-OUT_WIDTH){1'b1}}, MIN_OUT};
     
-    assign out = (shifted > max_val) ? max_val :
-                    (shifted < min_val) ? min_val : shifted[OUT_WIDTH-1:0];
+    assign out = (shifted > max_val) ? MAX_OUT :
+                    (shifted < min_val) ? MIN_OUT : shifted[OUT_WIDTH-1:0];
     
     /*
     always @(posedge clk) begin
