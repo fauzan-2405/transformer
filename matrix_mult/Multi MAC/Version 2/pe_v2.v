@@ -44,7 +44,7 @@ module pe_v2 #(
         .FRAC_IN(MULT_FRAC),
         .FRAC_OUT(FRAC_WIDTH_OUT)
     ) saturation_block (
-        .clk(clk), .rst_n(rst_n),
+        //.clk(clk), .rst_n(rst_n),
         .in(add_result),
         .out(temp_acc)
     );
