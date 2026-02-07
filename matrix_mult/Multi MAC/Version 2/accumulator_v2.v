@@ -1,4 +1,4 @@
-// accumulator_v2.v
+// accumulator_v2.v (NOT USEDD, SEE accumulator_v3.v for the new accumulator)
 // Used to accumulate the result from 2X2 systolic array
 
 module accumulator_v2 #(
