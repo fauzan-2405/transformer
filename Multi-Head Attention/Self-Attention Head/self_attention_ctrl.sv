@@ -12,6 +12,7 @@ module self_attention_ctrl #(
     input logic clk, rst_n,
 
     // From/To B2R converter
+    input logic in_valid_b2r,
     input logic slice_done_b2r_wrap,
     input logic out_ready_b2r_wrap,
     //input logic [WIDTH_OUT*COL_B2R_CONVERTER-1:0] out_b2r_data [TOTAL_INPUT_W_Qn_KnT],
@@ -26,7 +27,6 @@ module self_attention_ctrl #(
     localparam NUM_TILES    = COL / TILE_SIZE;
     localparam TILE_WIDTH   = WIDTH * TILE_SIZE;
 
-    logic slice_done_b2r_wrap_reg;
     logic streaming;
     logic [$clog2(NUM_TILES)-1:0] tile_idx;                 // Indicate the index of the tile that we give to the softmax
     logic [$clog2(TOTAL_SOFTMAX_ROW)-1:0] softmax_in_valid; // Indicate which softmax is valid to take the input
@@ -47,14 +47,17 @@ module self_attention_ctrl #(
                 softmax_valid[i] <= 0;
             end
         end else begin
-            slice_done_b2r_wrap_reg <= slice_done_b2r_wrap;
-            internal_rst_n_b2r      <= ~slice_done_b2r_wrap_reg;
+            internal_rst_n_b2r      <= ~slice_done_b2r_wrap;
+
+            // Activate the softmax_en for the first time
+            if (!softmax_en && in_valid_b2r) begin
+                softmax_en  <= 1'b1;
+            end
 
             // tile_in valid for softmax
             if (out_ready_b2r_wrap) begin
                 // If the streaming signal is not toggled for the first one -> activate the softmax
                 if (!streaming) begin
-                    softmax_en  <= 1;
                     streaming   <= 1;
                 end
 
