@@ -28,7 +28,7 @@ module self_attention_ctrl #(
     localparam TILE_WIDTH   = WIDTH * TILE_SIZE;
 
     logic streaming;
-    logic [$clog2(NUM_TILES)-1:0] tile_idx;                 // Indicate the index of the tile that we give to the softmax
+    logic [$clog2(NUM_TILES):0] tile_idx;                 // Indicate the index of the tile that we give to the softmax
     logic [$clog2(TOTAL_SOFTMAX_ROW)-1:0] softmax_in_valid; // Indicate which softmax is valid to take the input
     integer i;
 
@@ -39,7 +39,6 @@ module self_attention_ctrl #(
             internal_rst_n_b2r      <= rst_n;
             internal_rst_n_softmax  <= rst_n;
             softmax_en      <= 0;
-            streaming       <= 0;
             tile_idx        <= '0;
             softmax_in_valid <= '0;
 
@@ -48,6 +47,7 @@ module self_attention_ctrl #(
             end
         end else begin
             internal_rst_n_b2r      <= ~slice_done_b2r_wrap;
+            //streaming               <= out_ready_b2r_wrap;
 
             // Activate the softmax_en for the first time
             if (!softmax_en && in_valid_b2r) begin
@@ -55,23 +55,15 @@ module self_attention_ctrl #(
             end
 
             // tile_in valid for softmax
-            if (out_ready_b2r_wrap) begin
-                // If the streaming signal is not toggled for the first one -> activate the softmax
-                if (!streaming) begin
-                    streaming   <= 1;
-                end
-
-                // Update tile index to indicate what is the next tile_idx that we working on
-                if (tile_idx != NUM_TILES - 1) begin
-                    tile_idx    <= tile_idx + 1; 
-                end else begin
-                end
-            end
-
             if (streaming) begin
+                // Update tile index to indicate what is the next tile_idx that we working on
+                if (tile_idx < NUM_TILES) begin
+                    tile_idx    <= tile_idx + 1; 
+                end
+
                 // Toggling the correct softmax_valid for the corresponding softmax
                 for (i = 0; i < TOTAL_SOFTMAX_ROW; i++) begin
-                    softmax_valid[i] <= (i == softmax_in_valid);
+                    softmax_valid[i] <= (i == TOTAL_SOFTMAX_ROW - 1 - softmax_in_valid);
                 end
 
                 // Advancing the softmax_valid through the entire TOTAL_SOFTMAX_ROW
@@ -79,8 +71,7 @@ module self_attention_ctrl #(
                     softmax_in_valid <= softmax_in_valid + 1;
                 end else begin
                     // If we already reached the TOTAL_SOFTMAX_ROW:
-                    softmax_in_valid <= '0;
-                    streaming        <= 0;           
+                    softmax_in_valid <= '0;     
                 end
             end else begin
                 for (i = 0; i < TOTAL_SOFTMAX_ROW; i++) begin
@@ -90,4 +81,6 @@ module self_attention_ctrl #(
 
         end
     end
+
+    assign streaming = out_ready_b2r_wrap;
 endmodule
