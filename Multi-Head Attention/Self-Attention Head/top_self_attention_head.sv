@@ -26,6 +26,7 @@ module top_self_attention_head #(
 );
     // ************************************ SELF ATTENTION HEAD ************************************
     // To controller
+    logic in_valid_b2r;
     logic slice_done_b2r_wrap_sig;
     logic out_ready_b2r_wrap_sig;
 
@@ -56,6 +57,8 @@ module top_self_attention_head #(
                 .acc_done_wrap_Qn_KnT(acc_done_wrap_Qn_KnT),
 
                 // To/From controller
+                .out_valid_shifted(in_valid_b2r),
+
                 .internal_rst_n_b2r(internal_rst_n_b2r_sig),
                 
                 .softmax_en(softmax_en_sig),
@@ -83,6 +86,8 @@ module top_self_attention_head #(
     ) self_attention_ctrl_u (
         .clk(clk),
         .rst_n(rst_n),
+
+        .in_valid_b2r(in_valid_b2r)
         .slice_done_b2r_wrap(slice_done_b2r_wrap_sig),
         .out_ready_b2r_Wrap(out_ready_b2r_wrap_sig),
         .internal_rst_n_b2r(internal_rst_n_b2r_sig),
