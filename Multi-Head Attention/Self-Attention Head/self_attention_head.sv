@@ -146,7 +146,7 @@ module self_attention_head #(
                     .rst_n(internal_rst_n_softmax),
                     .en(softmax_en),
                     
-                    .X_tile_in(out_b2r_data[j]), 
+                    .X_tile_in(out_b2r_data_reg[j]), 
                     .tile_in_valid(softmax_valid[k]), 
                     
                     .Y_tile_out(out_softmax_data[j][k]),
@@ -157,8 +157,24 @@ module self_attention_head #(
         end
     endgenerate
 
+    // ************************** DELAYER **************************
+    // Used as a register
+    logic [(TILE_SIZE_SOFTMAX*WIDTH_OUT)-1:0] out_b2r_data_reg [TOTAL_INPUT_W_Qn_KnT];
     
-    
+    integer l;
+
+    always @(posedge clk) begin
+        if (!rst_n) begin
+            for (l = 0; l < TOTAL_INPUT_W_Qn_KnT; l++) begin
+                out_b2r_data_reg[l] <= '0;
+            end
+        end 
+        else begin
+            for (l = 0; l < TOTAL_INPUT_W_Qn_KnT; l++) begin
+                out_b2r_data_reg[l] <= out_b2r_data[l];
+            end
+        end
+    end
     
 
 
