@@ -27,6 +27,8 @@ module self_attention_head #(
     // Output
     output logic sys_finish_wrap_Qn_KnT, 
     output logic acc_done_wrap_Qn_KnT,
+
+    output logic out_valid_shifted,
     
     output logic slice_done_b2r_wrap,
     output logic out_ready_b2r_wrap,   // To Controller
@@ -68,8 +70,6 @@ module self_attention_head #(
     logic [(WIDTH_OUT*CHUNK_SIZE*NUM_CORES_A_Qn_KnT*NUM_CORES_B_Qn_KnT*TOTAL_MODULES_LP_Q)-1:0] 
         out_shifted [TOTAL_INPUT_W_Qn_KnT];
 
-    logic out_valid_shifted;
-
     rshift #(
         .WIDTH_A(WIDTH_A),
         .FRAC_WIDTH_A(FRAC_WIDTH_A),
@@ -93,11 +93,11 @@ module self_attention_head #(
     
 
     // ************************** B2R CONVERTER **************************
-    logic [$clog2(TOTAL_INPUT_W_Qn_KnT)-1:0] slice_done_b2r;
-    logic [$clog2(TOTAL_INPUT_W_Qn_KnT)-1:0] out_ready_b2r;
+    logic slice_done_b2r [TOTAL_INPUT_W_Qn_KnT];
+    logic out_ready_b2r [TOTAL_INPUT_W_Qn_KnT];
     logic [(TILE_SIZE_SOFTMAX*WIDTH_OUT)-1:0] out_b2r_data [TOTAL_INPUT_W_Qn_KnT];
-    assign slice_done_b2r_wrap  = &slice_done_b2r;
-    assign out_ready_b2r_wrap   = &out_ready_b2r; 
+    assign slice_done_b2r_wrap  = slice_done_b2r[0] && slice_done_b2r[1];
+    assign out_ready_b2r_wrap   = out_ready_b2r[0] && out_ready_b2r[1]; 
 
     genvar i;
     generate
@@ -116,7 +116,7 @@ module self_attention_head #(
                 .rst_n(internal_rst_n_b2r),
                 .en(1'b1),
                 .in_data(out_shifted[i]),
-                .in_valid(out_valid_shifted[i]),
+                .in_valid(out_valid_shifted),
                 .slice_done(slice_done_b2r[i]),
                 .output_ready(out_ready_b2r[i]),
                 .slice_last(),
