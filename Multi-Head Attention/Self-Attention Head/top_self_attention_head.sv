@@ -32,7 +32,8 @@ module top_self_attention_head #(
 
     // From controller
     logic internal_rst_n_b2r_sig;
-    logic internal_rst_n_softmax_sig;
+    logic softmax_done_sig [NUMBER_OF_BUFFER_INSTANCES][TOTAL_INPUT_W_Qn_KnT][TOTAL_SOFTMAX_ROW];
+    logic internal_rst_n_softmax_sig [NUMBER_OF_BUFFER_INSTANCES][TOTAL_INPUT_W_Qn_KnT][TOTAL_SOFTMAX_ROW];
     logic softmax_en_sig;
     logic softmax_valid_sig [TOTAL_SOFTMAX_ROW];
 
@@ -63,7 +64,8 @@ module top_self_attention_head #(
                 
                 .softmax_en(softmax_en_sig),
                 .softmax_valid(softmax_valid_sig),
-                .internal_rst_n_softmax(internal_rst_n_softmax_sig),
+                .internal_rst_n_softmax(internal_rst_n_softmax_sig[i]),
+                .done_softmax(softmax_done_sig[i])
 
                 .slice_done_b2r_wrap(slice_done_b2r_wrap_sig),
                 .out_ready_b2r_wrap(out_ready_b2r_wrap_sig),
@@ -82,6 +84,8 @@ module top_self_attention_head #(
         .COL                (COL_B2R_CONVERTER),
         .TILE_SIZE          (TILE_SIZE_SOFTMAX),
         .NUM_CORES_A_Qn_KnT (NUM_CORES_A_Qn_KnT),
+        .NUMBER_OF_BUFFER_INSTANCES(NUMBER_OF_BUFFER_INSTANCES),
+        .TOTAL_INPUT_W_Qn_KnT(TOTAL_INPUT_W_Qn_KnT),
         .BLOCK_SIZE         (top_pkg::TOP_BLOCK_SIZE)
     ) self_attention_ctrl_u (
         .clk(clk),
@@ -92,6 +96,7 @@ module top_self_attention_head #(
         .out_ready_b2r_Wrap(out_ready_b2r_wrap_sig),
         .internal_rst_n_b2r(internal_rst_n_b2r_sig),
 
+        .softmax_done(softmax_done_sig),
         .internal_rst_n_softmax(internal_rst_n_softmax_sig),
         .softmax_en(softmax_en_sig),
         .softmax_valid(softmax_valid_sig)

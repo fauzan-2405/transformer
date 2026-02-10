@@ -22,7 +22,7 @@ module self_attention_head #(
 
     input logic softmax_en,
     input logic softmax_valid [TOTAL_SOFTMAX_ROW],
-    input logic internal_rst_n_softmax,
+    input logic internal_rst_n_softmax [TOTAL_INPUT_W_Qn_KnT][TOTAL_SOFTMAX_ROW],
 
     // Output
     output logic sys_finish_wrap_Qn_KnT, 
@@ -33,6 +33,9 @@ module self_attention_head #(
     output logic slice_done_b2r_wrap,
     output logic out_ready_b2r_wrap,   // To Controller
 
+    output logic done_softmax [TOTAL_INPUT_W_Qn_KnT][TOTAL_SOFTMAX_ROW],
+
+    // Temporary
     output logic [TILE_SIZE_SOFTMAX*WIDTH_OUT-1:0] out_softmax_data [TOTAL_INPUT_W_Qn_KnT][TOTAL_SOFTMAX_ROW],
     output logic out_softmax_valid [TOTAL_INPUT_W_Qn_KnT][TOTAL_SOFTMAX_ROW]
 );
@@ -143,7 +146,7 @@ module self_attention_head #(
                     .USE_AMULT(0)
                 ) softmax_unit (
                     .clk(clk),
-                    .rst_n(internal_rst_n_softmax),
+                    .rst_n(internal_rst_n_softmax[j][k]),
                     .en(softmax_en),
                     
                     .X_tile_in(out_b2r_data_reg[j]), 
@@ -151,7 +154,7 @@ module self_attention_head #(
                     
                     .Y_tile_out(out_softmax_data[j][k]),
                     .tile_out_valid(out_softmax_valid[j][k]),
-                    .done()
+                    .done(done_softmax[j][k])
                 );
             end
         end
