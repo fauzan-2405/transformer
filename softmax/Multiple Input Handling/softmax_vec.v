@@ -138,6 +138,7 @@ module softmax_vec #(
         .DEPTH(RAM_DEPTH)
     ) temp_buffer_ram (
         .clk(clk),
+        .rst_n(rst_n),
         .we(tile_in_valid && (state_reg == S_LOAD)),
         .write_addr(ram_write_addr),
         .read_addr0(ram_read_addr0),
