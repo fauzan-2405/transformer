@@ -24,7 +24,18 @@ module b2r_converter #(
     output wire                    buffer_done,
     output reg [WIDTH*COL-1:0]     out_data
 );
-    // Local parameters
+    // Local parameters & function
+    function automatic int clog2_safe
+        input integer value;
+        begin
+            if (value <= 1) begin
+                return 1;
+            end else begin
+                return $clog2(value);
+            end
+        end
+    endfunction
+
     localparam TOTAL_INPUT_ROW_REAL  = ROW/(BLOCK_SIZE*NUM_CORES_V) * COL/(BLOCK_SIZE*NUM_CORES_H); // Total rows in core mode
     localparam TOTAL_INPUT_COL_REAL  = CHUNK_SIZE * NUM_CORES_H * NUM_CORES_V;                      // Total cols in core mode
 
@@ -47,20 +58,20 @@ module b2r_converter #(
     reg [2:0] state_reg, state_next;
 
     // Counters & Flag
-    reg [$clog2(TOTAL_INPUT_ROW_REAL)-1:0] counter;      // Write index
-    reg [$clog2(TOTAL_INPUT_ROW_REAL)-1:0] counter_row;  // Current slice row base
-    reg [$clog2(TOTAL_INPUT_ROW_REAL)-1:0] counter_row_index; // Current row based on the ROW / NUM_CORES
-    reg [$clog2(CHUNKS_PER_ROW)-1:0] counter_out;
-    reg [$clog2(CHUNKS_PER_ROW)-1:0] counter_out_d;
-    reg [$clog2(TOTAL_INPUT_ROW_REAL)-1:0] slice_load_counter;
-    reg [$clog2(TOTAL_INPUT_ROW_REAL)-1:0] slice_load_counter_d;
+    reg [clog2_safe(TOTAL_INPUT_ROW_REAL)-1:0] counter;      // Write index
+    reg [clog2_safe(TOTAL_INPUT_ROW_REAL)-1:0] counter_row;  // Current slice row base
+    reg [clog2_safe(TOTAL_INPUT_ROW_REAL)-1:0] counter_row_index; // Current row based on the ROW / NUM_CORES
+    reg [clog2_safe(CHUNKS_PER_ROW)-1:0] counter_out;
+    reg [clog2_safe(CHUNKS_PER_ROW)-1:0] counter_out_d;
+    reg [clog2_safe(TOTAL_INPUT_ROW_REAL)-1:0] slice_load_counter;
+    reg [clog2_safe(TOTAL_INPUT_ROW_REAL)-1:0] slice_load_counter_d;
     wire all_slice_done;
 
     // RAM Interface
     reg ram_we;
-    reg [$clog2(TOTAL_INPUT_ROW_REAL)-1:0] ram_write_addr;
-    //reg [$clog2(TOTAL_INPUT_ROW_REAL)-1:0] ram_read_addr;
-    wire [$clog2(TOTAL_INPUT_ROW_REAL)-1:0] ram_read_addr;
+    reg [clog2_safe(TOTAL_INPUT_ROW_REAL)-1:0] ram_write_addr;
+    //reg [clog2_safe(TOTAL_INPUT_ROW_REAL)-1:0] ram_read_addr;
+    wire [clog2_safe(TOTAL_INPUT_ROW_REAL)-1:0] ram_read_addr;
     reg [RAM_DATA_WIDTH-1:0] ram_din;
     reg [RAM_DATA_WIDTH-1:0] ram_din_d;
     wire [RAM_DATA_WIDTH-1:0] ram_dout;
@@ -166,6 +177,7 @@ module b2r_converter #(
             slice_ready     <= 0;
             counter_row_index <= 0;
             out_data        <= 0;
+            ram_write_addr  <= 0;
         end else begin
             if (en) begin
                 counter_out_d <= counter_out;
@@ -265,6 +277,7 @@ module b2r_converter #(
         .DEPTH(RAM_DEPTH)
     ) temp_buffer_ram (
         .clk(clk),
+        .rst_n(rst_n),
         .we(ram_we),
         .write_addr(ram_write_addr),
         .read_addr(ram_read_addr),
