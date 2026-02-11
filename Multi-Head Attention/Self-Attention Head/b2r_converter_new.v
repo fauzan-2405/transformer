@@ -1,7 +1,8 @@
-// b2r_converter.v VERSIONN TWOOO
+// b2r_converter.v 
 // Used to convert block-per-block input into row-per-row (normal matrix ordering)
+// WIDTH*CHUNK_SIZE*NUM_CORES = COL_OPERATION (in this computation)
 
-module b2r_converter_new #(
+module b2r_converter #(
     parameter WIDTH         = 16,
     parameter FRAC_WIDTH    = 8,
     parameter ROW           = 256,
