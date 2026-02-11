@@ -15,4 +15,12 @@ package top_pkg;
     parameter TOTAL_MODULES_K    = 4; // N parameters
     parameter TOTAL_MODULES_Q    = 4; // P parameters
     parameter TOTAL_MODULES_V    = 4; // T parameters
+
+    function automatic int clog2_safe(input int value);
+        if (value <= 1)
+            return 1;
+        else
+            return $clog2(value);
+    endfunction
+    
 endpackage
