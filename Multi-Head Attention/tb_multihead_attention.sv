@@ -14,6 +14,7 @@ module tb_multihead_attention;
                               NUM_CORES_A*NUM_CORES_B*TOTAL_MODULES;
     localparam int ADDR_WIDTH_A = $clog2(MEMORY_SIZE_A / DATA_WIDTH_A);
     localparam TOTAL_SOFTMAX_ROW = NUM_CORES_A_Qn_KnT * BLOCK_SIZE;
+    localparam NUMBER_OF_BUFFER_INSTANCES = 1;
 
     // ============================================================
     // Clock & Reset
@@ -37,8 +38,8 @@ module tb_multihead_attention;
     // ============================================================
     // DUT outputs (CAN BE EDITED)
     // ============================================================
-    logic [TILE_SIZE_SOFTMAX*WIDTH_OUT-1:0] out_softmax_data [TOTAL_INPUT_W_Qn_KnT][TOTAL_SOFTMAX_ROW];
-    logic out_softmax_valid [TOTAL_INPUT_W_Qn_KnT][TOTAL_SOFTMAX_ROW];
+    logic [TILE_SIZE_SOFTMAX*WIDTH_OUT-1:0] out_softmax_data [NUMBER_OF_BUFFER_INSTANCES][TOTAL_INPUT_W_Qn_KnT][TOTAL_SOFTMAX_ROW];
+    logic out_softmax_valid [NUMBER_OF_BUFFER_INSTANCES][TOTAL_INPUT_W_Qn_KnT][TOTAL_SOFTMAX_ROW];
 
     // ============================================================
     // Memory for stimulus
@@ -50,7 +51,7 @@ module tb_multihead_attention;
     // ============================================================
     multihead_attention #(
         .OUT_KEYS(OUT_KEYS),
-        .NUMBER_OF_BUFFER_INSTANCES(1)
+        .NUMBER_OF_BUFFER_INSTANCES(NUMBER_OF_BUFFER_INSTANCES1)
     ) dut (
         .clk(clk),
         .rst_n(rst_n),
