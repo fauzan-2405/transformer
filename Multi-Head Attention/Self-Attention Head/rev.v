@@ -1,4 +1,4 @@
-// b2r_converter.v 
+// b2r_converter.v VERSIONN TWOOO
 // Used to convert block-per-block input into row-per-row (normal matrix ordering)
 // WIDTH*CHUNK_SIZE*NUM_CORES = COL_OPERATION (in this computation)
 
