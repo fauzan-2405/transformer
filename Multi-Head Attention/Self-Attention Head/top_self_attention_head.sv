@@ -20,8 +20,8 @@ module top_self_attention_head #(
     output logic acc_done_wrap_Qn_KnT,
 
     // Temporary output to see the intermediate results
-    output logic [(TILE_SIZE_SOFTMAX*SA_WIDTH_OUT)-1:0] out_softmax_data [TOTAL_INPUT_W_Qn_KnT][TOTAL_SOFTMAX_ROW],
-    output logic out_softmax_valid [TOTAL_INPUT_W_Qn_KnT][TOTAL_SOFTMAX_ROW]
+    output logic [(TILE_SIZE_SOFTMAX*SA_WIDTH_OUT)-1:0] out_softmax_data [NUMBER_OF_BUFFER_INSTANCES][TOTAL_INPUT_W_Qn_KnT][TOTAL_SOFTMAX_ROW],
+    output logic out_softmax_valid [NUMBER_OF_BUFFER_INSTANCES][TOTAL_INPUT_W_Qn_KnT][TOTAL_SOFTMAX_ROW]
     
 );
     // ************************************ SELF ATTENTION HEAD ************************************
@@ -71,8 +71,8 @@ module top_self_attention_head #(
                 .out_ready_b2r_wrap(out_ready_b2r_wrap_sig),
 
                 // Temporary output to see the intermediate results
-                .out_softmax_data(out_softmax_data),
-                .out_softmax_valid(out_softmax_valid)
+                .out_softmax_data(out_softmax_data[i]),
+                .out_softmax_valid(out_softmax_valid[i])
             );
         end
     endgenerate
