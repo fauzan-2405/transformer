@@ -162,7 +162,7 @@ module self_attention_head #(
 
     // ************************** DELAYER **************************
     // Used as a register
-    logic [(TILE_SIZE_SOFTMAX*WIDTH_OUT)-1:0] out_b2r_data_reg [TOTAL_INPUT_W_Qn_KnT];
+    logic [(TILE_SIZE_SOFTMAX*WIDTH_OUT)-1:0] out_b2r_data_reg [TOTAL_INPUT_W_Qn_KnT]; // To delay the b2r_data
     
     integer l;
 

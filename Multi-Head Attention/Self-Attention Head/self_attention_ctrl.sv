@@ -6,6 +6,8 @@ module self_attention_ctrl #(
     parameter TILE_SIZE     = 8,
     parameter NUM_CORES_A_Qn_KnT = 2,
     parameter BLOCK_SIZE    = 2,
+    parameter TOTAL_INPUT_W_Qn_KnT = 2,
+    parameter NUMBER_OF_BUFFER_INSTANCES = 1
 
     localparam TOTAL_SOFTMAX_ROW = NUM_CORES_A_Qn_KnT * BLOCK_SIZE
 )(
@@ -19,7 +21,8 @@ module self_attention_ctrl #(
     output logic internal_rst_n_b2r, 
 
     // From/To Softmax
-    output logic internal_rst_n_softmax,
+    input logic softmax_done [NUMBER_OF_BUFFER_INSTANCES][TOTAL_INPUT_W_Qn_KnT][TOTAL_SOFTMAX_ROW],
+    output logic internal_rst_n_softmax [NUMBER_OF_BUFFER_INSTANCES][TOTAL_INPUT_W_Qn_KnT][TOTAL_SOFTMAX_ROW],
     output logic softmax_en,
     output logic softmax_valid [TOTAL_SOFTMAX_ROW]
 );
@@ -28,16 +31,26 @@ module self_attention_ctrl #(
     localparam TILE_WIDTH   = WIDTH * TILE_SIZE;
 
     logic streaming;
+    logic b2r_tagged;  // To indicate if the b2r is already experienced the first in_valid_b2r or not
     logic [$clog2(NUM_TILES):0] tile_idx;                 // Indicate the index of the tile that we give to the softmax
     logic [$clog2(TOTAL_SOFTMAX_ROW)-1:0] softmax_in_valid; // Indicate which softmax is valid to take the input
-    integer i;
+    integer i, j, k;
 
 
     // ************************** MAIN CONTROLLER **************************
     always @(posedge clk) begin
         if (!rst_n) begin
             internal_rst_n_b2r      <= rst_n;
-            internal_rst_n_softmax  <= rst_n;
+            b2r_tagged         <= 0;
+
+            for (i = 0; i < NUMBER_OF_BUFFER_INSTANCES; i++) begin
+                for (j = 0; j < TOTAL_INPUT_W_Qn_KnT; j++) begin
+                    for (k = 0; k < TOTAL_SOFTMAX_ROW; k++) begin
+                        internal_rst_n_softmax[i][j][k]  <= rst_n;
+                    end
+                end
+            end
+
             softmax_en      <= 0;
             tile_idx        <= '0;
             softmax_in_valid <= '0;
@@ -46,8 +59,33 @@ module self_attention_ctrl #(
                 softmax_valid[i] <= 0;
             end
         end else begin
-            internal_rst_n_b2r      <= ~slice_done_b2r_wrap;
-            //streaming               <= out_ready_b2r_wrap;
+            if (in_valid_b2r) begin
+                b2r_tagged  <= 1;
+            end
+
+            internal_rst_n_b2r  <= ~slice_done_b2r_wrap;
+            /*
+            if (slice_done_b2r_wrap) begin
+                internal_rst_n_b2r  <= ~slice_done_b2r_wrap;
+            end else begin
+                if (b2r_tagged) begin
+                    if (internal_rst_n_b2r) begin
+                        internal_rst_n_b2r  <= ~slice_done_b2r_wrap;
+                    end else begin
+                        internal_rst_n_b2r  <= ~in_valid;
+                    end
+                end else begin
+                    internal_rst_n_b2r  <= rst_n;
+                end
+            end */
+
+            for (i = 0; i < NUMBER_OF_BUFFER_INSTANCES; i++) begin
+                for (j = 0; j < TOTAL_INPUT_W_Qn_KnT; j++) begin
+                    for (k = 0; k < TOTAL_SOFTMAX_ROW; k++) begin
+                        internal_rst_n_softmax[i][j][k]  <= ~softmax_done[i][j][k];
+                    end
+                end
+            end
 
             // Activate the softmax_en for the first time
             if (!softmax_en && in_valid_b2r) begin
