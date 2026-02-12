@@ -8,13 +8,23 @@ def softmax(x):
 def main():
     # Ask user for input
     user_input = input("Enter numbers separated by spaces: ")
-    
-    # Convert input string to list of floats
-    values = np.array([float(num) for num in user_input.split()])
-    
+
+    try:
+        values = np.array([float(num) for num in user_input.split()])
+    except ValueError:
+        print("Error: Please enter valid numbers.")
+        return
+
+    # Ask user if they want to divide by 16
+    divide_option = input("Divide all numbers by 16? (y/n): ").lower()
+
+    if divide_option == 'y':
+        values = values / 16
+        print("After dividing by 16:", values)
+
     # Compute softmax
     result = softmax(values)
-    
+
     print("Softmax values:", result)
 
 if __name__ == "__main__":
