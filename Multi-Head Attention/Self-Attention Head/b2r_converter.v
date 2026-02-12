@@ -25,13 +25,13 @@ module b2r_converter #(
     output reg [WIDTH*COL-1:0]     out_data
 );
     // Local parameters & function
-    function automatic int clog2_safe
+    function automatic integer clog2_safe;
         input integer value;
         begin
             if (value <= 1) begin
-                return 1;
+                clog2_safe = 1;
             end else begin
-                return $clog2(value);
+                clog2_safe = $clog2(value);
             end
         end
     endfunction
@@ -113,7 +113,7 @@ module b2r_converter #(
 
             STATE_FILL:
             begin
-                state_next = ((counter >= TOTAL_INPUT_ROW_REAL - 1) && (ram_write_addr >= TOTAL_INPUT_ROW_REAL - 1)) ? STATE_SLICE_RD : STATE_FILL;
+                state_next = ((counter >= TOTAL_INPUT_ROW_REAL) && (ram_write_addr >= TOTAL_INPUT_ROW_REAL - 1)) ? STATE_SLICE_RD : STATE_FILL;
             end
 
             STATE_SLICE_RD:
@@ -188,7 +188,7 @@ module b2r_converter #(
                     STATE_FILL: 
                     begin
                         if (en && in_valid && counter < TOTAL_INPUT_ROW_REAL) begin
-                            if (counter == TOTAL_INPUT_ROW_REAL - 1) begin
+                            if (counter == TOTAL_INPUT_ROW_REAL) begin
                                 counter <= counter;
                             end else begin
                                 counter <= counter + 1;
@@ -286,4 +286,3 @@ module b2r_converter #(
     );
 
 endmodule
-
