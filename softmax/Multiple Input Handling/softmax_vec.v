@@ -32,6 +32,17 @@ module softmax_vec #(
         input integer idx;
         begin
             slice_flat = x_flat[(TILE_SIZE-1-idx)*INT_WIDTH +: INT_WIDTH];
+            //$display("Slice Flat[%0d]: %0h", idx, slice_flat);
+        end
+    endfunction
+
+    // Function to slice the x_flat for searching the max_value
+    function signed [WIDTH-1:0] slice_flat_max_val;
+        input [WIDTH*TILE_SIZE-1:0] x_flat;
+        input integer idx;
+        begin
+            slice_flat_max_val = x_flat[(TILE_SIZE-1-idx)*WIDTH +: WIDTH];
+            $display("Slice Flat[%0d]: %0h", idx, slice_flat_max_val);
         end
     endfunction
 
@@ -116,6 +127,36 @@ module softmax_vec #(
     localparam S_LN         = 3'd3; // range reduction to calculate ln
     localparam S_PASS_2     = 3'd4; // Calculate exp(X_i - max_value - sum_exp) and stream the output
     localparam S_DONE       = 3'd5;
+
+
+    // Max Val
+    function automatic signed [INT_WIDTH-1:0] tile_max_q16_16;
+        input signed [TILE_SIZE*WIDTH-1:0] x_flat;
+        input signed [INT_WIDTH-1:0] prev_max;
+
+        //input [ADDRE:0] e_loaded_local;
+        integer mi;
+        reg signed [INT_WIDTH-1:0] cur_max;
+        reg signed [INT_WIDTH-1:0] x_val;
+        begin
+            $display("Max Function \t Input: %0h \t| prev_max: %0h \t| cur_max: %0h",x_flat,prev_max, cur_max);
+            cur_max = prev_max;
+            $display(" cur_max baru!: %0h", cur_max);
+            for (mi = 0; mi < TILE_SIZE; mi = mi + 1) begin
+                //if ((e_loaded_local + mi) <= TOTAL_ELEMENTS) begin
+                    x_val = to_q16_16(slice_flat_max_val(x_flat, mi));
+                    //$display(" x_val: %0h", x_val);
+                    if (x_val >= cur_max) begin
+                        cur_max = x_val;
+                    end
+                   // $display(" cur_max baru lagi!: %0h", cur_max);
+                //end
+            end
+            tile_max_q16_16 = cur_max;
+            $display(" tile_max: %0h", tile_max_q16_16);
+        end
+    endfunction
+
 
     reg [2:0] state_reg, state_next, state_reg_d;
     integer i;
@@ -222,6 +263,7 @@ module softmax_vec #(
             S_LOAD: // Pass 0: Store tiles and track max
             begin
                 state_next = (e_loaded == TOTAL_ELEMENTS) ? S_PASS_1 : S_LOAD;
+                //max_val <= tile_max_q16_16(X_tile_in, max_val, e_loaded);
             end
 
             S_PASS_1: // Pass 1: Read from the RAM, calculate the exp, and sum exp
@@ -280,7 +322,7 @@ module softmax_vec #(
 
             exp_in_flat0    <= {RAM_DATA_WIDTH{1'b0}};
             exp_in_flat1    <= {RAM_DATA_WIDTH{1'b0}};
-        end else if (en) begin
+        end else begin
             state_reg   <= state_next;
             state_reg_d <= state_reg;
             out_phase_d <= out_phase;
@@ -367,14 +409,15 @@ module softmax_vec #(
                 S_LOAD: begin       // Pass 0: Store tiles and track max
                     // Write tile into RAM while looking for the max_value
                     if (tile_in_valid && (e_loaded < TOTAL_ELEMENTS)) begin
-                        for (i = 0; i < TILE_SIZE; i = i+1) begin
-                            if ((e_loaded + i) < TOTAL_ELEMENTS) begin
+                        /*for (mi = 0; mi < TILE_SIZE; mi = mi+1) begin
+                            if ((e_loaded + mi) < TOTAL_ELEMENTS) begin
                                 // Element i of this tile
-                                if (to_q16_16(slice_flat(X_tile_in, i)) > max_val) begin
-                                    max_val <= to_q16_16(slice_flat(X_tile_in, i));
+                                if (to_q16_16(slice_flat(X_tile_in, mi)) > max_val) begin
+                                    max_val <= to_q16_16(slice_flat(X_tile_in, mi));
                                 end
                             end
-                        end
+                        end*/
+                        max_val <= tile_max_q16_16(X_tile_in, max_val);
                         // Increment element and write address
                         e_loaded       <= e_loaded + ((e_loaded + TILE_SIZE <= TOTAL_ELEMENTS) ? TILE_SIZE
                                                      : (TOTAL_ELEMENTS - e_loaded));
