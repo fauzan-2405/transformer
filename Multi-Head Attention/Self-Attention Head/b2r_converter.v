@@ -154,6 +154,7 @@ module b2r_converter #(
     end
 
     // RAM write logic during STATE_FILL
+    /*
     always @(posedge clk) begin
         ram_we <= 0;
         if (en) begin
@@ -166,9 +167,11 @@ module b2r_converter #(
             end
         end
     end
+    */
 
     // Slice read logic
     always @(posedge clk) begin
+        ram_we <= 0;
         if (!rst_n) begin
             counter         <= 0;
             counter_row     <= 0;
@@ -183,6 +186,14 @@ module b2r_converter #(
                 counter_out_d <= counter_out;
                 slice_load_counter_d <= slice_load_counter;
                 slice_ready_d <= slice_ready;
+
+                ram_din         <= in_data;
+                if (state_reg == STATE_FILL && in_valid) begin
+                    ram_we          <= 1;
+                    ram_write_addr  <= counter;
+                    //ram_din         <= in_data;
+                    ram_din_d       <= ram_din;
+                end
 
                 case (state_reg)
                     STATE_FILL: 
