@@ -113,7 +113,7 @@ module softmax_vec #(
     // Local Parameters
     localparam SUM_WIDTH            = INT_WIDTH + $clog2(TOTAL_ELEMENTS + 1); // sum_exp width size
     localparam [INT_WIDTH-1:0] LN2_Q    = 32'h0000B172; // ~0.693147 in Q16.16
-    localparam ADDRE                = $clog2(TOTAL_ELEMENTS);               // to count elements
+    localparam ADDRE                = $clog2(TOTAL_ELEMENTS+1);               // to count elements
     localparam ADDRS                = $clog2((TOTAL_ELEMENTS+2)/2);         // to count how many sum operations have done
     localparam COUNT_SUM            = (TOTAL_ELEMENTS % TILE_SIZE) == 0 ? TOTAL_ELEMENTS/TILE_SIZE : ((TOTAL_ELEMENTS/TILE_SIZE) + 1);
     localparam RAM_DATA_WIDTH       = INT_WIDTH * TILE_SIZE;
@@ -164,7 +164,6 @@ module softmax_vec #(
     // Counters and registers
     reg [ADDRE:0] e_loaded;                     // How many elements loaded into RAM
     reg [ADDRE:0] e_read;                       // How many elements consumed in pass1 (for sum)
-    reg [ADDRE:0] e_accumulated;                // optional tracker while accumulating
 
     reg signed [INT_WIDTH-1:0] max_val;             // Max value of Xi (Xi max)
 
@@ -229,9 +228,9 @@ module softmax_vec #(
     integer si;
     reg [SUM_WIDTH-1:0] acc0, acc1;
     always @(*) begin
+        acc0 = {SUM_WIDTH{1'b0}};
+        acc1 = {SUM_WIDTH{1'b0}};
         if (state_reg_d == S_PASS_1) begin
-            acc0 = {SUM_WIDTH{1'b0}};
-            acc1 = {SUM_WIDTH{1'b0}};
             for (si =0; si < TILE_SIZE; si = si+1) begin
                 acc0 = acc0 + {{(SUM_WIDTH-INT_WIDTH){exp_out_nflat0[si][INT_WIDTH-1]}}, exp_out_nflat0[si]};
                 acc1 = acc1 + {{(SUM_WIDTH-INT_WIDTH){exp_out_nflat1[si][INT_WIDTH-1]}}, exp_out_nflat1[si]};
@@ -247,8 +246,8 @@ module softmax_vec #(
         LNU (.x_sum_exp(sum_exp), .y_ln_out(ln_sum_out));
 
     // ----------------- PASS 2 SUPPORT ----------------
-    reg out_phase, out_phase_d;
-    reg [ADDRE-1:0] e_streamed;
+    reg out_phase;
+    reg [ADDRE:0] e_streamed;
     integer remain, take_even, take_odd, valid_count;
 
     // ----------------- FSM NEXT STATE ----------------
@@ -296,11 +295,10 @@ module softmax_vec #(
             state_reg_d     <= S_IDLE;
             e_loaded        <= {ADDRE{1'b0}};
             e_read          <= {ADDRE{1'b0}};
-            e_accumulated   <= {ADDRE{1'b0}};
 
             ram_write_addr  <= {ADDRW{1'b0}};
             ram_read_addr0  <= {ADDRW{1'b0}}; // even
-            ram_read_addr1  <= (RAM_DEPTH>1) ? {{(ADDRW-1){1'b0}},1'b1} : {ADDRW{1'b0}}; // odd 1
+            ram_read_addr1  <= (RAM_DEPTH>1) ? 1 : 0; // odd 1
 
             max_val         <= 32'sh8000_0000; // Very negative
             minus           <= 0;
@@ -310,7 +308,6 @@ module softmax_vec #(
 
             tile_out_valid  <= 0;
             out_phase       <= 0;
-            out_phase_d     <= 0;
             done            <= 0;
 
             e_streamed      <= {ADDRE{1'b0}};
@@ -325,7 +322,6 @@ module softmax_vec #(
         end else begin
             state_reg   <= state_next;
             state_reg_d <= state_reg;
-            out_phase_d <= out_phase;
             minus_d     <= minus;
 
             // Case for state_next
@@ -333,7 +329,7 @@ module softmax_vec #(
                 S_PASS_1: begin
                     // RAM read addresses before moving on to S_PASS_1
                     ram_read_addr0     <= {ADDRW{1'b0}}; // 0
-                    ram_read_addr1     <= (RAM_DEPTH>1) ? {{(ADDRW-1){1'b0}},1'b1} : {ADDRW{1'b0}};
+                    ram_read_addr1     <= (RAM_DEPTH>1) ? 1 : 0;
                     valid_count = (TOTAL_ELEMENTS > e_read) ? (TOTAL_ELEMENTS - e_read) : 0;
                     // Split accross even and odd
                     if (valid_count >= 2*TILE_SIZE) begin
@@ -434,7 +430,7 @@ module softmax_vec #(
                 end
 
                 S_LN: begin         // LN: Calculate the natural logarithmic
-                    e_streamed   <= {ADDRE+1{1'b0}};
+                    //e_streamed   <= {ADDRE+1{1'b0}};
                     out_phase    <= 1'b0;
                     tile_out_valid <= 1'b0;
                 end
