@@ -1,3 +1,4 @@
+// Last working b2r_converter but the output is reversed
 // b2r_converter.v VERSIONN TWOOO
 // Used to convert block-per-block input into row-per-row (normal matrix ordering)
 // WIDTH*CHUNK_SIZE*NUM_CORES = COL_OPERATION (in this computation)
@@ -25,13 +26,13 @@ module b2r_converter #(
     output reg [WIDTH*COL-1:0]     out_data
 );
     // Local parameters & function
-    function automatic int clog2_safe
+    function automatic integer clog2_safe;
         input integer value;
         begin
             if (value <= 1) begin
-                return 1;
+                clog2_safe = 1;
             end else begin
-                return $clog2(value);
+                clog2_safe = $clog2(value);
             end
         end
     endfunction
@@ -113,7 +114,7 @@ module b2r_converter #(
 
             STATE_FILL:
             begin
-                state_next = ((counter >= TOTAL_INPUT_ROW_REAL - 1) && (ram_write_addr >= TOTAL_INPUT_ROW_REAL - 1)) ? STATE_SLICE_RD : STATE_FILL;
+                state_next = ((counter >= TOTAL_INPUT_ROW_REAL) && (ram_write_addr >= TOTAL_INPUT_ROW_REAL - 1)) ? STATE_SLICE_RD : STATE_FILL;
             end
 
             STATE_SLICE_RD:
@@ -154,6 +155,7 @@ module b2r_converter #(
     end
 
     // RAM write logic during STATE_FILL
+    /*
     always @(posedge clk) begin
         ram_we <= 0;
         if (en) begin
@@ -166,9 +168,11 @@ module b2r_converter #(
             end
         end
     end
+    */
 
     // Slice read logic
     always @(posedge clk) begin
+        ram_we <= 0;
         if (!rst_n) begin
             counter         <= 0;
             counter_row     <= 0;
@@ -184,11 +188,19 @@ module b2r_converter #(
                 slice_load_counter_d <= slice_load_counter;
                 slice_ready_d <= slice_ready;
 
+                ram_din         <= in_data;
+                if (state_reg == STATE_FILL && in_valid) begin
+                    ram_we          <= 1;
+                    ram_write_addr  <= counter;
+                    //ram_din         <= in_data;
+                    ram_din_d       <= ram_din;
+                end
+
                 case (state_reg)
                     STATE_FILL: 
                     begin
                         if (en && in_valid && counter < TOTAL_INPUT_ROW_REAL) begin
-                            if (counter == TOTAL_INPUT_ROW_REAL - 1) begin
+                            if (counter == TOTAL_INPUT_ROW_REAL) begin
                                 counter <= counter;
                             end else begin
                                 counter <= counter + 1;
@@ -286,4 +298,3 @@ module b2r_converter #(
     );
 
 endmodule
-
