@@ -140,6 +140,7 @@ module r2b_converter_v #(
             slice_load_counter <= 0;
             slice_ready     <= 0;
             counter_row_index <= 0;
+            out_data        <= 0;
         end else begin
             if (en) begin
                 counter_out_d <= counter_out;
