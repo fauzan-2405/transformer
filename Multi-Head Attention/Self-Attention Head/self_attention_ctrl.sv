@@ -24,7 +24,10 @@ module self_attention_ctrl #(
     input logic softmax_done [NUMBER_OF_BUFFER_INSTANCES][TOTAL_INPUT_W_Qn_KnT][TOTAL_SOFTMAX_ROW],
     output logic internal_rst_n_softmax [NUMBER_OF_BUFFER_INSTANCES][TOTAL_INPUT_W_Qn_KnT][TOTAL_SOFTMAX_ROW],
     output logic softmax_en,
-    output logic softmax_valid [TOTAL_SOFTMAX_ROW]
+    output logic softmax_valid [TOTAL_SOFTMAX_ROW],
+
+    // From/To R2B Converter
+    output logic in_valid_r2b []
 );
     // ************************** LOCALPARAMETERS & REGISTERS **************************
     localparam NUM_TILES    = COL / TILE_SIZE;
@@ -34,6 +37,7 @@ module self_attention_ctrl #(
     logic b2r_tagged;  // To indicate if the b2r is already experienced the first in_valid_b2r or not
     logic [$clog2(NUM_TILES):0] tile_idx;                 // Indicate the index of the tile that we give to the softmax
     logic [$clog2(TOTAL_SOFTMAX_ROW)-1:0] softmax_in_valid; // Indicate which softmax is valid to take the input
+    logic softmax_out_valid_sig [TOTAL_SOFTMAX_ROW];
     integer i, j, k;
 
 
@@ -56,7 +60,7 @@ module self_attention_ctrl #(
             softmax_in_valid <= '0;
 
             for (i = 0; i < TOTAL_SOFTMAX_ROW; i++) begin
-                softmax_valid[i] <= 0;
+                softmax_out_valid_sig[i] <= 0;
             end
         end else begin
             if (in_valid_b2r) begin
@@ -64,20 +68,6 @@ module self_attention_ctrl #(
             end
 
             internal_rst_n_b2r  <= ~slice_done_b2r_wrap;
-            /*
-            if (slice_done_b2r_wrap) begin
-                internal_rst_n_b2r  <= ~slice_done_b2r_wrap;
-            end else begin
-                if (b2r_tagged) begin
-                    if (internal_rst_n_b2r) begin
-                        internal_rst_n_b2r  <= ~slice_done_b2r_wrap;
-                    end else begin
-                        internal_rst_n_b2r  <= ~in_valid;
-                    end
-                end else begin
-                    internal_rst_n_b2r  <= rst_n;
-                end
-            end */
 
             for (i = 0; i < NUMBER_OF_BUFFER_INSTANCES; i++) begin
                 for (j = 0; j < TOTAL_INPUT_W_Qn_KnT; j++) begin
@@ -99,12 +89,13 @@ module self_attention_ctrl #(
                     tile_idx    <= tile_idx + 1; 
                 end
 
-                // Toggling the correct softmax_valid for the corresponding softmax
+                // Toggling the correct softmax_out_valid_sig for the corresponding softmax
                 for (i = 0; i < TOTAL_SOFTMAX_ROW; i++) begin
-                    softmax_valid[i] <= (i == TOTAL_SOFTMAX_ROW - 1 - softmax_in_valid);
+                    //softmax_out_valid_sig[i] <= (i == TOTAL_SOFTMAX_ROW - 1 - softmax_in_valid); // In reverse
+                    softmax_out_valid_sig[i] <= (i == TOTAL_SOFTMAX_ROW - 1 - softmax_in_valid); // In forward
                 end
 
-                // Advancing the softmax_valid through the entire TOTAL_SOFTMAX_ROW
+                // Advancing the softmax_out_valid_sig through the entire TOTAL_SOFTMAX_ROW
                 if (softmax_in_valid != TOTAL_SOFTMAX_ROW) begin
                     softmax_in_valid <= softmax_in_valid + 1;
                 end else begin
@@ -113,12 +104,15 @@ module self_attention_ctrl #(
                 end
             end else begin
                 for (i = 0; i < TOTAL_SOFTMAX_ROW; i++) begin
-                    softmax_valid[i] <= 1'b0;
+                    softmax_out_valid_sig[i] <= 1'b0;
                 end
             end
+
+            // R2B Converter internal
 
         end
     end
 
     assign streaming = out_ready_b2r_wrap;
+    assign softmax_valid = softmax_out_valid_sig;
 endmodule
