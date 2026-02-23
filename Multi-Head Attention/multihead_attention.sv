@@ -22,8 +22,9 @@ module multihead_attention #(
     input logic [DATA_WIDTH_A-1:0] in_mat_dinb,
 
     // Temporary output to see the intermediate results
-    output logic [TILE_SIZE_SOFTMAX*WIDTH_OUT-1:0] out_softmax_data [NUMBER_OF_BUFFER_INSTANCES][TOTAL_INPUT_W_Qn_KnT][TOTAL_SOFTMAX_ROW],
-    output logic out_softmax_valid [NUMBER_OF_BUFFER_INSTANCES][TOTAL_INPUT_W_Qn_KnT][TOTAL_SOFTMAX_ROW]
+    //output logic [TILE_SIZE_SOFTMAX*WIDTH_OUT-1:0] out_softmax_data [NUMBER_OF_BUFFER_INSTANCES][TOTAL_INPUT_W_Qn_KnT][TOTAL_SOFTMAX_ROW],
+    //output logic out_softmax_valid [NUMBER_OF_BUFFER_INSTANCES][TOTAL_INPUT_W_Qn_KnT][TOTAL_SOFTMAX_ROW]
+    output logic [WIDTH_OUT*CHUNK_SIZE*NUM_CORES_A_QKT_Vn-1:0] out_data_r2b [NUMBER_OF_BUFFER_INSTANCES][TOTAL_INPUT_W_Qn_KnT][TOTAL_TILE_SOFTMAX]
 );
 
     // ********************************************* TOP LINEAR PROJECTION *********************************************
@@ -161,7 +162,7 @@ module multihead_attention #(
     ) self_attention_inst (
         .clk                    (clk),
         .rst_n                  (rst_n),
-        .en_Qn_KnT              (sig_enable_matmul)
+        .en_Qn_KnT              (sig_enable_matmul),
         .rst_n_Qn_KnT           (sig_internal_rst_n_ctrl),
         .reset_acc_Qn_KnT       (sig_internal_reset_acc_ctrl),
         .out_valid_Qn_KnT       (sig_out_valid),
@@ -173,8 +174,9 @@ module multihead_attention #(
         .input_n_Qn_KnT         (n_dout_b0),
         
         // Temporary output
-        .out_softmax_data(out_softmax_data),
-        .out_softmax_valid(out_softmax_valid)
+        //.out_softmax_data(out_softmax_data),
+        //.out_softmax_valid(out_softmax_valid)
+        .out_data_r2b(out_data_r2b)
     );
 
 endmodule
