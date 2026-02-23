@@ -20,8 +20,9 @@ module top_self_attention_head #(
     output logic acc_done_wrap_Qn_KnT,
 
     // Temporary output to see the intermediate results
-    output logic [(TILE_SIZE_SOFTMAX*SA_WIDTH_OUT)-1:0] out_softmax_data [NUMBER_OF_BUFFER_INSTANCES][TOTAL_INPUT_W_Qn_KnT][TOTAL_SOFTMAX_ROW],
-    output logic out_softmax_valid [NUMBER_OF_BUFFER_INSTANCES][TOTAL_INPUT_W_Qn_KnT][TOTAL_SOFTMAX_ROW]
+    //output logic [(TILE_SIZE_SOFTMAX*SA_WIDTH_OUT)-1:0] out_softmax_data [NUMBER_OF_BUFFER_INSTANCES][TOTAL_INPUT_W_Qn_KnT][TOTAL_SOFTMAX_ROW],
+    //output logic out_softmax_valid [NUMBER_OF_BUFFER_INSTANCES][TOTAL_INPUT_W_Qn_KnT][TOTAL_SOFTMAX_ROW]
+    output logic [WIDTH_OUT*CHUNK_SIZE*NUM_CORES_A_QKT_Vn-1:0] out_data_r2b [NUMBER_OF_BUFFER_INSTANCES][TOTAL_INPUT_W_Qn_KnT][TOTAL_TILE_SOFTMAX]
     
 );
     // ************************************ SELF ATTENTION HEAD ************************************
@@ -29,13 +30,19 @@ module top_self_attention_head #(
     logic in_valid_b2r;
     logic slice_done_b2r_wrap_sig;
     logic out_ready_b2r_wrap_sig;
+    logic slice_last_r2b_sig [TOTAL_TILE_SOFTMAX];
 
     // From controller
     logic internal_rst_n_b2r_sig;
+
     logic softmax_done_sig [NUMBER_OF_BUFFER_INSTANCES][TOTAL_INPUT_W_Qn_KnT][TOTAL_SOFTMAX_ROW];
     logic internal_rst_n_softmax_sig [NUMBER_OF_BUFFER_INSTANCES][TOTAL_INPUT_W_Qn_KnT][TOTAL_SOFTMAX_ROW];
     logic softmax_en_sig;
     logic softmax_valid_sig [TOTAL_SOFTMAX_ROW];
+
+    logic [$clog2(TOTAL_SOFTMAX_ROW):0] r2b_row_idx_sig;
+    logic internal_rst_n_r2b_conv [TOTAL_TILE_SOFTMAX];
+    logic in_valid_r2b_sig [TOTAL_TILE_SOFTMAX];
 
     genvar i;
     generate
@@ -69,10 +76,16 @@ module top_self_attention_head #(
 
                 .slice_done_b2r_wrap(slice_done_b2r_wrap_sig),
                 .out_ready_b2r_wrap(out_ready_b2r_wrap_sig),
+                
+                .internal_rst_n_r2b_conv(internal_rst_n_r2b_conv),
+                .r2b_row_idx(r2b_row_idx_sig),
+                .slice_last_r2b(slice_last_r2b_sig),
+                .in_valid_r2b(in_valid_r2b_sig),
 
                 // Temporary output to see the intermediate results
-                .out_softmax_data(out_softmax_data[i]),
-                .out_softmax_valid(out_softmax_valid[i])
+                //.out_softmax_data(out_softmax_data[i]),
+                //.out_softmax_valid(out_softmax_valid[i]),
+                .out_data_r2b(out_data_r2b[i])
             );
         end
     endgenerate
@@ -91,7 +104,7 @@ module top_self_attention_head #(
         .clk(clk),
         .rst_n(rst_n),
 
-        .in_valid_b2r(in_valid_b2r)
+        .in_valid_b2r(in_valid_b2r),
         .slice_done_b2r_wrap(slice_done_b2r_wrap_sig),
         .out_ready_b2r_Wrap(out_ready_b2r_wrap_sig),
         .internal_rst_n_b2r(internal_rst_n_b2r_sig),
@@ -99,7 +112,12 @@ module top_self_attention_head #(
         .softmax_done(softmax_done_sig),
         .internal_rst_n_softmax(internal_rst_n_softmax_sig),
         .softmax_en(softmax_en_sig),
-        .softmax_valid(softmax_valid_sig)
+        .softmax_valid(softmax_valid_sig),
+
+        .r2b_row_idx_sig(r2b_row_idx_sig),
+        .internal_rst_n_r2b_conv(internal_rst_n_r2b_conv),
+        .in_valid_r2b(in_valid_r2b_sig),
+        .slice_last_r2b(slice_last_r2b_sig)
     );
     
 
