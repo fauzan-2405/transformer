@@ -24,6 +24,11 @@ module self_attention_head #(
     input logic softmax_valid [TOTAL_SOFTMAX_ROW],
     input logic internal_rst_n_softmax [TOTAL_INPUT_W_Qn_KnT][TOTAL_SOFTMAX_ROW],
 
+    input logic internal_rst_n_r2b_conv [TOTAL_TILE_SOFTMAX],
+
+    input logic [$clog2(TOTAL_SOFTMAX_ROW):0] r2b_row_idx,
+    input logic in_valid_r2b [TOTAL_TILE_SOFTMAX],
+
     // Output
     output logic sys_finish_wrap_Qn_KnT, 
     output logic acc_done_wrap_Qn_KnT,
@@ -35,9 +40,11 @@ module self_attention_head #(
 
     output logic done_softmax [TOTAL_INPUT_W_Qn_KnT][TOTAL_SOFTMAX_ROW],
 
+    output logic slice_last_r2b [TOTAL_TILE_SOFTMAX],
     // Temporary
-    output logic [TILE_SIZE_SOFTMAX*WIDTH_OUT-1:0] out_softmax_data [TOTAL_INPUT_W_Qn_KnT][TOTAL_SOFTMAX_ROW],
-    output logic out_softmax_valid [TOTAL_INPUT_W_Qn_KnT][TOTAL_SOFTMAX_ROW]
+    //output logic [TILE_SIZE_SOFTMAX*WIDTH_OUT-1:0] out_softmax_data [TOTAL_INPUT_W_Qn_KnT][TOTAL_SOFTMAX_ROW]
+    //output logic out_softmax_valid [TOTAL_INPUT_W_Qn_KnT][TOTAL_SOFTMAX_ROW],
+    output logic [WIDTH_OUT*CHUNK_SIZE*NUM_CORES_A_QKT_Vn-1:0] out_data_r2b [TOTAL_INPUT_W_Qn_KnT][TOTAL_TILE_SOFTMAX]
 );
     // ************************** Matmul Module Qn x Kn^T **************************
     logic [(WIDTH_OUT*CHUNK_SIZE*NUM_CORES_A_Qn_KnT*NUM_CORES_B_Qn_KnT*TOTAL_MODULES_LP_Q)-1:0] 
@@ -131,8 +138,8 @@ module self_attention_head #(
 
 
     // ************************** SOFTMAX **************************
-    //logic [TILE_SIZE_SOFTMAX*WIDTH_OUT-1:0] out_softmax_data [NUMBER_OF_BUFFER_INSTANCES][TOTAL_INPUT_W_Qn_KnT][TOTAL_SOFTMAX_ROW];
-    //logic out_softmax_valid [NUMBER_OF_BUFFER_INSTANCES][TOTAL_INPUT_W_Qn_KnT][TOTAL_SOFTMAX_ROW];
+    logic [TILE_SIZE_SOFTMAX*WIDTH_OUT-1:0] out_softmax_data [TOTAL_INPUT_W_Qn_KnT][TOTAL_SOFTMAX_ROW];
+    (* keep = "true" *) logic [(TILE_SIZE_SOFTMAX*WIDTH_OUT)-1:0] out_b2r_data_reg [TOTAL_INPUT_W_Qn_KnT]; // To delay the b2r_data
 
     genvar j,k;
     generate
@@ -153,28 +160,58 @@ module self_attention_head #(
                     .tile_in_valid(softmax_valid[k]), 
                     
                     .Y_tile_out(out_softmax_data[j][k]),
-                    .tile_out_valid(out_softmax_valid[j][k]),
+                    .tile_out_valid(),
                     .done(done_softmax[j][k])
                 );
             end
         end
     endgenerate
 
-    // ************************** DELAYER **************************
-    // Used as a register
-    logic [(TILE_SIZE_SOFTMAX*WIDTH_OUT)-1:0] out_b2r_data_reg [TOTAL_INPUT_W_Qn_KnT]; // To delay the b2r_data
+
+    // ************************** R2B CONVERTER **************************
+    genvar l,m;
+    generate
+        for (l = 0; l < TOTAL_INPUT_W_Qn_KnT; l++) begin
+            for (m = 0; m < TOTAL_TILE_SOFTMAX; m++) begin
+                r2b_converter_v #(
+                    .WIDTH(WIDTH_OUT),
+                    .FRAC_WIDTH(FRAC_WIDTH_OUT),
+                    .BLOCK_SIZE(BLOCK_SIZE),
+                    .CHUNK_SIZE(CHUNK_SIZE),
+                    .ROW(TOTAL_SOFTMAX_ROW), // Real row representation
+                    .COL(TILE_SIZE_SOFTMAX), // Real col representation
+                    .NUM_CORES_V(NUM_CORES_A_QKT_Vn)
+                ) r2b_converter_unit (
+                    .clk(clk),
+                    .rst_n(internal_rst_n_r2b_conv[m]),
+                    .en(1'b1),
+                    .in_valid(in_valid_r2b[m]),
+                    .in_data(out_softmax_data[l][r2b_row_idx]),
+                    .slice_done(),
+                    .output_ready(),
+                    .slice_last(slice_last_r2b[m]),
+                    .buffer_done(),
+                    .out_data(out_data_r2b[l][m])
+                );
+            end
+        end
+    endgenerate
     
-    integer l;
+
+    // ************************** DELAYER **************************
+    // Used as a register: out_b2r_data_reg, 
+    
+    integer a;
 
     always @(posedge clk) begin
         if (!rst_n) begin
-            for (l = 0; l < TOTAL_INPUT_W_Qn_KnT; l++) begin
-                out_b2r_data_reg[l] <= '0;
+            for (a = 0; a < TOTAL_INPUT_W_Qn_KnT; a++) begin
+                out_b2r_data_reg[a] <= '0;
             end
         end 
         else begin
-            for (l = 0; l < TOTAL_INPUT_W_Qn_KnT; l++) begin
-                out_b2r_data_reg[l] <= out_b2r_data[l];
+            for (a = 0; a < TOTAL_INPUT_W_Qn_KnT; a++) begin
+                out_b2r_data_reg[a] <= out_b2r_data[a];
             end
         end
     end
