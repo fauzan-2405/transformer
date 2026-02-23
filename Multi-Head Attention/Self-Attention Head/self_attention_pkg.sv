@@ -29,5 +29,8 @@ package self_attention_pkg;
 
     parameter TOTAL_ELEMENTS_SOFTMAX = B_OUTER_DIMENSION_Qn_KnT;    // Column size, in decimal
     parameter TILE_SIZE_SOFTMAX      = COL_B2R_CONVERTER;           // In decimal
+    parameter TOTAL_TILE_SOFTMAX     = TOTAL_ELEMENTS_SOFTMAX/TILE_SIZE_SOFTMAX;
+
+    parameter int NUM_CORES_A_QKT_Vn    = 2;    
 
 endpackage
