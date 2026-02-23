@@ -31,7 +31,8 @@ module self_attention_ctrl #(
     // From/To R2B Converter
     output logic [$clog2(TOTAL_SOFTMAX_ROW):0] r2b_row_idx_sig,
     output logic in_valid_r2b [TOTAL_TILE_SOFTMAX],
-    output logic slice_last_r2b [TOTAL_TILE_SOFTMAX]
+    output logic internal_rst_n_r2b_conv [TOTAL_TILE_SOFTMAX],
+    input logic slice_last_r2b [TOTAL_TILE_SOFTMAX]
 );
     // ************************** LOCALPARAMETERS & REGISTERS **************************
     localparam NUM_TILES    = COL / TILE_SIZE;
@@ -72,6 +73,7 @@ module self_attention_ctrl #(
             end
             for (int m = 0; m < TOTAL_TILE_SOFTMAX; m++) begin
                 in_valid_r2b[m] <= '0;
+                internal_rst_n_r2b_conv[m]  <= rst_n;
             end
 
         end else begin
@@ -113,9 +115,10 @@ module self_attention_ctrl #(
             end
 
             // ************************************** R2B CONTROLLER ************************************** 
-            // default clear
+            // default clear n reset
             for (int m = 0; m < TOTAL_TILE_SOFTMAX; m++) begin
                 in_valid_r2b[m] <= 0;
+                internal_rst_n_r2b_conv[m]  <= ~slice_last_r2b[m];
             end
 
             // Check if expected row is valid

@@ -106,7 +106,7 @@ module top_self_attention_head #(
 
         .in_valid_b2r(in_valid_b2r),
         .slice_done_b2r_wrap(slice_done_b2r_wrap_sig),
-        .out_ready_b2r_Wrap(out_ready_b2r_wrap_sig),
+        .out_ready_b2r_wrap(out_ready_b2r_wrap_sig),
         .internal_rst_n_b2r(internal_rst_n_b2r_sig),
 
         .softmax_done(softmax_done_sig),
@@ -115,7 +115,7 @@ module top_self_attention_head #(
         .softmax_valid(softmax_valid_sig),
 
         .r2b_row_idx_sig(r2b_row_idx_sig),
-        .internal_rst_n_r2b_conv(internal_rst_n_r2b_conv),
+        .internal_rst_n_r2b(internal_rst_n_r2b_conv),
         .in_valid_r2b(in_valid_r2b_sig),
         .slice_last_r2b(slice_last_r2b_sig)
     );
