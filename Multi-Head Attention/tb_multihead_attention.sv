@@ -38,8 +38,9 @@ module tb_multihead_attention;
     // ============================================================
     // DUT outputs (CAN BE EDITED)
     // ============================================================
-    logic [TILE_SIZE_SOFTMAX*WIDTH_OUT-1:0] out_softmax_data [NUMBER_OF_BUFFER_INSTANCES][TOTAL_INPUT_W_Qn_KnT][TOTAL_SOFTMAX_ROW];
-    logic out_softmax_valid [NUMBER_OF_BUFFER_INSTANCES][TOTAL_INPUT_W_Qn_KnT][TOTAL_SOFTMAX_ROW];
+    //logic [TILE_SIZE_SOFTMAX*WIDTH_OUT-1:0] out_softmax_data [NUMBER_OF_BUFFER_INSTANCES][TOTAL_INPUT_W_Qn_KnT][TOTAL_SOFTMAX_ROW];
+    //logic out_softmax_valid [NUMBER_OF_BUFFER_INSTANCES][TOTAL_INPUT_W_Qn_KnT][TOTAL_SOFTMAX_ROW];
+    logic [WIDTH_OUT*CHUNK_SIZE*NUM_CORES_A_QKT_Vn-1:0] out_data_r2b [NUMBER_OF_BUFFER_INSTANCES][TOTAL_INPUT_W_Qn_KnT][TOTAL_TILE_SOFTMAX];
 
     // ============================================================
     // Memory for stimulus
@@ -67,8 +68,9 @@ module tb_multihead_attention;
         .in_mat_dinb(in_mat_dinb),
         
         // Temporary output to see the intermediate results
-        .out_softmax_data(out_softmax_data),
-        .out_softmax_valid(out_softmax_valid)
+        //.out_softmax_data(out_softmax_data),
+        //.out_softmax_valid(out_softmax_valid)
+        .out_data_r2b(out_data_r2b)
     );
 
     // ============================================================
