@@ -71,8 +71,8 @@ module self_attention_head #(
         .reset_acc(reset_acc_Qn_KnT),
         .input_w(input_w_Qn_KnT), 
         .input_n(input_n_Qn_KnT), 
-        .acc_done_wrap(sys_finish_wrap_Qn_KnT), 
-        .systolic_finish_wrap(acc_done_wrap_Qn_KnT),
+        .acc_done_wrap(acc_done_wrap_Qn_KnT), 
+        .systolic_finish_wrap(sys_finish_wrap_Qn_KnT),
         .out_multi_matmul(out_matmul_Qn_KnT)
     );
 
