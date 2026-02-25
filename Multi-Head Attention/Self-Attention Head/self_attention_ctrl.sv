@@ -20,10 +20,11 @@ module self_attention_ctrl #(
     input logic slice_done_b2r_wrap,
     input logic out_ready_b2r_wrap,
     //input logic [WIDTH_OUT*COL_B2R_CONVERTER-1:0] out_b2r_data [TOTAL_INPUT_W_Qn_KnT],
-    output logic internal_rst_n_b2r, 
+    output logic internal_rst_n_b2r,
 
     // From/To Softmax
     input logic softmax_done [NUMBER_OF_BUFFER_INSTANCES][TOTAL_INPUT_W_Qn_KnT][TOTAL_SOFTMAX_ROW],
+    input logic softmax_out_valid [TOTAL_SOFTMAX_ROW],
     output logic internal_rst_n_softmax [NUMBER_OF_BUFFER_INSTANCES][TOTAL_INPUT_W_Qn_KnT][TOTAL_SOFTMAX_ROW],
     output logic softmax_en,
     output logic softmax_valid [TOTAL_SOFTMAX_ROW],
@@ -31,7 +32,7 @@ module self_attention_ctrl #(
     // From/To R2B Converter
     output logic [$clog2(TOTAL_SOFTMAX_ROW):0] r2b_row_idx_sig,
     output logic in_valid_r2b [TOTAL_TILE_SOFTMAX],
-    output logic internal_rst_n_r2b_conv [TOTAL_TILE_SOFTMAX],
+    output logic internal_rst_n_r2b [TOTAL_TILE_SOFTMAX],
     input logic slice_last_r2b [TOTAL_TILE_SOFTMAX]
 );
     // ************************** LOCALPARAMETERS & REGISTERS **************************
@@ -73,11 +74,11 @@ module self_attention_ctrl #(
             end
             for (int m = 0; m < TOTAL_TILE_SOFTMAX; m++) begin
                 in_valid_r2b[m] <= '0;
-                internal_rst_n_r2b_conv[m]  <= rst_n;
+                internal_rst_n_r2b[m]   <= rst_n;
             end
 
         end else begin
-            // ************************************** B2R & SOFTMAX CONTROLLER ************************************** 
+            // ************************************** B2R & SOFTMAX CONTROLLER **************************************
             internal_rst_n_b2r  <= ~slice_done_b2r_wrap;
 
             for (i = 0; i < NUMBER_OF_BUFFER_INSTANCES; i++) begin
@@ -98,7 +99,7 @@ module self_attention_ctrl #(
                 // Toggling the correct softmax_valid_sig for the corresponding softmax
                 for (i = 0; i < TOTAL_SOFTMAX_ROW; i++) begin
                     //softmax_valid_sig[i] <= (i == TOTAL_SOFTMAX_ROW - 1 - softmax_in_valid); // In reverse
-                    softmax_valid_sig[i] <= (i == TOTAL_SOFTMAX_ROW - 1 - softmax_in_valid); // In forward
+                    softmax_valid_sig[i] <= (i == softmax_in_valid); // In forward
                 end
 
                 // Advancing the softmax_valid_sig through the entire TOTAL_SOFTMAX_ROW
@@ -106,23 +107,24 @@ module self_attention_ctrl #(
                     softmax_in_valid <= softmax_in_valid + 1;
                 end else begin
                     // If we already reached the TOTAL_SOFTMAX_ROW:
-                    softmax_in_valid <= '0;     
+                    softmax_in_valid <= '0;
                 end
             end else begin
                 for (i = 0; i < TOTAL_SOFTMAX_ROW; i++) begin
                     softmax_valid_sig[i] <= 1'b0;
+                    //softmax_in_valid[i] <= 1'b0;
                 end
             end
 
-            // ************************************** R2B CONTROLLER ************************************** 
-            // default clear n reset
+            // ************************************** R2B CONTROLLER **************************************
+            // default clear
             for (int m = 0; m < TOTAL_TILE_SOFTMAX; m++) begin
                 in_valid_r2b[m] <= 0;
-                internal_rst_n_r2b_conv[m]  <= ~slice_last_r2b[m];
+                internal_rst_n_r2b[m]   <= ~slice_last_r2b[m];
             end
 
             // Check if expected row is valid
-            if (softmax_valid_sig[r2b_row_idx]) begin
+            if (softmax_out_valid[r2b_row_idx]) begin
                 // Fire correct r2b tile
                 for (int l = 0; l < TOTAL_INPUT_W_Qn_KnT; l++) begin
                     in_valid_r2b[r2b_tile_idx[l]]   <= 1;
