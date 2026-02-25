@@ -30,24 +30,24 @@ module self_attention_head #(
     input logic in_valid_r2b [TOTAL_TILE_SOFTMAX],
 
     // Output
-    output logic sys_finish_wrap_Qn_KnT, 
+    output logic sys_finish_wrap_Qn_KnT,
     output logic acc_done_wrap_Qn_KnT,
 
     output logic out_valid_shifted,
-    
+
     output logic slice_done_b2r_wrap,
     output logic out_ready_b2r_wrap,   // To Controller
 
     output logic done_softmax [TOTAL_INPUT_W_Qn_KnT][TOTAL_SOFTMAX_ROW],
+    output logic out_softmax_valid [TOTAL_INPUT_W_Qn_KnT][TOTAL_SOFTMAX_ROW],
 
     output logic slice_last_r2b [TOTAL_TILE_SOFTMAX],
     // Temporary
     //output logic [TILE_SIZE_SOFTMAX*WIDTH_OUT-1:0] out_softmax_data [TOTAL_INPUT_W_Qn_KnT][TOTAL_SOFTMAX_ROW]
-    //output logic out_softmax_valid [TOTAL_INPUT_W_Qn_KnT][TOTAL_SOFTMAX_ROW],
     output logic [WIDTH_OUT*CHUNK_SIZE*NUM_CORES_A_QKT_Vn-1:0] out_data_r2b [TOTAL_INPUT_W_Qn_KnT][TOTAL_TILE_SOFTMAX]
 );
     // ************************** Matmul Module Qn x Kn^T **************************
-    logic [(WIDTH_OUT*CHUNK_SIZE*NUM_CORES_A_Qn_KnT*NUM_CORES_B_Qn_KnT*TOTAL_MODULES_LP_Q)-1:0] 
+    logic [(WIDTH_OUT*CHUNK_SIZE*NUM_CORES_A_Qn_KnT*NUM_CORES_B_Qn_KnT*TOTAL_MODULES_LP_Q)-1:0]
         out_matmul_Qn_KnT [TOTAL_INPUT_W_Qn_KnT];
 
     multi_matmul_wrapper #(
@@ -69,15 +69,15 @@ module self_attention_head #(
         .rst_n(rst_n_Qn_KnT),
         .en(en_Qn_KnT),
         .reset_acc(reset_acc_Qn_KnT),
-        .input_w(input_w_Qn_KnT), 
-        .input_n(input_n_Qn_KnT), 
-        .acc_done_wrap(acc_done_wrap_Qn_KnT), 
+        .input_w(input_w_Qn_KnT),
+        .input_n(input_n_Qn_KnT),
+        .acc_done_wrap(acc_done_wrap_Qn_KnT),
         .systolic_finish_wrap(sys_finish_wrap_Qn_KnT),
         .out_multi_matmul(out_matmul_Qn_KnT)
     );
 
     // ************************** 4-BIT SHIFTER **************************
-    logic [(WIDTH_OUT*CHUNK_SIZE*NUM_CORES_A_Qn_KnT*NUM_CORES_B_Qn_KnT*TOTAL_MODULES_LP_Q)-1:0] 
+    logic [(WIDTH_OUT*CHUNK_SIZE*NUM_CORES_A_Qn_KnT*NUM_CORES_B_Qn_KnT*TOTAL_MODULES_LP_Q)-1:0]
         out_shifted [TOTAL_INPUT_W_Qn_KnT];
 
     rshift #(
@@ -100,14 +100,14 @@ module self_attention_head #(
         .out_valid(out_valid_shifted),
         .out_shifted(out_shifted)
     );
-    
+
 
     // ************************** B2R CONVERTER **************************
     logic slice_done_b2r [TOTAL_INPUT_W_Qn_KnT];
     logic out_ready_b2r [TOTAL_INPUT_W_Qn_KnT];
     logic [(TILE_SIZE_SOFTMAX*WIDTH_OUT)-1:0] out_b2r_data [TOTAL_INPUT_W_Qn_KnT];
     assign slice_done_b2r_wrap  = slice_done_b2r[0] && slice_done_b2r[1];
-    assign out_ready_b2r_wrap   = out_ready_b2r[0] && out_ready_b2r[1]; 
+    assign out_ready_b2r_wrap   = out_ready_b2r[0] && out_ready_b2r[1];
 
     genvar i;
     generate
@@ -120,7 +120,7 @@ module self_attention_head #(
                 .BLOCK_SIZE(BLOCK_SIZE),
                 .CHUNK_SIZE(CHUNK_SIZE),
                 .NUM_CORES_H(NUM_CORES_H_B2R),
-                .NUM_CORES_V(NUM_CORES_V_B2R)       
+                .NUM_CORES_V(NUM_CORES_V_B2R)
             ) converter_b2r (
                 .clk(clk),
                 .rst_n(internal_rst_n_b2r),
@@ -155,12 +155,12 @@ module self_attention_head #(
                     .clk(clk),
                     .rst_n(internal_rst_n_softmax[j][k]),
                     .en(softmax_en),
-                    
-                    .X_tile_in(out_b2r_data_reg[j]), 
-                    .tile_in_valid(softmax_valid[k]), 
-                    
+
+                    .X_tile_in(out_b2r_data_reg[j]),
+                    .tile_in_valid(softmax_valid[k]),
+
                     .Y_tile_out(out_softmax_data[j][k]),
-                    .tile_out_valid(),
+                    .tile_out_valid(out_softmax_valid[j][k]),
                     .done(done_softmax[j][k])
                 );
             end
@@ -196,26 +196,24 @@ module self_attention_head #(
             end
         end
     endgenerate
-    
+
 
     // ************************** DELAYER **************************
-    // Used as a register: out_b2r_data_reg, 
-    
-    integer a;
+    // Used as a register: out_b2r_data_reg
 
     always @(posedge clk) begin
         if (!rst_n) begin
-            for (a = 0; a < TOTAL_INPUT_W_Qn_KnT; a++) begin
+            for (int a = 0; a < TOTAL_INPUT_W_Qn_KnT; a++) begin
                 out_b2r_data_reg[a] <= '0;
             end
-        end 
+        end
         else begin
-            for (a = 0; a < TOTAL_INPUT_W_Qn_KnT; a++) begin
+            for (int a = 0; a < TOTAL_INPUT_W_Qn_KnT; a++) begin
                 out_b2r_data_reg[a] <= out_b2r_data[a];
             end
         end
     end
-    
+
 
 
 endmodule
