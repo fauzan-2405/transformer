@@ -1,14 +1,14 @@
 // r2b_converter_v.v
-// Row to block converter for input 
+// Row to block converter for input
 // Used for changing the shape of the input matrix from the normal version (row by row) to the ready to be inputted to the matrix multiplication module (block per block)
 // The direction is by vertical
 
 module r2b_converter_v #(
     parameter WIDTH       = 16,
     parameter FRAC_WIDTH  = 8,
-    parameter BLOCK_SIZE  = 2, 
+    parameter BLOCK_SIZE  = 2,
     parameter CHUNK_SIZE  = 4,
-    parameter ROW         = 2754, 
+    parameter ROW         = 2754,
     parameter COL         = 256,
     parameter NUM_CORES_V = 2
 ) (
@@ -25,7 +25,7 @@ module r2b_converter_v #(
 );
     // Local parameters
     localparam SLICE_ROWS       = BLOCK_SIZE * NUM_CORES_V;         // Indicates how many input rows that needed to produce one output
-    localparam CHUNKS_PER_ROW   = COL/(BLOCK_SIZE);                 // Indicates how many coreS in one input row 
+    localparam CHUNKS_PER_ROW   = COL/(BLOCK_SIZE);                 // Indicates how many coreS in one input row
     localparam ROW_DIV          = ROW/(SLICE_ROWS);                 // Indicates how many iterations in rows based on the vertical cores
     localparam RAM_DEPTH        = ROW;
     localparam RAM_DATA_WIDTH   = WIDTH * COL;
@@ -54,7 +54,7 @@ module r2b_converter_v #(
     reg [$clog2(ROW)-1:0] ram_write_addr;
     wire [$clog2(ROW)-1:0] ram_read_addr;
     reg [RAM_DATA_WIDTH-1:0] ram_din;
-    //reg [RAM_DATA_WIDTH-1:0] ram_din_d;
+    reg [RAM_DATA_WIDTH-1:0] ram_din_d;
     wire [RAM_DATA_WIDTH-1:0] ram_dout;
 
     // Slice row buffer
@@ -99,7 +99,7 @@ module r2b_converter_v #(
                     end else begin
                         state_next = STATE_SLICE_RD;
                     end
-                end 
+                end
                 else begin
                     state_next = STATE_OUTPUT;
                 end
@@ -122,6 +122,7 @@ module r2b_converter_v #(
         ram_we <= 0;
         if (en) begin
             ram_din         <= in_data;
+            ram_din_d       <= ram_din;
             if (state_reg == STATE_FILL && in_valid) begin
                 ram_we          <= 1;
                 ram_write_addr  <= counter;
@@ -148,7 +149,7 @@ module r2b_converter_v #(
                 slice_ready_d <= slice_ready;
 
                 case (state_reg)
-                    STATE_FILL: 
+                    STATE_FILL:
                     begin
                         if (en && in_valid && counter < ROW) begin
                             if (counter == ROW - 1) begin
@@ -159,7 +160,7 @@ module r2b_converter_v #(
                         end
                     end
 
-                    STATE_SLICE_RD: 
+                    STATE_SLICE_RD:
                     begin
                         //ram_read_addr <= counter_row + slice_load_counter;
                         slice_row[slice_load_counter_d] <= ram_dout;
@@ -224,7 +225,7 @@ module r2b_converter_v #(
         .we(ram_we),
         .write_addr(ram_write_addr),
         .read_addr(ram_read_addr),
-        .din(ram_din),
+        .din(ram_din_d),
         .dout(ram_dout)
     );
 
