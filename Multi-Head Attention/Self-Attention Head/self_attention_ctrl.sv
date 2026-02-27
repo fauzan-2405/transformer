@@ -60,6 +60,27 @@ module self_attention_ctrl #(
             end
         end*/
 
+        // Progressive diagonal mapping
+        for (int m = 0; m < TOTAL_TILE_SOFTMAX; m++) begin
+            in_valid_r2b[m] = 0;
+            if (global_row_ptr >= m) begin
+
+                logic [$clog2(TOTAL_SOFTMAX_ROW):0] computed_row;
+                computed_row = global_row_ptr - m;
+
+                r2b_row_idx[m] = computed_row;
+
+                if (softmax_out_valid[computed_row]) begin
+                    in_valid_r2b[m] = 1;
+                end
+            end
+            else begin
+                // hold 0 before pipeline fill
+                r2b_row_idx[m] = 0;
+                //in_valid_r2b[m] = 0;
+            end
+        end
+
         any_softmax_valid = 0;
         for (int r = 0; r < TOTAL_SOFTMAX_ROW; r++) begin
             any_softmax_valid |= softmax_out_valid[r];
@@ -78,7 +99,6 @@ module self_attention_ctrl #(
                 end
             end
 
-
             softmax_en      <= 0;
             softmax_in_valid <= '0;
 
@@ -89,9 +109,9 @@ module self_attention_ctrl #(
             // R2B controller
             global_row_ptr  <= '0;
             for (int m = 0; m < TOTAL_TILE_SOFTMAX; m++) begin
-                in_valid_r2b[m] <= '0;
+                //in_valid_r2b[m] <= '0;
                 internal_rst_n_r2b[m]   <= rst_n;
-                r2b_row_idx[m]     <= '0;
+                //r2b_row_idx[m]     <= '0;
             end
 
         end else begin
@@ -137,7 +157,7 @@ module self_attention_ctrl #(
             // ************************************** R2B CONTROLLER **************************************
             // default clear
             for (int m = 0; m < TOTAL_TILE_SOFTMAX; m++) begin
-                in_valid_r2b[m] <= 0;
+                //in_valid_r2b[m] <= 0;
                 internal_rst_n_r2b[m]   <= ~slice_last_r2b[m];
             end
 
@@ -148,24 +168,6 @@ module self_attention_ctrl #(
                 end
             end
 
-            // Progressive diagonal mapping
-            for (int m = 0; m < TOTAL_TILE_SOFTMAX; m++) begin
-                if (global_row_ptr >= m) begin
-
-                    logic [$clog2(TOTAL_SOFTMAX_ROW):0] computed_row;
-                    computed_row = global_row_ptr - m;
-
-                    r2b_row_idx[m] <= computed_row;
-
-                    if (softmax_out_valid[computed_row]) begin
-                        in_valid_r2b[m] <= 1;
-                    end
-                end
-                else begin
-                    // hold 0 before pipeline fill
-                    r2b_row_idx[m] <= 0;
-                end
-            end
         end
     end
 
