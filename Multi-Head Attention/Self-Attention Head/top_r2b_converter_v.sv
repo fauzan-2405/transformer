@@ -46,9 +46,9 @@ module top_r2b_converter_v #(
                     .in_data(in_data[l][r2b_row_idx[m]]),
                     .slice_done(slice_done[m]),
                     .output_ready(output_ready[m]),
-                    .slice_last(slice_last_r2b[m]),
+                    .slice_last(slice_last[m]),
                     .buffer_done(buffer_done[m]),
-                    .out_data(out_data_r2b[l][m])
+                    .out_data(out_data[l][m])
                 );
             end
         end

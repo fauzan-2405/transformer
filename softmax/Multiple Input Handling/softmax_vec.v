@@ -21,7 +21,8 @@ module softmax_vec #(
     output reg  [TILE_SIZE*WIDTH-1:0]    Y_tile_out,
     output reg                           tile_out_valid,
 
-    output reg                           done
+    //output reg                           done
+    output wire                           done
 );
     localparam INT_WIDTH                = 32;
     localparam INT_FRAC                 = 16;
@@ -277,6 +278,7 @@ module softmax_vec #(
 
             S_PASS_2:
             begin
+                //state_next = (done) ? S_IDLE : S_PASS_2;
                 state_next = (remain == 0) ? S_DONE : S_PASS_2;
             end
 
@@ -308,7 +310,7 @@ module softmax_vec #(
 
             tile_out_valid  <= 0;
             out_phase       <= 0;
-            done            <= 0;
+            //done            <= 0;
 
             e_streamed      <= {ADDRE{1'b0}};
             take_even       <= 0;
@@ -398,6 +400,10 @@ module softmax_vec #(
                         out_phase       <= 1'b0;
                     end
                 end
+
+                S_DONE: begin
+                    Y_tile_out <= 0;
+                end
             endcase
 
             // Case for state_reg
@@ -441,13 +447,14 @@ module softmax_vec #(
                         exp_in_flat1[(TILE_SIZE-1-i)*INT_WIDTH +: INT_WIDTH] <= slice_flat(ram_dout1, i) - max_val - ln_sum_out;
                     end
                     if (state_next == S_DONE) begin
+                    //if (state_next == S_IDLE) begin
                         tile_out_valid  <= 0;
-                        done            <= 1;
+                        //done            <= 1;
                     end
                 end
 
-                S_DONE: begin
-                end
+                /*S_DONE: begin
+                end*/
             endcase
 
             // Case for state_reg_d
@@ -466,4 +473,6 @@ module softmax_vec #(
             endcase
         end
     end
+
+    assign done = (state_next == S_DONE) ? 1 : 0 ;
 endmodule

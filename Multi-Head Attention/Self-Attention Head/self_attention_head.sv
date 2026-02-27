@@ -26,7 +26,8 @@ module self_attention_head #(
 
     input logic internal_rst_n_r2b_conv [TOTAL_TILE_SOFTMAX],
 
-    input logic [$clog2(TOTAL_SOFTMAX_ROW):0] r2b_row_idx,
+    //input logic [$clog2(TOTAL_SOFTMAX_ROW):0] r2b_row_idx,
+    input logic [$clog2(TOTAL_SOFTMAX_ROW):0] r2b_row_idx [TOTAL_TILE_SOFTMAX],
     input logic in_valid_r2b [TOTAL_TILE_SOFTMAX],
 
     // Output
@@ -169,7 +170,30 @@ module self_attention_head #(
 
 
     // ************************** R2B CONVERTER **************************
-    genvar l,m;
+    top_r2b_converter_v #(
+        .WIDTH(WIDTH_OUT),
+        .FRAC_WIDTH(FRAC_WIDTH_OUT),
+        .BLOCK_SIZE(BLOCK_SIZE),
+        .CHUNK_SIZE(CHUNK_SIZE),
+        .ROW(TOTAL_SOFTMAX_ROW), // Real row representation
+        .COL(TILE_SIZE_SOFTMAX), // Real col representation
+        .NUM_CORES_V(NUM_CORES_A_QKT_Vn),
+        .TOTAL_SOFTMAX_ROW(TOTAL_SOFTMAX_ROW),
+        .TOTAL_TILE_SOFTMAX(TOTAL_TILE_SOFTMAX)
+    ) top_r2b_converter_v_unit (
+        .clk(clk),
+        .rst_n(internal_rst_n_r2b_conv),
+        .en(1'b1),
+        .in_valid(in_valid_r2b),
+        .in_data(out_softmax_data),
+        .r2b_row_idx(r2b_row_idx),
+        .slice_done(),
+        .output_ready(),
+        .slice_last(slice_last_r2b),
+        .buffer_done(),
+        .out_data(out_data_r2b)
+    );
+    /*genvar l,m;
     generate
         for (l = 0; l < TOTAL_INPUT_W_Qn_KnT; l++) begin
             for (m = 0; m < TOTAL_TILE_SOFTMAX; m++) begin
@@ -195,7 +219,7 @@ module self_attention_head #(
                 );
             end
         end
-    endgenerate
+    endgenerate*/
 
 
     // ************************** DELAYER **************************

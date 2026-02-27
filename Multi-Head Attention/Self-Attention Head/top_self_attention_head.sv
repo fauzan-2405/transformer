@@ -41,7 +41,7 @@ module top_self_attention_head #(
     logic softmax_valid_sig [TOTAL_SOFTMAX_ROW];
     logic out_softmax_valid [NUMBER_OF_BUFFER_INSTANCES][TOTAL_INPUT_W_Qn_KnT][TOTAL_SOFTMAX_ROW];
 
-    logic [$clog2(TOTAL_SOFTMAX_ROW):0] r2b_row_idx_sig;
+    logic [$clog2(TOTAL_SOFTMAX_ROW):0] r2b_row_idx_sig [TOTAL_TILE_SOFTMAX];
     logic internal_rst_n_r2b_conv [TOTAL_TILE_SOFTMAX];
     logic in_valid_r2b_sig [TOTAL_TILE_SOFTMAX];
 

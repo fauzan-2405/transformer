@@ -30,7 +30,7 @@ module self_attention_ctrl #(
     output logic softmax_valid [TOTAL_SOFTMAX_ROW],
 
     // From/To R2B Converter
-    output logic [$clog2(TOTAL_SOFTMAX_ROW):0] r2b_row_idx_sig,
+    output logic [$clog2(TOTAL_SOFTMAX_ROW):0] r2b_row_idx_sig [TOTAL_TILE_SOFTMAX],
     output logic in_valid_r2b [TOTAL_TILE_SOFTMAX],
     output logic internal_rst_n_r2b [TOTAL_TILE_SOFTMAX],
     input logic slice_last_r2b [TOTAL_TILE_SOFTMAX]
@@ -42,12 +42,30 @@ module self_attention_ctrl #(
     logic streaming;
     logic [$clog2(TOTAL_SOFTMAX_ROW)-1:0] softmax_in_valid; // Indicate which softmax is valid to take the input
     logic softmax_valid_sig [TOTAL_SOFTMAX_ROW];
-    logic [$clog2(TOTAL_TILE_SOFTMAX):0] r2b_tile_idx [TOTAL_INPUT_W_Qn_KnT];   // Which tile of softmax output we are currently feeding into r2b
-    logic [$clog2(TOTAL_SOFTMAX_ROW):0] r2b_row_idx;    // Which softmax row output we are currently consuming
+
+    logic [$clog2(TOTAL_SOFTMAX_ROW):0] global_row_ptr;
+    logic [$clog2(TOTAL_SOFTMAX_ROW):0] r2b_row_idx [TOTAL_TILE_SOFTMAX];    // Which softmax row output we are currently consuming
+    logic any_softmax_valid;
+
     integer i, j, k;
 
 
     // ************************** MAIN CONTROLLER **************************
+    always @* begin/*
+        for (int a = 0; a < NUMBER_OF_BUFFER_INSTANCES; a++) begin
+            for (int b = 0; b < TOTAL_INPUT_W_Qn_KnT; b++) begin
+                for (int c = 0; c < TOTAL_SOFTMAX_ROW; c++) begin
+                    internal_rst_n_softmax[a][b][c]  = ~softmax_done[a][b][c];
+                end
+            end
+        end*/
+
+        any_softmax_valid = 0;
+        for (int r = 0; r < TOTAL_SOFTMAX_ROW; r++) begin
+            any_softmax_valid |= softmax_out_valid[r];
+        end
+    end
+
     always @(posedge clk) begin
         if (!rst_n) begin
             internal_rst_n_b2r      <= rst_n;
@@ -60,6 +78,7 @@ module self_attention_ctrl #(
                 end
             end
 
+
             softmax_en      <= 0;
             softmax_in_valid <= '0;
 
@@ -68,13 +87,11 @@ module self_attention_ctrl #(
             end
 
             // R2B controller
-            r2b_row_idx     <= '0;
-            for (int l = 0; l < TOTAL_INPUT_W_Qn_KnT; l++) begin
-                r2b_tile_idx[l] <= '0;
-            end
+            global_row_ptr  <= '0;
             for (int m = 0; m < TOTAL_TILE_SOFTMAX; m++) begin
                 in_valid_r2b[m] <= '0;
                 internal_rst_n_r2b[m]   <= rst_n;
+                r2b_row_idx[m]     <= '0;
             end
 
         end else begin
@@ -88,6 +105,7 @@ module self_attention_ctrl #(
                     end
                 end
             end
+
 
             // Activate the softmax_en for the first time
             if (!softmax_en && in_valid_b2r) begin
@@ -123,27 +141,29 @@ module self_attention_ctrl #(
                 internal_rst_n_r2b[m]   <= ~slice_last_r2b[m];
             end
 
-            // Check if expected row is valid
-            if (softmax_out_valid[r2b_row_idx]) begin
-                // Fire correct r2b tile
-                for (int l = 0; l < TOTAL_INPUT_W_Qn_KnT; l++) begin
-                    in_valid_r2b[r2b_tile_idx[l]]   <= 1;
+            // Advance head pointer
+            if (any_softmax_valid) begin
+                if (global_row_ptr < TOTAL_SOFTMAX_ROW) begin
+                    global_row_ptr  <= global_row_ptr + 1;
                 end
+            end
 
-                // Advance row
-                if (r2b_row_idx == TOTAL_SOFTMAX_ROW - 1) begin
-                    r2b_row_idx <= '0;
+            // Progressive diagonal mapping
+            for (int m = 0; m < TOTAL_TILE_SOFTMAX; m++) begin
+                if (global_row_ptr >= m) begin
 
-                    // Advance tile
-                    for (int l = 0; l < TOTAL_INPUT_W_Qn_KnT; l++) begin
-                        if (r2b_tile_idx[l] == TOTAL_TILE_SOFTMAX - 1) begin
-                            r2b_tile_idx[l] <= '0;
-                        end else begin
-                            r2b_tile_idx[l] <= r2b_tile_idx[l] + 1;
-                        end
+                    logic [$clog2(TOTAL_SOFTMAX_ROW):0] computed_row;
+                    computed_row = global_row_ptr - m;
+
+                    r2b_row_idx[m] <= computed_row;
+
+                    if (softmax_out_valid[computed_row]) begin
+                        in_valid_r2b[m] <= 1;
                     end
-                end else begin
-                    r2b_row_idx <= r2b_row_idx + 1;
+                end
+                else begin
+                    // hold 0 before pipeline fill
+                    r2b_row_idx[m] <= 0;
                 end
             end
         end
