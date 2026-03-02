@@ -222,10 +222,11 @@ module r2b_converter_v #(
         .DEPTH(RAM_DEPTH)
     ) temp_buffer_ram (
         .clk(clk),
+        .rst_n(rst_n),
         .we(ram_we),
         .write_addr(ram_write_addr),
         .read_addr(ram_read_addr),
-        .din(ram_din_d),
+        .din(ram_din),
         .dout(ram_dout)
     );
 
