@@ -193,34 +193,6 @@ module self_attention_head #(
         .buffer_done(),
         .out_data(out_data_r2b)
     );
-    /*genvar l,m;
-    generate
-        for (l = 0; l < TOTAL_INPUT_W_Qn_KnT; l++) begin
-            for (m = 0; m < TOTAL_TILE_SOFTMAX; m++) begin
-                r2b_converter_v #(
-                    .WIDTH(WIDTH_OUT),
-                    .FRAC_WIDTH(FRAC_WIDTH_OUT),
-                    .BLOCK_SIZE(BLOCK_SIZE),
-                    .CHUNK_SIZE(CHUNK_SIZE),
-                    .ROW(TOTAL_SOFTMAX_ROW), // Real row representation
-                    .COL(TILE_SIZE_SOFTMAX), // Real col representation
-                    .NUM_CORES_V(NUM_CORES_A_QKT_Vn)
-                ) r2b_converter_unit (
-                    .clk(clk),
-                    .rst_n(internal_rst_n_r2b_conv[m]),
-                    .en(1'b1),
-                    .in_valid(in_valid_r2b[m]),
-                    .in_data(out_softmax_data[l][r2b_row_idx]),
-                    .slice_done(),
-                    .output_ready(),
-                    .slice_last(slice_last_r2b[m]),
-                    .buffer_done(),
-                    .out_data(out_data_r2b[l][m])
-                );
-            end
-        end
-    endgenerate*/
-
 
     // ************************** DELAYER **************************
     // Used as a register: out_b2r_data_reg

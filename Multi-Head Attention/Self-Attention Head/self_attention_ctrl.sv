@@ -159,6 +159,9 @@ module self_attention_ctrl #(
             for (int m = 0; m < TOTAL_TILE_SOFTMAX; m++) begin
                 //in_valid_r2b[m] <= 0;
                 internal_rst_n_r2b[m]   <= ~slice_last_r2b[m];
+                if (!internal_rst_n_r2b[TOTAL_TILE_SOFTMAX-1]) begin
+                    global_row_ptr  <= '0;
+                end
             end
 
             // Advance head pointer
