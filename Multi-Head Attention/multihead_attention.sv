@@ -1,3 +1,4 @@
+
 // multihead_attention.sv
 // top module that contains top_linear_projection + top_self_attention_head
 
@@ -51,7 +52,7 @@ module multihead_attention #(
         .OUT_KEYS(OUT_KEYS)
     ) linear_projection_inst (
         .clk(clk), .rst_n(rst_n),
-        
+
         .in_mat_ena(in_mat_ena),
         .in_mat_wea(in_mat_wea),
         .in_mat_wr_addra(in_mat_wr_addra),
@@ -63,7 +64,7 @@ module multihead_attention #(
         .in_mat_dinb(in_mat_dinb),
 
         .out_q1(out_q1_wire), // We're just using one output to see the behavior
-        /* 
+        /*
         .out_q2(out_q2_wire),
         .out_q3(out_q3_wire),
         .out_q4(out_q4_wire), */
@@ -167,12 +168,12 @@ module multihead_attention #(
         .reset_acc_Qn_KnT       (sig_internal_reset_acc_ctrl),
         .out_valid_Qn_KnT       (sig_out_valid),
 
-        .acc_done_wrap_Qn_KnT   (sig_acc_done_wrap), 
+        .acc_done_wrap_Qn_KnT   (sig_acc_done_wrap),
         .sys_finish_wrap_Qn_KnT (sig_systolic_finish_wrap),
 
         .input_w_Qn_KnT         (w_dout_b0),
         .input_n_Qn_KnT         (n_dout_b0),
-        
+
         // Temporary output
         //.out_softmax_data(out_softmax_data),
         //.out_softmax_valid(out_softmax_valid)
