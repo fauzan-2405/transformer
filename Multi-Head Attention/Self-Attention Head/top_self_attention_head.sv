@@ -22,7 +22,8 @@ module top_self_attention_head #(
     // Temporary output to see the intermediate results
     //output logic [(TILE_SIZE_SOFTMAX*SA_WIDTH_OUT)-1:0] out_softmax_data [NUMBER_OF_BUFFER_INSTANCES][TOTAL_INPUT_W_Qn_KnT][TOTAL_SOFTMAX_ROW],
     //output logic out_softmax_valid [NUMBER_OF_BUFFER_INSTANCES][TOTAL_INPUT_W_Qn_KnT][TOTAL_SOFTMAX_ROW]
-    output logic [WIDTH_OUT*CHUNK_SIZE*NUM_CORES_A_QKT_Vn-1:0] out_data_r2b [NUMBER_OF_BUFFER_INSTANCES][TOTAL_INPUT_W_Qn_KnT][TOTAL_TILE_SOFTMAX]
+    //output logic [WIDTH_OUT*CHUNK_SIZE*NUM_CORES_A_QKT_Vn-1:0] out_data_r2b [NUMBER_OF_BUFFER_INSTANCES][TOTAL_INPUT_W_Qn_KnT][TOTAL_TILE_SOFTMAX]
+    output logic [(WIDTH_OUT*CHUNK_SIZE*NUM_CORES_A_QKT_Vn)-1:0] out_data_fifo [TOTAL_INPUT_W_Qn_KnT][NUM_BANKS_FIFO]
 
 );
     // ************************************ SELF ATTENTION HEAD ************************************
@@ -44,6 +45,13 @@ module top_self_attention_head #(
     logic [$clog2(TOTAL_SOFTMAX_ROW):0] r2b_row_idx_sig [TOTAL_TILE_SOFTMAX];
     logic internal_rst_n_r2b_conv [TOTAL_TILE_SOFTMAX];
     logic in_valid_r2b_sig [TOTAL_TILE_SOFTMAX];
+
+    logic [$clog2(TOTAL_TILE_SOFTMAX)-1:0] fifo_idx_sig [NUM_BANKS_FIFO]; // Determines the fifo unit that used in circular fashion
+    logic fifo_rd_en_sig [TOTAL_TILE_SOFTMAX];
+    logic internal_rst_n_fifo_sig [NUM_BANKS_FIFO];
+    logic [RD_DATA_COUNT_WIDTH-1:0] rd_data_count_fifo_sig [NUM_BANKS_FIFO];
+    logic fifo_full_sig [NUM_BANKS_FIFO];
+    logic fifo_underflow_sig [TOTAL_TILE_SOFTMAX];
 
     genvar i;
     generate
@@ -84,10 +92,17 @@ module top_self_attention_head #(
                 .slice_last_r2b(slice_last_r2b_sig),
                 .in_valid_r2b(in_valid_r2b_sig),
 
+                .fifo_idx(fifo_idx_sig),
+                .fifo_underflow(fifo_underflow_sig),
+                .fifo_rd_en(fifo_rd_en_sig),
+                .internal_rst_n_fifo(internal_rst_n_fifo_sig),
+                .rd_data_count_fifo(rd_data_count_fifo_sig),
+                .fifo_full(fifo_full_sig),
+
                 // Temporary output to see the intermediate results
                 //.out_softmax_data(out_softmax_data[i]),
-                //.out_softmax_valid(out_softmax_valid[i]),
-                .out_data_r2b(out_data_r2b[i])
+                //.out_data_r2b(out_data_r2b[i]),
+                .out_data_fifo(out_data_fifo)
             );
         end
     endgenerate
@@ -99,9 +114,14 @@ module top_self_attention_head #(
         .COL                (COL_B2R_CONVERTER),
         .TILE_SIZE          (TILE_SIZE_SOFTMAX),
         .NUM_CORES_A_Qn_KnT (NUM_CORES_A_Qn_KnT),
-        .NUMBER_OF_BUFFER_INSTANCES(NUMBER_OF_BUFFER_INSTANCES),
+        .BLOCK_SIZE         (top_pkg::TOP_BLOCK_SIZE),
         .TOTAL_INPUT_W_Qn_KnT(TOTAL_INPUT_W_Qn_KnT),
-        .BLOCK_SIZE         (top_pkg::TOP_BLOCK_SIZE)
+        .NUMBER_OF_BUFFER_INSTANCES(NUMBER_OF_BUFFER_INSTANCES),
+        .TILE_SIZE_SOFTMAX  (TILE_SIZE_SOFTMAX),
+        .TOTAL_TILE_SOFTMAX (TOTAL_TILE_SOFTMAX),
+        .NUM_BANKS_FIFO     (NUM_BANKS_FIFO),
+        .NUM_CORES_V        (NUM_CORES_A_QKT_Vn),
+        .RD_DATA_COUNT_WIDTH(RD_DATA_COUNT_WIDTH)
     ) self_attention_ctrl_u (
         .clk(clk),
         .rst_n(rst_n),
@@ -120,7 +140,14 @@ module top_self_attention_head #(
         .r2b_row_idx_sig(r2b_row_idx_sig),
         .internal_rst_n_r2b(internal_rst_n_r2b_conv),
         .in_valid_r2b(in_valid_r2b_sig),
-        .slice_last_r2b(slice_last_r2b_sig)
+        .slice_last_r2b(slice_last_r2b_sig),
+
+        .fifo_full(fifo_full_sig),
+        .rd_data_count_fifo(rd_data_count_fifo_sig),
+        .internal_rst_n_fifo(internal_rst_n_fifo_sig),
+        .fifo_rd_en(fifo_rd_en_sig),
+        .fifo_underflow(fifo_underflow_sig),
+        .fifo_idx(fifo_idx_sig)
     );
 
 

@@ -25,7 +25,8 @@ module multihead_attention #(
     // Temporary output to see the intermediate results
     //output logic [TILE_SIZE_SOFTMAX*WIDTH_OUT-1:0] out_softmax_data [NUMBER_OF_BUFFER_INSTANCES][TOTAL_INPUT_W_Qn_KnT][TOTAL_SOFTMAX_ROW],
     //output logic out_softmax_valid [NUMBER_OF_BUFFER_INSTANCES][TOTAL_INPUT_W_Qn_KnT][TOTAL_SOFTMAX_ROW]
-    output logic [WIDTH_OUT*CHUNK_SIZE*NUM_CORES_A_QKT_Vn-1:0] out_data_r2b [NUMBER_OF_BUFFER_INSTANCES][TOTAL_INPUT_W_Qn_KnT][TOTAL_TILE_SOFTMAX]
+    //output logic [WIDTH_OUT*CHUNK_SIZE*NUM_CORES_A_QKT_Vn-1:0] out_data_r2b [NUMBER_OF_BUFFER_INSTANCES][TOTAL_INPUT_W_Qn_KnT][TOTAL_TILE_SOFTMAX]
+    output logic [(WIDTH_OUT*CHUNK_SIZE*NUM_CORES_A_QKT_Vn)-1:0] out_data_fifo [TOTAL_INPUT_W_Qn_KnT][NUM_BANKS_FIFO]
 );
 
     // ********************************************* TOP LINEAR PROJECTION *********************************************
@@ -177,7 +178,8 @@ module multihead_attention #(
         // Temporary output
         //.out_softmax_data(out_softmax_data),
         //.out_softmax_valid(out_softmax_valid)
-        .out_data_r2b(out_data_r2b)
+        //.out_data_r2b(out_data_r2b)
+        .out_data_fifo(out_data_fifo)
     );
 
 endmodule

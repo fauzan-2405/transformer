@@ -1,4 +1,3 @@
-// self_attention_head.sv
 // Top level of self attention-head
 import buffer0_pkg::W0_SLICE_WIDTH;
 import buffer0_pkg::N0_MODULE_WIDTH;
@@ -30,6 +29,10 @@ module self_attention_head #(
     input logic [$clog2(TOTAL_SOFTMAX_ROW):0] r2b_row_idx [TOTAL_TILE_SOFTMAX],
     input logic in_valid_r2b [TOTAL_TILE_SOFTMAX],
 
+    input logic [$clog2(TOTAL_TILE_SOFTMAX)-1:0] fifo_idx [NUM_BANKS_FIFO],
+    input logic fifo_rd_en [TOTAL_TILE_SOFTMAX],
+    input logic internal_rst_n_fifo [NUM_BANKS_FIFO],
+
     // Output
     output logic sys_finish_wrap_Qn_KnT,
     output logic acc_done_wrap_Qn_KnT,
@@ -43,9 +46,15 @@ module self_attention_head #(
     output logic out_softmax_valid [TOTAL_INPUT_W_Qn_KnT][TOTAL_SOFTMAX_ROW],
 
     output logic slice_last_r2b [TOTAL_TILE_SOFTMAX],
+
+    output logic fifo_underflow [NUM_BANKS_FIFO],
+    output logic [RD_DATA_COUNT_WIDTH-1:0] rd_data_count_fifo [NUM_BANKS_FIFO],
+    output logic fifo_full [NUM_BANKS_FIFO],
+
     // Temporary
     //output logic [TILE_SIZE_SOFTMAX*WIDTH_OUT-1:0] out_softmax_data [TOTAL_INPUT_W_Qn_KnT][TOTAL_SOFTMAX_ROW]
-    output logic [WIDTH_OUT*CHUNK_SIZE*NUM_CORES_A_QKT_Vn-1:0] out_data_r2b [TOTAL_INPUT_W_Qn_KnT][TOTAL_TILE_SOFTMAX]
+    //output logic [WIDTH_OUT*CHUNK_SIZE*NUM_CORES_A_QKT_Vn-1:0] out_data_r2b [TOTAL_INPUT_W_Qn_KnT][TOTAL_TILE_SOFTMAX]
+    output logic [(WIDTH_OUT*CHUNK_SIZE*NUM_CORES_A_QKT_Vn)-1:0] out_data_fifo [TOTAL_INPUT_W_Qn_KnT][NUM_BANKS_FIFO]
 );
     // ************************** Matmul Module Qn x Kn^T **************************
     logic [(WIDTH_OUT*CHUNK_SIZE*NUM_CORES_A_Qn_KnT*NUM_CORES_B_Qn_KnT*TOTAL_MODULES_LP_Q)-1:0]
@@ -170,6 +179,9 @@ module self_attention_head #(
 
 
     // ************************** R2B CONVERTER **************************
+    logic [WIDTH_OUT*CHUNK_SIZE*NUM_CORES_A_QKT_Vn-1:0] out_data_r2b [TOTAL_INPUT_W_Qn_KnT][TOTAL_TILE_SOFTMAX];
+    logic output_valid_r2b [TOTAL_TILE_SOFTMAX];
+
     top_r2b_converter_v #(
         .WIDTH(WIDTH_OUT),
         .FRAC_WIDTH(FRAC_WIDTH_OUT),
@@ -188,11 +200,91 @@ module self_attention_head #(
         .in_data(out_softmax_data),
         .r2b_row_idx(r2b_row_idx),
         .slice_done(),
-        .output_ready(),
+        .output_ready(output_valid_r2b),
         .slice_last(slice_last_r2b),
         .buffer_done(),
         .out_data(out_data_r2b)
     );
+
+    // ************************** FIFO BUFFER **************************
+    //logic [UNIT_WIDTH-1:0] out_data_fifo [TOTAL_INPUT_W_Qn_KnT][NUM_BANKS_FIFO]
+
+    top_r2b_circular_fifo #(
+        .WIDTH(WIDTH_OUT),
+        .CHUNK_SIZE(CHUNK_SIZE),
+        .NUM_CORES_V(NUM_CORES_A_QKT_Vn),
+        .TOTAL_TILE_SOFTMAX(TOTAL_TILE_SOFTMAX),
+        .TILE_SIZE_SOFTMAX(TILE_SIZE_SOFTMAX),
+        .TOTAL_OUTPUTS_PER_TILE(TOTAL_OUTPUTS_PER_TILE),
+        .NUM_BANKS_FIFO(NUM_BANKS_FIFO),
+        .RD_DATA_COUNT_WIDTH(RD_DATA_COUNT_WIDTH),
+        .FIFO_WRITE_DEPTH(FIFO_WRITE_DEPTH)
+    ) top_r2b_circular_fifo_inst (
+        .clk(clk),
+        .rst_n(internal_rst_n_fifo),
+        .fifo_wr_en(output_valid_r2b),
+        .in_data(out_data_r2b),
+        .fifo_idx(fifo_idx),
+        .fifo_rd_en(fifo_rd_en),
+        .fifo_full(fifo_full),
+        .rd_data_count(rd_data_count_fifo),
+        .fifo_empty(),
+        .fifo_underflow(fifo_underflow),
+        .out_data(out_data_fifo)
+    );
+
+    // ************************** Matmul Module (Qn x Kn^T) x Vn **************************
+    /*
+    top_buffer #(
+        .NUMBER_OF_BUFFER_INSTANCES(1)
+    ) fifo_to_matmul_QKT_V (
+        .clk                    (clk),
+        .rst_n                  (rst_n),
+        .in_valid_w             (),
+        .in_valid_n             (),
+        .acc_done_wrap          (),
+        .systolic_finish_wrap   (),
+
+        // -------- West --------
+        .w_bank0_din(),
+        .w_dout     (),
+
+        // -------- North --------
+        .n_bank0_din(),
+        .n_dout     (),
+
+        // -------- Global --------
+        .internal_rst_n_ctrl     (),
+        .internal_reset_acc_ctrl (),
+        .out_valid               (),
+        .enable_matmul           ()
+    );
+
+    multi_matmul_wrapper #(
+        .WIDTH_A(WIDTH_A),
+        .FRAC_WIDTH_A(FRAC_WIDTH_A),
+        .WIDTH_B(WIDTH_B),
+        .FRAC_WIDTH_B(FRAC_WIDTH_B),
+        .WIDTH_OUT(WIDTH_OUT),
+        .FRAC_WIDTH_OUT(FRAC_WIDTH_OUT),
+        .BLOCK_SIZE(BLOCK_SIZE),
+        .CHUNK_SIZE(CHUNK_SIZE),
+        .INNER_DIMENSION(),
+        .TOTAL_MODULES(),
+        .TOTAL_INPUT_W(),
+        .NUM_CORES_A(),
+        .NUM_CORES_B()
+    ) matmul_QKT_V (
+        .clk(clk),
+        .rst_n(),
+        .en(),
+        .reset_acc(),
+        .input_w(),
+        .input_n(),
+        .acc_done_wrap(),
+        .systolic_finish_wrap(),
+        .out_multi_matmul()
+    ); */
 
     // ************************** DELAYER **************************
     // Used as a register: out_b2r_data_reg

@@ -10,6 +10,9 @@ module self_attention_ctrl #(
     parameter NUMBER_OF_BUFFER_INSTANCES = 1,
     parameter TILE_SIZE_SOFTMAX = 8,
     parameter TOTAL_TILE_SOFTMAX = 2,
+    parameter NUM_BANKS_FIFO = 2,
+    parameter NUM_CORES_V    = 2,
+    parameter RD_DATA_COUNT_WIDTH = 4,
 
     localparam TOTAL_SOFTMAX_ROW = NUM_CORES_A_Qn_KnT * BLOCK_SIZE
 )(
@@ -33,7 +36,15 @@ module self_attention_ctrl #(
     output logic [$clog2(TOTAL_SOFTMAX_ROW):0] r2b_row_idx_sig [TOTAL_TILE_SOFTMAX],
     output logic in_valid_r2b [TOTAL_TILE_SOFTMAX],
     output logic internal_rst_n_r2b [TOTAL_TILE_SOFTMAX],
-    input logic slice_last_r2b [TOTAL_TILE_SOFTMAX]
+    input logic slice_last_r2b [TOTAL_TILE_SOFTMAX],
+
+    // From/To FIFO Buffer
+    input logic fifo_full [NUM_BANKS_FIFO],
+    input logic [RD_DATA_COUNT_WIDTH-1:0] rd_data_count_fifo [NUM_BANKS_FIFO],
+    output logic internal_rst_n_fifo [NUM_BANKS_FIFO],
+    output logic fifo_rd_en [TOTAL_TILE_SOFTMAX],
+    input logic fifo_underflow [TOTAL_TILE_SOFTMAX],
+    output logic [$clog2(TOTAL_TILE_SOFTMAX)-1:0] fifo_idx [NUM_BANKS_FIFO] // Determines the fifo unit that used in circular fashion
 );
     // ************************** LOCALPARAMETERS & REGISTERS **************************
     localparam NUM_TILES    = COL / TILE_SIZE;
@@ -51,14 +62,7 @@ module self_attention_ctrl #(
 
 
     // ************************** MAIN CONTROLLER **************************
-    always @* begin/*
-        for (int a = 0; a < NUMBER_OF_BUFFER_INSTANCES; a++) begin
-            for (int b = 0; b < TOTAL_INPUT_W_Qn_KnT; b++) begin
-                for (int c = 0; c < TOTAL_SOFTMAX_ROW; c++) begin
-                    internal_rst_n_softmax[a][b][c]  = ~softmax_done[a][b][c];
-                end
-            end
-        end*/
+    always @* begin
 
         // Progressive diagonal mapping
         for (int m = 0; m < TOTAL_TILE_SOFTMAX; m++) begin
@@ -114,6 +118,11 @@ module self_attention_ctrl #(
                 //r2b_row_idx[m]     <= '0;
             end
 
+            // FIFO controller
+            for (int a = 0; a < NUM_BANKS_FIFO; a++) begin
+                internal_rst_n_fifo[a]  <= rst_n;
+                fifo_idx[a]             <= a; // Initialize each index as their respective number of their fifo banks
+            end
         end else begin
             // ************************************** B2R & SOFTMAX CONTROLLER **************************************
             internal_rst_n_b2r  <= ~slice_done_b2r_wrap;
@@ -171,6 +180,32 @@ module self_attention_ctrl #(
                 end
             end
 
+            // ************************************** FIFO BUFFER **************************************
+            for (int a = 0; a < NUM_BANKS_FIFO; a++) begin
+                // if FIFO full, turn on the read_enable
+                if (fifo_full[a]) begin
+                    fifo_rd_en[a]   <= 1'b1;
+                end
+
+                // if FIFO empty and/or near empty, turn off the read_enable and reset
+                if (rd_data_count_fifo[a] == 1) begin
+                    fifo_rd_en[a]   <= 1'b0;
+                end
+
+                if (rd_data_count_fifo[a] == 0) begin
+                    internal_rst_n_fifo[a]  <= 1'b0;
+
+                    // Advance the fifo index (to be determined whether we place this block in fifo_empty or fifo_underflow)
+                    if (fifo_idx[a] + NUM_BANKS_FIFO < TOTAL_TILE_SOFTMAX) begin
+                        fifo_idx[a] <= fifo_idx[a] + NUM_BANKS_FIFO;
+                    end
+                end
+
+                // After resetting the fifo, release the reset so it can advance for the next index ASAP
+                if (fifo_underflow[a]) begin
+                    internal_rst_n_fifo[a]  <= 1'b1;
+                end
+            end
         end
     end
 
