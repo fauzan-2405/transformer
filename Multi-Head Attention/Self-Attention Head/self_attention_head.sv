@@ -1,3 +1,4 @@
+// self_attention_head.sv
 // Top level of self attention-head
 import buffer0_pkg::W0_SLICE_WIDTH;
 import buffer0_pkg::N0_MODULE_WIDTH;
@@ -48,8 +49,9 @@ module self_attention_head #(
     output logic slice_last_r2b [TOTAL_TILE_SOFTMAX],
 
     output logic fifo_underflow [NUM_BANKS_FIFO],
+    output logic [WR_DATA_COUNT_WIDTH-1:0] wr_data_count_fifo [NUM_BANKS_FIFO],
     output logic [RD_DATA_COUNT_WIDTH-1:0] rd_data_count_fifo [NUM_BANKS_FIFO],
-    output logic fifo_full [NUM_BANKS_FIFO],
+    //output logic fifo_full [NUM_BANKS_FIFO],
 
     // Temporary
     //output logic [TILE_SIZE_SOFTMAX*WIDTH_OUT-1:0] out_softmax_data [TOTAL_INPUT_W_Qn_KnT][TOTAL_SOFTMAX_ROW]
@@ -218,6 +220,7 @@ module self_attention_head #(
         .TOTAL_OUTPUTS_PER_TILE(TOTAL_OUTPUTS_PER_TILE),
         .NUM_BANKS_FIFO(NUM_BANKS_FIFO),
         .RD_DATA_COUNT_WIDTH(RD_DATA_COUNT_WIDTH),
+        .WR_DATA_COUNT_WIDTH(WR_DATA_COUNT_WIDTH),
         .FIFO_WRITE_DEPTH(FIFO_WRITE_DEPTH)
     ) top_r2b_circular_fifo_inst (
         .clk(clk),
@@ -226,7 +229,8 @@ module self_attention_head #(
         .in_data(out_data_r2b),
         .fifo_idx(fifo_idx),
         .fifo_rd_en(fifo_rd_en),
-        .fifo_full(fifo_full),
+        //.fifo_full(fifo_full),
+        .wr_data_count(wr_data_count_fifo),
         .rd_data_count(rd_data_count_fifo),
         .fifo_empty(),
         .fifo_underflow(fifo_underflow),

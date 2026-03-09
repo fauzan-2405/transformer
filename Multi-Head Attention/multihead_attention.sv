@@ -1,4 +1,3 @@
-
 // multihead_attention.sv
 // top module that contains top_linear_projection + top_self_attention_head
 

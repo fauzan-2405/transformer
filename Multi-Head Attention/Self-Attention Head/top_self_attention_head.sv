@@ -50,7 +50,8 @@ module top_self_attention_head #(
     logic fifo_rd_en_sig [TOTAL_TILE_SOFTMAX];
     logic internal_rst_n_fifo_sig [NUM_BANKS_FIFO];
     logic [RD_DATA_COUNT_WIDTH-1:0] rd_data_count_fifo_sig [NUM_BANKS_FIFO];
-    logic fifo_full_sig [NUM_BANKS_FIFO];
+    logic [WR_DATA_COUNT_WIDTH-1:0] wr_data_count_fifo_sig [NUM_BANKS_FIFO];
+    //logic fifo_full_sig [NUM_BANKS_FIFO];
     logic fifo_underflow_sig [TOTAL_TILE_SOFTMAX];
 
     genvar i;
@@ -97,7 +98,8 @@ module top_self_attention_head #(
                 .fifo_rd_en(fifo_rd_en_sig),
                 .internal_rst_n_fifo(internal_rst_n_fifo_sig),
                 .rd_data_count_fifo(rd_data_count_fifo_sig),
-                .fifo_full(fifo_full_sig),
+                .wr_data_count_fifo(wr_data_count_fifo_sig),
+                //.fifo_full(fifo_full_sig),
 
                 // Temporary output to see the intermediate results
                 //.out_softmax_data(out_softmax_data[i]),
@@ -121,7 +123,9 @@ module top_self_attention_head #(
         .TOTAL_TILE_SOFTMAX (TOTAL_TILE_SOFTMAX),
         .NUM_BANKS_FIFO     (NUM_BANKS_FIFO),
         .NUM_CORES_V        (NUM_CORES_A_QKT_Vn),
-        .RD_DATA_COUNT_WIDTH(RD_DATA_COUNT_WIDTH)
+        .TOTAL_OUTPUTS_PER_TILE(TOTAL_OUTPUTS_PER_TILE),
+        .RD_DATA_COUNT_WIDTH(RD_DATA_COUNT_WIDTH),
+        .WR_DATA_COUNT_WIDTH(WR_DATA_COUNT_WIDTH)
     ) self_attention_ctrl_u (
         .clk(clk),
         .rst_n(rst_n),
@@ -142,7 +146,8 @@ module top_self_attention_head #(
         .in_valid_r2b(in_valid_r2b_sig),
         .slice_last_r2b(slice_last_r2b_sig),
 
-        .fifo_full(fifo_full_sig),
+        //.fifo_full(fifo_full_sig),
+        .wr_data_count_fifo(wr_data_count_fifo_sig),
         .rd_data_count_fifo(rd_data_count_fifo_sig),
         .internal_rst_n_fifo(internal_rst_n_fifo_sig),
         .fifo_rd_en(fifo_rd_en_sig),
