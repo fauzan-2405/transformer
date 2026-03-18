@@ -14,16 +14,21 @@ module top_self_attention_head #(
     input out_valid_Qn_KnT,
     input logic [W0_SLICE_WIDTH-1:0] input_w_Qn_KnT [NUMBER_OF_BUFFER_INSTANCES][TOTAL_INPUT_W_W0],
     input logic [N0_MODULE_WIDTH-1:0] input_n_Qn_KnT [NUMBER_OF_BUFFER_INSTANCES],
+    
+    input logic in_valid_n_QKT_Vn,
+    input logic [N1_IN_WIDTH-1:0] input_n_QKT_Vn [NUMBER_OF_BUFFER_INSTANCES][TOTAL_INPUT_W_N1], // For North Bank1 (Vn)
 
     // Output to bridge buffer
     output logic sys_finish_wrap_Qn_KnT,
-    output logic acc_done_wrap_Qn_KnT,
+    output logic acc_done_wrap_Qn_KnT
 
     // Temporary output to see the intermediate results
     //output logic [(TILE_SIZE_SOFTMAX*SA_WIDTH_OUT)-1:0] out_softmax_data [NUMBER_OF_BUFFER_INSTANCES][TOTAL_INPUT_W_Qn_KnT][TOTAL_SOFTMAX_ROW],
     //output logic out_softmax_valid [NUMBER_OF_BUFFER_INSTANCES][TOTAL_INPUT_W_Qn_KnT][TOTAL_SOFTMAX_ROW]
     //output logic [WIDTH_OUT*CHUNK_SIZE*NUM_CORES_A_QKT_Vn-1:0] out_data_r2b [NUMBER_OF_BUFFER_INSTANCES][TOTAL_INPUT_W_Qn_KnT][TOTAL_TILE_SOFTMAX]
-    output logic [(WIDTH_OUT*CHUNK_SIZE*NUM_CORES_A_QKT_Vn)-1:0] out_data_fifo [TOTAL_INPUT_W_Qn_KnT][NUM_BANKS_FIFO]
+    //output logic [(WIDTH_OUT*CHUNK_SIZE*NUM_CORES_A_QKT_Vn)-1:0] out_data_fifo [TOTAL_INPUT_W_Qn_KnT][NUM_BANKS_FIFO]
+    //output logic [(WIDTH_OUT*CHUNK_SIZE*NUM_CORES_A_QKT_Vn*NUM_CORES_B_QKT_Vn*TOTAL_MODULES_LP_V)-1:0]
+    //    out_matmul_QKT_Vn [TOTAL_INPUT_W_Qn_KnT]
 
 );
     // ************************************ SELF ATTENTION HEAD ************************************
@@ -49,10 +54,11 @@ module top_self_attention_head #(
     logic [$clog2(TOTAL_TILE_SOFTMAX)-1:0] fifo_idx_sig [NUM_BANKS_FIFO]; // Determines the fifo unit that used in circular fashion
     logic fifo_rd_en_sig [TOTAL_TILE_SOFTMAX];
     logic internal_rst_n_fifo_sig [NUM_BANKS_FIFO];
-    logic [RD_DATA_COUNT_WIDTH-1:0] rd_data_count_fifo_sig [NUM_BANKS_FIFO];
-    logic [WR_DATA_COUNT_WIDTH-1:0] wr_data_count_fifo_sig [NUM_BANKS_FIFO];
+    logic [RD_DATA_COUNT_WIDTH-1:0] rd_data_count_fifo_sig [NUM_BANKS_FIFO]; 
+    logic [WR_DATA_COUNT_WIDTH-1:0] wr_data_count_fifo_sig [NUM_BANKS_FIFO]; 
     //logic fifo_full_sig [NUM_BANKS_FIFO];
     logic fifo_underflow_sig [TOTAL_TILE_SOFTMAX];
+    logic fifo_out_valid_sig;
 
     genvar i;
     generate
@@ -99,12 +105,17 @@ module top_self_attention_head #(
                 .internal_rst_n_fifo(internal_rst_n_fifo_sig),
                 .rd_data_count_fifo(rd_data_count_fifo_sig),
                 .wr_data_count_fifo(wr_data_count_fifo_sig),
+                .fifo_out_valid(fifo_out_valid_sig),
                 //.fifo_full(fifo_full_sig),
+                
+                .input_n_QKT_Vn(input_n_QKT_Vn[i]),
+                .in_valid_n_QKT_Vn(in_valid_n_QKT_Vn)
 
                 // Temporary output to see the intermediate results
                 //.out_softmax_data(out_softmax_data[i]),
                 //.out_data_r2b(out_data_r2b[i]),
-                .out_data_fifo(out_data_fifo)
+                //.out_data_fifo(out_data_fifo)
+                //.out_matmul_QKT_Vn(out_matmul_QKT_Vn)
             );
         end
     endgenerate
@@ -152,8 +163,10 @@ module top_self_attention_head #(
         .internal_rst_n_fifo(internal_rst_n_fifo_sig),
         .fifo_rd_en(fifo_rd_en_sig),
         .fifo_underflow(fifo_underflow_sig),
+        .fifo_out_valid(fifo_out_valid_sig),
         .fifo_idx(fifo_idx_sig)
     );
 
 
 endmodule
+

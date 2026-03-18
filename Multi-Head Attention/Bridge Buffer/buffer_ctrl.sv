@@ -140,7 +140,7 @@ module buffer_ctrl #(
             w_ready             <= '0;
             w_uploaded          <= '0;
             all_w               <= 0;
-
+            
             internal_rst_n      <= 1'b0;
             internal_reset_acc  <= 1'b0;
 
@@ -152,8 +152,8 @@ module buffer_ctrl #(
             n_bank0_addra_wr      <= '0;
             n_bank0_addrb_rd      <= '0;
 
-            write_now_n           <= 0;
             write_now_w           <= 0;
+            write_now_n           <= 0;
             w_slicing_idx         <= '0;      // For slicing the WEST input into SLICE_WIDTH using extract_module func
             n_slicing_idx         <= '0;      // For slicing the NORTH input into SLICE_WIDTH (see ping_pong_buffer_n.sv) using extract_module func
         end
@@ -166,7 +166,7 @@ module buffer_ctrl #(
             if (in_valid_w) begin
                 if (all_w) begin
                     write_now_w     <= 1'b0;
-                    w_uploaded      <= w_uploaded ;
+                    w_uploaded      <= w_uploaded;
                 end else begin
                     write_now_w     <= 1'b1;
                     w_uploaded      <= w_uploaded + 1;
@@ -194,11 +194,11 @@ module buffer_ctrl #(
                     w_bank0_addra_wr    <= '0; // Move to first address again after traversing until the end of the W address
                 end else begin
                     if (w_uploaded == W_TOTAL_IN) begin // All west matrix had been uploaded
-                        all_w               <= 1'b1;
+                        all_w               <= 1'b1;    
                     end
                     w_bank0_addra_wr    <= w_bank0_addra_wr + 1; // West Address Generation, when slicing idx change
                 end
-                // Checking the availability for west bank
+                // Checking the availability for the west bank
                 if (w_bank0_addra_wr % (INNER_DIMENSION/BLOCK_SIZE) == (INNER_DIMENSION/BLOCK_SIZE - 1)) begin
                     if (w_ready < W_ROW_X) begin
                         w_ready     <= w_ready + 1;
@@ -228,46 +228,44 @@ module buffer_ctrl #(
             end
 
             // Ready counter rules:
-            // - Case 1 (LOAD_N_FINISHED & all_w): no decrement
-            // - Case 2 (LOAD_N_FINISHED & !all_w): w_ready--
-            // - Case 3 (normal): w_ready--, n_ready--
-            if (((w_ready >= 1) && (n_ready >= 1)) || (state_reg == S_LOAD_N_FINISHED)) begin
+            // - Case 1: (LOAD_N_FINISHED & all_w): no decrement
+            // - Case 2: (LOAD_N_FINISHED & !all_w): w_ready--
+            // - Case 3: (normal): w_ready--, n_ready--
+            if (((w_ready >= 1) && (n_ready >= 1)) || state_reg == S_LOAD_N_FINISHED) begin
                 if (systolic_finish_wrap) begin
-                    internal_reset_acc <= ~acc_done_wrap;
-
+                    internal_reset_acc  <= ~acc_done_wrap;
+                    
                     // Address controller
-                    w_bank0_addrb_rd <= counter + (INNER_DIMENSION/BLOCK_SIZE)*counter_row; 
-                    n_bank0_addrb_rd <= counter + (INNER_DIMENSION/BLOCK_SIZE)*counter_col;
-
+                    w_bank0_addrb_rd    <= counter + (INNER_DIMENSION/BLOCK_SIZE)*counter_row;
+                    n_bank0_addrb_rd    <= counter + (INNER_DIMENSION/BLOCK_SIZE)*counter_col;
+                    
                     // Counter terminal condition
                     if (counter ==
-                        ((state_reg == S_LOAD_N_FINISHED && all_w)
+                         ((state_reg == S_LOAD_N_FINISHED && all_w)
                             ? (INNER_DIMENSION/BLOCK_SIZE - 1)
                             : (INNER_DIMENSION/BLOCK_SIZE))) begin
-
-                        counter <= '0;
-
-                        // w_ready decrement: NOT in case 1
-                        if (!(state_reg == S_LOAD_N_FINISHED && all_w)) begin
+                         
+                         counter    <= '0;
+                         
+                         // w_ready decrement : NOT in case 1
+                         if (!(state_reg == S_LOAD_N_FINISHED && all_w)) begin
                             w_ready <= w_ready - 1;
-                        end
-
-                        // n_ready decrement: only outside S_LOAD_N_FINISHED
-                        if (state_reg != S_LOAD_N_FINISHED) begin
+                         end
+                         
+                         // n_ready decrement: only outside S_LOAD_N_FINISHED
+                         if (state_reg != S_LOAD_N_FINISHED) begin
                             n_ready <= n_ready - 1;
-                        end
-                    end
-                    else begin
-                        counter <= counter + 1;
-                    end
+                         end
+                     end
+                     else begin
+                        counter     <= counter + 1;
+                     end
                 end
-            end
-            else begin
+            end else begin
                 if (counter_acc_done) begin
-                    internal_reset_acc <= 1'b0;
+                    internal_reset_acc  <= 0;
                 end
             end
-
 
             // Column/Row Update
             if (acc_done_wrap_rising) begin

@@ -47,7 +47,8 @@ module self_attention_ctrl #(
     output logic internal_rst_n_fifo [NUM_BANKS_FIFO],
     output logic fifo_rd_en [TOTAL_TILE_SOFTMAX],
     input logic fifo_underflow [TOTAL_TILE_SOFTMAX],
-    output logic fifo_out_valid [NUM_BANKS_FIFO],
+    //output logic fifo_out_valid [NUM_BANKS_FIFO],
+    output logic fifo_out_valid,
     output logic [$clog2(TOTAL_TILE_SOFTMAX)-1:0] fifo_idx [NUM_BANKS_FIFO] // Determines the fifo unit that used in circular fashion
 );
     // ************************** LOCALPARAMETERS & REGISTERS **************************
@@ -65,6 +66,7 @@ module self_attention_ctrl #(
     logic first_time_fifo;  // Indicates the first time FIFO is filled
     logic last_fifo_done;   // Indicates the last FIFO is already finished
     logic fifo_rd_en_reg[TOTAL_TILE_SOFTMAX];   // Delayed version of fifo_rd_en
+    logic fifo_out_valid_sig [NUM_BANKS_FIFO];
     integer i, j, k;
 
 
@@ -96,10 +98,12 @@ module self_attention_ctrl #(
         for (int r = 0; r < TOTAL_SOFTMAX_ROW; r++) begin
             any_softmax_valid |= softmax_out_valid[r];
         end
-
+        
         // ************************************** FIFO R2B CONTROLLER **************************************
+        fifo_out_valid = 1'b0;
         for (int m = 0; m < NUM_BANKS_FIFO; m++) begin
-            fifo_out_valid[m] = fifo_rd_en[fifo_idx[m]] & fifo_rd_en_reg[fifo_idx[m]];
+            fifo_out_valid_sig[m] = fifo_rd_en[fifo_idx[m]] & fifo_rd_en_reg[fifo_idx[m]];
+            fifo_out_valid |= fifo_out_valid_sig[m];
         end
     end
 
@@ -137,7 +141,7 @@ module self_attention_ctrl #(
             end
             for (int m = 0; m < TOTAL_TILE_SOFTMAX; m++) begin
                 fifo_rd_en[m]           <= 0;
-                fifo_rd_en_reg[m]       <= 0;
+                fifo_rd_en_reg[m]       <= 0;   
             end
             first_time_fifo <= 0;
             last_fifo_done  <= 0;
@@ -199,16 +203,16 @@ module self_attention_ctrl #(
             end
 
             // ************************************** FIFO BUFFER **************************************
-            // Toggle first_time_fifo when wr_data_count from first fifo unit is 1
+            // Toggle first_time_fifo when wr_data_count from first fifo unit is 1 
             //(there will be a bug when the total data is just 1, i.e. idx == 0, but let's hope that wont happen)
             if (!first_time_fifo && wr_data_count_fifo[0] == 1) begin
                 first_time_fifo <= 1'b1;
             end
-
+            
             for (int m = 0; m < TOTAL_TILE_SOFTMAX; m++) begin
                 fifo_rd_en_reg[m]   <= fifo_rd_en[m];
             end
-
+            
             for (int a = 0; a < NUM_BANKS_FIFO; a++) begin
                 // if FIFO full, turn on the read_enable
                 if (wr_data_count_fifo[a] == TOTAL_OUTPUTS_PER_TILE) begin
@@ -227,7 +231,7 @@ module self_attention_ctrl #(
                         end
                     end
                 end
-
+                
                 /*
                 // if FIFO full, turn on the read_enable
                 if (wr_data_count_fifo[a] == TOTAL_OUTPUTS_PER_TILE-1) begin
@@ -247,7 +251,7 @@ module self_attention_ctrl #(
                         fifo_idx[a] <= fifo_idx[a] + NUM_BANKS_FIFO;
                     end
                 end
-
+                
                 // After resetting the fifo, release the reset so it can advance for the next index ASAP
                 internal_rst_n_fifo[a]  <= ~fifo_underflow[a];
             end
@@ -258,3 +262,4 @@ module self_attention_ctrl #(
     assign streaming = out_ready_b2r_wrap;
     assign softmax_valid = softmax_valid_sig;
 endmodule
+
