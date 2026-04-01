@@ -9,7 +9,7 @@ module buffer_n #(
     parameter TOTAL_MODULES     = 3, // buffer because this is used to transpose the matrix
     parameter NUM_CORES_B       = 1,
     parameter COL_X             = 10,
-    parameter ROW_X             = 16, 
+    parameter ROW_X             = 16,
     parameter TOTAL_INPUT_W     = 2,
 
     localparam CHUNK_SIZE       = top_pkg::TOP_CHUNK_SIZE,
@@ -17,12 +17,12 @@ module buffer_n #(
     parameter SLICE_WIDTH      = WIDTH*CHUNK_SIZE*NUM_CORES_B,
     parameter MODULE_WIDTH     = SLICE_WIDTH*TOTAL_INPUT_W,
     parameter IN_WIDTH         = SLICE_WIDTH * NUM_CORES_A * TOTAL_MODULES,
-    parameter TOTAL_DEPTH      = ROW_X * COL_X,    
+    parameter TOTAL_DEPTH      = ROW_X * COL_X,
     parameter MEMORY_SIZE      = TOTAL_DEPTH * MODULE_WIDTH,
     parameter int ADDR_WIDTH   = $clog2(TOTAL_DEPTH)
 ) (
     input logic clk, rst_n,
-    input logic [$clog2(TOTAL_MODULES)-1:0] slicing_idx,
+    input logic [$clog2(TOTAL_MODULES):0] slicing_idx,
 
     // Bank 0 Interface
     input logic                     bank0_ena,
