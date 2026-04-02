@@ -1,42 +1,38 @@
 #!/usr/bin/env python3
 """
-block_matmul.py
+block_matmul.py (FINAL VERSION - MIXED INPUT SUPPORT)
 
-Block-based matrix multiplication driver using matrix_multiplier_v2 utilities.
-
-- Reads floating-point matrix A and B from text files
-- Converts to fixed-point (single global format)
-- Performs block matrix multiplication
-- Exports Matrix C in core-mode format (matrix_C rules)
-
-Example:
- python -u "d:\DATA\Documents\Xirka Internship\PME\Transformer\transformer\Python Model\block_matmul.py" --matrix_A "d:\DATA\Documents\Xirka Internship\PME\Transformer\transformer\Python Model\A.txt" --matrix_B "d:\DATA\Documents\Xirka Internship\PME\Transformer\transformer\Python Model\B.txt" --cores_a 2 --cores_b 2 --display float
+Features:
+- Mixed input formats:
+    A: float / hex
+    B: float / hex
+- Output format: float / int / hex
+- Output layout: normal / block
 """
 
 import argparse
 import numpy as np
 import os
 
-# Reuse your existing implementation
 from matrix_multiplier_v2 import FixedPointConverter, MatrixProcessor
 
-BLOCK_SIZE = 2  # fixed by design
+BLOCK_SIZE = 2
 
 
 # ------------------------------------------------------------
-# Helpers
+# Loaders
 # ------------------------------------------------------------
 def load_float_matrix(path: str) -> np.ndarray:
-    """
-    Load a floating-point matrix from text file.
-    Expected format:
-      1.0 2.0 3.0
-      4.0 5.0 6.0
-    """
-    try:
-        return np.loadtxt(path, dtype=np.float64)
-    except Exception as e:
-        raise RuntimeError(f"Failed to load matrix from {path}: {e}")
+    return np.loadtxt(path, dtype=np.float64)
+
+
+def load_hex_matrix(path: str) -> np.ndarray:
+    data = []
+    with open(path, 'r') as f:
+        for line in f:
+            row = [int(x, 16) for x in line.strip().split()]
+            data.append(row)
+    return np.array(data, dtype=np.int64)
 
 
 def float_to_fixed_matrix(mat: np.ndarray, conv: FixedPointConverter) -> np.ndarray:
@@ -45,26 +41,34 @@ def float_to_fixed_matrix(mat: np.ndarray, conv: FixedPointConverter) -> np.ndar
 
 
 # ------------------------------------------------------------
+# Printing helper
+# ------------------------------------------------------------
+def print_matrix_custom(matrix, conv, name, fmt):
+    print(f"\n{name}:")
+    for row in matrix:
+        parts = []
+        for v in row:
+            vi = int(v)
+            if fmt == 'float':
+                parts.append(f"{conv.fixed_to_float(vi):8.4f}")
+            elif fmt == 'hex':
+                parts.append(f"{vi:04x}")
+            else:
+                parts.append(f"{vi}")
+        print(" ".join(parts))
+
+
+# ------------------------------------------------------------
 # Block Matrix Multiplication
 # ------------------------------------------------------------
-def block_matmul(A: np.ndarray,
-                 B: np.ndarray,
-                 processor: MatrixProcessor,
-                 conv: FixedPointConverter) -> np.ndarray:
-    """
-    Perform block matrix multiplication with block_size = 2.
-
-    Computation is done in float domain per block,
-    final output is converted to fixed-point.
-    """
-
+def block_matmul(A, B, conv):
     rows_a, cols_a = A.shape
     rows_b, cols_b = B.shape
 
-    assert cols_a == rows_b, "Matrix dimension mismatch A.cols != B.rows"
+    assert cols_a == rows_b, "Matrix dimension mismatch"
 
-    # Convert fixed → float for computation
     to_float = np.vectorize(conv.fixed_to_float)
+
     A_f = to_float(A)
     B_f = to_float(B)
 
@@ -77,19 +81,68 @@ def block_matmul(A: np.ndarray,
                 B_blk = B_f[k:k+BLOCK_SIZE, j:j+BLOCK_SIZE]
                 C_f[i:i+BLOCK_SIZE, j:j+BLOCK_SIZE] += A_blk @ B_blk
 
-    # Convert result back to fixed-point
     to_fixed = np.vectorize(conv.float_to_fixed)
     return to_fixed(C_f).astype(np.int64)
+
+
+# ------------------------------------------------------------
+# Export helper
+# ------------------------------------------------------------
+def export_matrix_custom(matrix, conv, filename, fmt, layout):
+    os.makedirs(os.path.dirname(filename), exist_ok=True)
+
+    if layout == 'normal':
+        with open(filename, 'w') as f:
+            for row in matrix:
+                line = []
+                for v in row:
+                    vi = int(v)
+                    if fmt == 'float':
+                        line.append(f"{conv.fixed_to_float(vi):.6f}")
+                    elif fmt == 'hex':
+                        line.append(f"{vi:04x}")
+                    else:
+                        line.append(str(vi))
+                f.write(" ".join(line) + "\n")
+
+    else:  # block layout
+        rows, cols = matrix.shape
+        bs = BLOCK_SIZE
+
+        with open(filename, 'w') as f:
+            for i in range(0, rows, bs):
+                for j in range(0, cols, bs):
+                    block = matrix[i:i+bs, j:j+bs]
+
+                    elements = []
+                    for r in range(bs):
+                        for c in range(bs):
+                            vi = int(block[r, c])
+                            if fmt == 'float':
+                                elements.append(f"{conv.fixed_to_float(vi):.6f}")
+                            elif fmt == 'hex':
+                                elements.append(f"{vi:04x}")
+                            else:
+                                elements.append(str(vi))
+
+                    f.write(" ".join(elements) + "\n")
 
 
 # ------------------------------------------------------------
 # Main
 # ------------------------------------------------------------
 def main():
-    parser = argparse.ArgumentParser(description="Block Matrix Multiplication Tool")
+    parser = argparse.ArgumentParser(description="Block MatMul (Mixed Input Support)")
 
-    parser.add_argument('--matrix_A', required=True, help='Path to matrix A (float txt)')
-    parser.add_argument('--matrix_B', required=True, help='Path to matrix B (float txt)')
+    parser.add_argument('--matrix_A', required=True)
+    parser.add_argument('--matrix_B', required=True)
+
+    # 🔥 NEW: separate formats
+    parser.add_argument('--input_format_A', choices=['float', 'hex'], default='float')
+    parser.add_argument('--input_format_B', choices=['float', 'hex'], default='float')
+
+    parser.add_argument('--output_format', choices=['float', 'int', 'hex'], default='int')
+    parser.add_argument('--output_layout', choices=['normal', 'block'], default='block')
 
     parser.add_argument('--total_bits', type=int, default=16)
     parser.add_argument('--frac_bits', type=int, default=8)
@@ -98,22 +151,9 @@ def main():
     parser.add_argument('--cores_a', type=int, required=True)
     parser.add_argument('--cores_b', type=int, required=True)
 
-    parser.add_argument('--display', choices=['int', 'float', 'none'], default='none',
-                        help='Print matrices or not')
+    parser.add_argument('--display', action='store_true')
 
     args = parser.parse_args()
-
-    # --------------------------------------------------------
-    # Load matrices
-    # --------------------------------------------------------
-    A_float = load_float_matrix(args.matrix_A)
-    B_float = load_float_matrix(args.matrix_B)
-
-    rows_a, cols_a = A_float.shape
-    rows_b, cols_b = B_float.shape
-
-    if cols_a != rows_b:
-        raise ValueError("Invalid dimensions: A.cols must equal B.rows")
 
     # --------------------------------------------------------
     # Fixed-point setup
@@ -124,56 +164,67 @@ def main():
         is_signed=args.signed
     )
 
-    A = float_to_fixed_matrix(A_float, conv)
-    B = float_to_fixed_matrix(B_float, conv)
+    # --------------------------------------------------------
+    # Load A
+    # --------------------------------------------------------
+    if args.input_format_A == 'float':
+        A_float = load_float_matrix(args.matrix_A)
+        A = float_to_fixed_matrix(A_float, conv)
+    else:
+        A = load_hex_matrix(args.matrix_A)
 
     # --------------------------------------------------------
-    # Processor config
+    # Load B
     # --------------------------------------------------------
-    processor = MatrixProcessor()
-    processor.cores_a = args.cores_a
-    processor.cores_b = args.cores_b
+    if args.input_format_B == 'float':
+        B_float = load_float_matrix(args.matrix_B)
+        B = float_to_fixed_matrix(B_float, conv)
+    else:
+        B = load_hex_matrix(args.matrix_B)
+
+    rows_a, cols_a = A.shape
+    rows_b, cols_b = B.shape
+
+    if cols_a != rows_b:
+        raise ValueError("A.cols must equal B.rows")
 
     # --------------------------------------------------------
-    # Dimension checks (core-mode C rules)
+    # Dimension checks (important for HW)
     # --------------------------------------------------------
     if rows_a % (args.cores_a * BLOCK_SIZE) != 0:
-        raise ValueError("Rows of C not divisible by cores_a × block_size")
+        raise ValueError("Rows not divisible by cores_a × block_size")
 
     if cols_b % (args.cores_b * BLOCK_SIZE) != 0:
-        raise ValueError("Cols of C not divisible by cores_b × block_size")
+        raise ValueError("Cols not divisible by cores_b × block_size")
 
     # --------------------------------------------------------
-    # Block matrix multiplication
+    # Compute
     # --------------------------------------------------------
-    C = block_matmul(A, B, processor, conv)
+    C = block_matmul(A, B, conv)
 
     # --------------------------------------------------------
-    # Optional printing
+    # Display
     # --------------------------------------------------------
-    if args.display != 'none':
-        processor.print_matrix(A, conv, "Matrix A", args.display)
-        processor.print_matrix(B, conv, "Matrix B", args.display)
-        processor.print_matrix(C, conv, "Matrix C (Block MatMul)", args.display)
+    if args.display:
+        print_matrix_custom(A, conv, "Matrix A", args.output_format)
+        print_matrix_custom(B, conv, "Matrix B", args.output_format)
+        print_matrix_custom(C, conv, "Matrix C", args.output_format)
 
     # --------------------------------------------------------
-    # Export Matrix C (core mode)
+    # Export
     # --------------------------------------------------------
-    os.makedirs("exports", exist_ok=True)
-    out_name = "exports/matrix_C_bmm_core.mem"
+    out_file = "exports/matrix_C_result.mem"
 
-    processor.export_matrix(
+    export_matrix_custom(
         matrix=C,
-        converter=conv,
-        filename=out_name,
-        mode='core',
-        block_size=BLOCK_SIZE,
-        num_cores=None,
-        matrix_type='C'
+        conv=conv,
+        filename=out_file,
+        fmt=args.output_format,
+        layout=args.output_layout
     )
 
-    print(f"\n✅ Block matrix multiplication complete")
-    print(f"📄 Output written to: {out_name}")
+    print("\n✅ Done")
+    print(f"📄 Output: {out_file}")
 
 
 if __name__ == "__main__":
