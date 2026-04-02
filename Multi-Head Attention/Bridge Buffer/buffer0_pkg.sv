@@ -6,10 +6,10 @@ package buffer0_pkg;
     parameter int FRAC_WIDTH        = top_pkg::TOP_FRAC_WIDTH_OUT;
     parameter int B0_INNER_DIMENSION = self_attention_pkg::INNER_DIMENSION_Qn_KnT; // In decimal unit
     //parameter int B0_INNER_DIMENSION = linear_proj_pkg::TOTAL_MODULES; // In decimal unit
-    
+
     // =================================== BUFFER 0 ===================================
     // For West Buffer 0, PLEASE CHANGE THESE PARAMETERS ACCORDING TO YOUR USAGE
-    parameter TOTAL_INPUT_W_W0      = 2; 
+    parameter TOTAL_INPUT_W_W0      = 2;
     //parameter int W0_ROW_X          = linear_proj_pkg::ROW_SIZE_MAT_C * linear_proj_pkg::NUM_CORES_A; // A_OUTER_DIMENSION in BLOCK_SIZE unit
     parameter int W0_ROW_X          = linear_proj_pkg::ROW_SIZE_MAT_C; // A_OUTER_DIMENSION in BLOCK_SIZE unit
     parameter int W0_COL_X          = linear_proj_pkg::COL_SIZE_MAT_C * linear_proj_pkg::TOTAL_MODULES_Q; // INNER DIMENSION in BLOCK_SIZE unit
@@ -26,7 +26,7 @@ package buffer0_pkg;
 
     // For North Buffer 0 , PLEASE CHANGE THESE PARAMETERS ACCORDING TO YOUR USAGE
     parameter TOTAL_INPUT_W_N0      = 2;
-    parameter int N0_ROW_X          = W0_COL_X;   
+    parameter int N0_ROW_X          = W0_COL_X;
     parameter int N0_COL_X          = W0_ROW_X;
     parameter int N0_NUM_CORES_A    = 1;
     parameter int N0_NUM_CORES_B    = self_attention_pkg::NUM_CORES_B_Qn_KnT;
@@ -38,16 +38,16 @@ package buffer0_pkg;
     localparam N0_MEMORY_SIZE       = N0_TOTAL_DEPTH * N0_MODULE_WIDTH;
     localparam int ADDR_WIDTH_N0    = $clog2(N0_TOTAL_DEPTH);
 
-    parameter int ROW_SIZE_MAT_C_B0 = W0_ROW_X; 
+    parameter int ROW_SIZE_MAT_C_B0 = W0_ROW_X;
     parameter int COL_SIZE_MAT_C_B0 = N0_COL_X;
     parameter int MAX_FLAG_B0       = (ROW_SIZE_MAT_C_B0 * COL_SIZE_MAT_C_B0);
-    
+
     // =================================== BUFFER 1 ===================================
     parameter int B1_WIDTH          = top_pkg::TOP_WIDTH_OUT;
     parameter int B1_INNER_DIMENSTION = 1;
-    
+
     // For West Buffer 1
-    parameter TOTAL_INPUT_W_W1      = 2; 
+    parameter TOTAL_INPUT_W_W1      = 2;
     parameter int W1_ROW_X          = (self_attention_pkg::A_OUTER_DIMENSION_Qn_KnT)/
                                         (linear_proj_pkg::BLOCK_SIZE * self_attention_pkg::NUM_CORES_A_QKT_Vn * self_attention_pkg::TOTAL_INPUT_W_Qn_KnT);
     parameter int W1_COL_X          = (self_attention_pkg::B_OUTER_DIMENSION_Qn_KnT)/
@@ -61,11 +61,12 @@ package buffer0_pkg;
     localparam W1_TOTAL_DEPTH       = W1_ROW_X * W1_COL_X; // Can be reduced even further (maybe == N_TOTAL_DEPTH because we will wait at the same time as the entire north matrix is loaded, then do the circular address computation)
     localparam W1_MEMORY_SIZE       = W1_TOTAL_DEPTH * W1_MODULE_WIDTH;
     localparam int ADDR_WIDTH_W1    = $clog2(W1_TOTAL_DEPTH);
-    localparam W1_TOTAL_IN          = W1_ROW_X * W1_COL_X / TOTAL_INPUT_W_W1;
-    
+    //localparam W1_TOTAL_IN          = W1_ROW_X * W1_COL_X / TOTAL_INPUT_W_W1;
+    localparam W1_TOTAL_IN          = W1_ROW_X * W1_COL_X;
+
     // For North Buffer 1
     parameter TOTAL_INPUT_W_N1      = TOTAL_INPUT_W_N0;
-    parameter int N1_ROW_X          = W0_ROW_X;   
+    parameter int N1_ROW_X          = W0_ROW_X;
     parameter int N1_COL_X          = W0_COL_X;
     parameter int N1_NUM_CORES_A    = 1;
     parameter int N1_NUM_CORES_B    = self_attention_pkg::NUM_CORES_B_Qn_KnT;
@@ -77,8 +78,8 @@ package buffer0_pkg;
     localparam N1_MEMORY_SIZE       = N1_TOTAL_DEPTH * N1_MODULE_WIDTH;
     localparam int ADDR_WIDTH_N1    = $clog2(N1_TOTAL_DEPTH);
 
-    parameter int ROW_SIZE_MAT_C_B1 = W1_ROW_X; 
+    parameter int ROW_SIZE_MAT_C_B1 = W1_ROW_X;
     parameter int COL_SIZE_MAT_C_B1 = N1_COL_X;
     parameter int MAX_FLAG_B1       = (ROW_SIZE_MAT_C_B1 * COL_SIZE_MAT_C_B1);
-    
+
 endpackage
