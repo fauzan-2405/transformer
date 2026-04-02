@@ -27,23 +27,23 @@ module buffer_ctrl #(
 
     // ------------- West Input Interface -------------
     // Bank 0 Interface
-    output logic                     w_bank0_ena_ctrl,         
-    output logic                     w_bank0_enb_ctrl,            
-    output logic                     w_bank0_wea_ctrl, 
+    output logic                     w_bank0_ena_ctrl,
+    output logic                     w_bank0_enb_ctrl,
+    output logic                     w_bank0_wea_ctrl,
     output logic [ADDR_WIDTH_W-1:0]  w_bank0_addra_ctrl,
     output logic [ADDR_WIDTH_W-1:0]  w_bank0_addrb_ctrl,
 
     // ------------- North Input Interface -------------
     // Bank 0 Interface
-    output logic                     n_bank0_ena_ctrl,         
-    output logic                     n_bank0_enb_ctrl,            
-    output logic                     n_bank0_wea_ctrl, 
+    output logic                     n_bank0_ena_ctrl,
+    output logic                     n_bank0_enb_ctrl,
+    output logic                     n_bank0_wea_ctrl,
     output logic [ADDR_WIDTH_N-1:0]  n_bank0_addra_ctrl,
     output logic [ADDR_WIDTH_N-1:0]  n_bank0_addrb_ctrl,
 
 
-    output logic [$clog2(TOTAL_MODULES_W)-1:0] w_slicing_idx,
-    output logic [$clog2(TOTAL_MODULES_N)-1:0] n_slicing_idx,
+    output logic [$clog2(TOTAL_MODULES_W):0] w_slicing_idx,
+    output logic [$clog2(TOTAL_MODULES_N):0] n_slicing_idx,
     output logic                             internal_rst_n_ctrl, internal_reset_acc_ctrl,
     output logic                             out_valid,
     output logic                             enable_matmul,
@@ -60,7 +60,7 @@ module buffer_ctrl #(
 
     logic [1:0] bank_valid, writing_phase;
     logic write_now_w, write_now_n;
-        
+
     // ------------- Logics for address generation -------------
     logic internal_rst_n, internal_reset_acc;
     logic acc_done_wrap_rising;
@@ -115,7 +115,7 @@ module buffer_ctrl #(
     assign w_bank0_wea_ctrl   = ((state_reg == S_LOAD_N) || (state_reg == S_LOAD_N_FINISHED)) ? ((write_now_w) ? 1 : 0) : 0;
     assign w_bank0_addra_ctrl = ((state_reg == S_LOAD_N) || (state_reg == S_LOAD_N_FINISHED)) ? w_bank0_addra_wr : '0;
     assign w_bank0_addrb_ctrl = ((state_reg != S_DONE) && (state_reg != S_IDLE)) ? w_bank0_addrb_rd : '0;
-  
+
     // ------------------- For North Input -------------------
     // For bank 0
     assign n_bank0_ena_ctrl   = (state_reg == S_LOAD_N);
@@ -126,7 +126,7 @@ module buffer_ctrl #(
 
 
     // ************************************ FSM Sequential Logic ************************************
-    always @(posedge clk) begin 
+    always @(posedge clk) begin
         if (!rst_n) begin
             state_reg           <= S_IDLE;
             // Address generation
@@ -140,7 +140,7 @@ module buffer_ctrl #(
             w_ready             <= '0;
             w_uploaded          <= '0;
             all_w               <= 0;
-            
+
             internal_rst_n      <= 1'b0;
             internal_reset_acc  <= 1'b0;
 
@@ -189,12 +189,14 @@ module buffer_ctrl #(
 
             //  --------------- Slicing Index ---------------
             if (write_now_w) begin
-                w_slicing_idx       <= w_slicing_idx + 1;
+                if (w_slicing_idx < TOTAL_MODULES_W - 1) begin
+                    w_slicing_idx       <= w_slicing_idx + 1;
+                end
                 if (w_bank0_addra_wr == W_TOTAL_DEPTH -1) begin
                     w_bank0_addra_wr    <= '0; // Move to first address again after traversing until the end of the W address
                 end else begin
                     if (w_uploaded == W_TOTAL_IN) begin // All west matrix had been uploaded
-                        all_w               <= 1'b1;    
+                        all_w               <= 1'b1;
                     end
                     w_bank0_addra_wr    <= w_bank0_addra_wr + 1; // West Address Generation, when slicing idx change
                 end
@@ -231,27 +233,27 @@ module buffer_ctrl #(
             // - Case 1: (LOAD_N_FINISHED & all_w): no decrement
             // - Case 2: (LOAD_N_FINISHED & !all_w): w_ready--
             // - Case 3: (normal): w_ready--, n_ready--
-            if (((w_ready >= 1) && (n_ready >= 1)) || state_reg == S_LOAD_N_FINISHED) begin
+            if (((w_ready >= 1) && (n_ready >= 1)) || ((state_reg == S_LOAD_N_FINISHED) && (w_ready >= 1))) begin
                 if (systolic_finish_wrap) begin
                     internal_reset_acc  <= ~acc_done_wrap;
-                    
+
                     // Address controller
                     w_bank0_addrb_rd    <= counter + (INNER_DIMENSION/BLOCK_SIZE)*counter_row;
                     n_bank0_addrb_rd    <= counter + (INNER_DIMENSION/BLOCK_SIZE)*counter_col;
-                    
+
                     // Counter terminal condition
                     if (counter ==
                          ((state_reg == S_LOAD_N_FINISHED && all_w)
                             ? (INNER_DIMENSION/BLOCK_SIZE - 1)
                             : (INNER_DIMENSION/BLOCK_SIZE))) begin
-                         
+
                          counter    <= '0;
-                         
+
                          // w_ready decrement : NOT in case 1
                          if (!(state_reg == S_LOAD_N_FINISHED && all_w)) begin
                             w_ready <= w_ready - 1;
                          end
-                         
+
                          // n_ready decrement: only outside S_LOAD_N_FINISHED
                          if (state_reg != S_LOAD_N_FINISHED) begin
                             n_ready <= n_ready - 1;
@@ -289,17 +291,17 @@ module buffer_ctrl #(
 
                 // Flag assigning for 'done' variable
                 if (flag != MAX_FLAG) begin
-                    flag <= flag + 1;   
+                    flag <= flag + 1;
                 end
             end
         end
     end
-    
+
     assign out_valid = counter_acc_done;
     assign enable_matmul = (state_reg != S_DONE);
     assign internal_reset_acc_ctrl  = internal_reset_acc;
     assign internal_rst_n_ctrl      = internal_rst_n;
-    assign state_now                = (state_reg == S_LOAD_N) ? 0 : 
+    assign state_now                = (state_reg == S_LOAD_N) ? 0 :
                                       (state_reg == S_LOAD_N_FINISHED) ? 1 : 0;
 
 endmodule
