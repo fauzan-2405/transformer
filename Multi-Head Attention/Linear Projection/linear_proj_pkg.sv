@@ -10,7 +10,7 @@ package linear_proj_pkg;
     parameter int WIDTH_OUT      = top_pkg::TOP_WIDTH_OUT;
     parameter int FRAC_WIDTH_OUT = top_pkg::TOP_FRAC_WIDTH_OUT;
 
-    parameter int BLOCK_SIZE     = top_pkg::TOP_BLOCK_SIZE; 
+    parameter int BLOCK_SIZE     = top_pkg::TOP_BLOCK_SIZE;
     parameter int CHUNK_SIZE     = top_pkg::TOP_CHUNK_SIZE;
 
     parameter int A_OUTER_DIMENSION = 16;
@@ -30,22 +30,22 @@ package linear_proj_pkg;
     parameter TOTAL_MODULES_V = top_pkg::TOTAL_MODULES_V;
     */
     parameter TOTAL_WEIGHT_PER_KEY = 4;
-    
+
     // PLEASE EDIT IN THE FUTURE IF WE WANT TO MAKE THE TOTAL_MODULES DIFFERENT BETWEEN THE KEYS!!!
-    
+
     parameter MEMORY_SIZE_A = INNER_DIMENSION*A_OUTER_DIMENSION*WIDTH_A;
     parameter DATA_WIDTH_A  = WIDTH_A*CHUNK_SIZE*NUM_CORES_A;
     parameter int ADDR_WIDTH_A = $clog2(MEMORY_SIZE_A/DATA_WIDTH_A);
-    
+
     parameter MEMORY_SIZE_B = INNER_DIMENSION*B_OUTER_DIMENSION*WIDTH_B;
     parameter DATA_WIDTH_B  = WIDTH_B*CHUNK_SIZE*NUM_CORES_B*TOTAL_MODULES;
     parameter int ADDR_WIDTH_B = $clog2(MEMORY_SIZE_B/DATA_WIDTH_B);
-    
+
     parameter int NUM_A_ELEMENTS = ((A_OUTER_DIMENSION/BLOCK_SIZE)*(INNER_DIMENSION/BLOCK_SIZE))/(NUM_CORES_A); // Total elements of Input if we converted the inputs based on the NUM_CORES
     parameter int NUM_B_ELEMENTS = ((B_OUTER_DIMENSION/BLOCK_SIZE)*(INNER_DIMENSION/BLOCK_SIZE))/(NUM_CORES_B*TOTAL_MODULES);
 
-    parameter int ROW_SIZE_MAT_C = A_OUTER_DIMENSION / (BLOCK_SIZE * NUM_CORES_A * TOTAL_INPUT_W); 
-    parameter int COL_SIZE_MAT_C = B_OUTER_DIMENSION / (BLOCK_SIZE * NUM_CORES_B * TOTAL_MODULES); 
+    parameter int ROW_SIZE_MAT_C = A_OUTER_DIMENSION / (BLOCK_SIZE * NUM_CORES_A * TOTAL_INPUT_W);
+    parameter int COL_SIZE_MAT_C = B_OUTER_DIMENSION / (BLOCK_SIZE * NUM_CORES_B * TOTAL_MODULES);
     parameter int MAX_FLAG = (ROW_SIZE_MAT_C * COL_SIZE_MAT_C);
 
 endpackage
