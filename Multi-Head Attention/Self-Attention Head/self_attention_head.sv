@@ -34,10 +34,11 @@ module self_attention_head #(
     input logic in_valid_r2b [TOTAL_TILE_SOFTMAX],
 
     input logic [$clog2(TOTAL_TILE_SOFTMAX)-1:0] fifo_idx [NUM_BANKS_FIFO],
+    input logic [$clog2(TOTAL_TILE_SOFTMAX)-1:0] fifo_rd_idx,
     input logic fifo_rd_en [TOTAL_TILE_SOFTMAX],
     input logic internal_rst_n_fifo [NUM_BANKS_FIFO],
     input logic fifo_out_valid,
-    
+
     input logic [N1_IN_WIDTH-1:0] input_n_QKT_Vn [TOTAL_INPUT_W_N1],
     input logic in_valid_n_QKT_Vn,
 
@@ -56,7 +57,7 @@ module self_attention_head #(
     output logic slice_last_r2b [TOTAL_TILE_SOFTMAX],
 
     output logic fifo_underflow [NUM_BANKS_FIFO],
-    output logic [WR_DATA_COUNT_WIDTH-1:0] wr_data_count_fifo [NUM_BANKS_FIFO], 
+    output logic [WR_DATA_COUNT_WIDTH-1:0] wr_data_count_fifo [NUM_BANKS_FIFO],
     output logic [RD_DATA_COUNT_WIDTH-1:0] rd_data_count_fifo [NUM_BANKS_FIFO],
     //output logic fifo_full [NUM_BANKS_FIFO],
 
@@ -65,9 +66,9 @@ module self_attention_head #(
     //output logic [WIDTH_OUT*CHUNK_SIZE*NUM_CORES_A_QKT_Vn-1:0] out_data_r2b [TOTAL_INPUT_W_Qn_KnT][TOTAL_TILE_SOFTMAX]
     //output logic [(WIDTH_OUT*CHUNK_SIZE*NUM_CORES_A_QKT_Vn)-1:0] out_data_fifo [TOTAL_INPUT_W_Qn_KnT][NUM_BANKS_FIFO]
     output logic [(WIDTH_OUT*CHUNK_SIZE*NUM_CORES_A_QKT_Vn*NUM_CORES_B_QKT_Vn*TOTAL_MODULES_LP_V)-1:0]
-        out_matmul_QKT_Vn [NUMBER_OF_BUFFER_INSTANCES_LOCAL][TOTAL_INPUT_W_Qn_KnT]
-);    
-    
+        out_matmul_QKT_Vn [TOTAL_INPUT_W_Qn_KnT]
+);
+
     // ************************** Matmul Module Qn x Kn^T **************************
     logic [(WIDTH_OUT*CHUNK_SIZE*NUM_CORES_A_Qn_KnT*NUM_CORES_B_Qn_KnT*TOTAL_MODULES_LP_Q)-1:0]
         out_matmul_Qn_KnT [TOTAL_INPUT_W_Qn_KnT];
@@ -193,7 +194,7 @@ module self_attention_head #(
     // ************************** R2B CONVERTER **************************
     logic [WIDTH_OUT*CHUNK_SIZE*NUM_CORES_A_QKT_Vn-1:0] out_data_r2b [TOTAL_INPUT_W_Qn_KnT][TOTAL_TILE_SOFTMAX];
     logic output_valid_r2b [TOTAL_TILE_SOFTMAX];
-    
+
     top_r2b_converter_v #(
         .WIDTH(WIDTH_OUT),
         .FRAC_WIDTH(FRAC_WIDTH_OUT),
@@ -255,32 +256,31 @@ module self_attention_head #(
 
     logic sig_acc_done_wrap;
     logic sig_systolic_finish_wrap;
-    
+
     logic [W1_IN_WIDTH-1:0] w_bank1_din_bridge [NUMBER_OF_BUFFER_INSTANCES_LOCAL][TOTAL_INPUT_W_W1];
     logic [N1_IN_WIDTH-1:0] n_bank1_din_bridge [NUMBER_OF_BUFFER_INSTANCES_LOCAL][TOTAL_INPUT_W_N1];
     //logic [N1_IN_WIDTH-1:0] input_n_QKT_Vn [TOTAL_INPUT_W_N1];
-                
-    genvar u,t, w,v;
+
+    /*genvar t, w,v;
     generate
-        
+
         for (u = 0; u < TOTAL_INPUT_W_W1; u++) begin
-            for (t = 0; t < NUM_BANKS_FIFO; t++) begin
-                assign w_bank1_din_bridge[0][u] = out_data_fifo[u][fifo_idx[t]];
-            end
+            assign w_bank1_din_bridge[0][u] = out_data_fifo[u][fifo_rd_idx];
         end
-        
+
         for (w = 0; w < NUMBER_OF_BUFFER_INSTANCES_LOCAL; w++) begin
             for (v = 0; v < TOTAL_INPUT_W_N1; v++) begin
                 assign n_bank1_din_bridge[w][v] = input_n_QKT_Vn[v];
             end
         end
-    endgenerate
-    
+    endgenerate*/
+
     logic [W1_SLICE_WIDTH-1:0] w_dout_b1 [NUMBER_OF_BUFFER_INSTANCES_LOCAL][TOTAL_INPUT_W_W1];
     logic [N1_MODULE_WIDTH-1:0] n_dout_b1 [NUMBER_OF_BUFFER_INSTANCES_LOCAL];
-    
+
     top_buffer #(
         .NUMBER_OF_BUFFER_INSTANCES(NUMBER_OF_BUFFER_INSTANCES_LOCAL),
+        .SPECIAL_CASE       (1),
         // West
         .WIDTH              (B1_WIDTH),
         .W_NUM_CORES_A      (W1_NUM_CORES_A),
@@ -289,29 +289,30 @@ module self_attention_head #(
         .W_COL_X            (W1_COL_X),
         .W_ROW_X            (W1_ROW_X),
         .TOTAL_INPUT_W_W    (TOTAL_INPUT_W_W1),
-        
+
         .ADDR_WIDTH_W       (ADDR_WIDTH_W1),
         .W_IN_WIDTH         (W1_IN_WIDTH),
         .W_SLICE_WIDTH      (W1_SLICE_WIDTH),
         .W_MODULE_WIDTH     (W1_MODULE_WIDTH),
         .W_MEMORY_SIZE      (W1_MEMORY_SIZE),
         .W_TOTAL_DEPTH      (W1_TOTAL_DEPTH),
-        
+        .W_TOTAL_IN         (W1_TOTAL_IN),
+
         // North
         .N_NUM_CORES_A      (N1_NUM_CORES_A),
         .N_NUM_CORES_B      (N1_NUM_CORES_B),
-        .N_TOTAL_MODULES    (N1_TOTAL_MODULES),
+        .N_TOTAL_MODULES    (1),
         .N_ROW_X            (N1_ROW_X),
         .N_COL_X            (N1_COL_X),
         .TOTAL_INPUT_W_N    (TOTAL_INPUT_W_N1),
-        
+
         .ADDR_WIDTH_N       (ADDR_WIDTH_N1),
         .N_IN_WIDTH         (N1_IN_WIDTH),
         .N_MEMORY_SIZE      (N1_MEMORY_SIZE),
         .N_TOTAL_DEPTH      (N1_TOTAL_DEPTH),
         .N_SLICE_WIDTH      (N1_SLICE_WIDTH),
         .N_MODULE_WIDTH     (N1_MODULE_WIDTH),
-    
+
         // ================= GLOBAL PARAMETERS =================
         .MAX_FLAG           (MAX_FLAG_B1),
         .COL_Y              (COL_SIZE_MAT_C_B1),
@@ -338,7 +339,7 @@ module self_attention_head #(
         .out_valid               (sig_out_valid),
         .enable_matmul           (sig_enable_matmul)
     );
-    
+
     genvar a;
     generate
         for (a = 0; a < NUMBER_OF_BUFFER_INSTANCES_LOCAL; a++) begin
@@ -365,7 +366,7 @@ module self_attention_head #(
                 .input_n                (n_dout_b1[a]),
                 .acc_done_wrap          (sig_acc_done_wrap),
                 .systolic_finish_wrap   (sig_systolic_finish_wrap),
-                .out_multi_matmul       (out_matmul_QKT_Vn[a])
+                .out_multi_matmul       (out_matmul_QKT_Vn)
             );
         end
     endgenerate
@@ -378,10 +379,30 @@ module self_attention_head #(
             for (int a = 0; a < TOTAL_INPUT_W_Qn_KnT; a++) begin
                 out_b2r_data_reg[a] <= '0;
             end
+            /*
+            for (int u = 0; u < TOTAL_INPUT_W_W1; u++) begin
+                w_bank1_din_bridge[0][u] <= '0;
+            end*/
+
+            for (int w = 0; w < NUMBER_OF_BUFFER_INSTANCES_LOCAL; w++) begin
+                for (int v = 0; v < TOTAL_INPUT_W_N1; v++) begin
+                    n_bank1_din_bridge[w][v] <= '0;
+                end
+            end
         end
         else begin
             for (int a = 0; a < TOTAL_INPUT_W_Qn_KnT; a++) begin
                 out_b2r_data_reg[a] <= out_b2r_data[a];
+            end
+
+            for (int u = 0; u < TOTAL_INPUT_W_W1; u++) begin
+                w_bank1_din_bridge[0][u] <= out_data_fifo[u][fifo_rd_idx];
+            end
+
+            for (int w = 0; w < NUMBER_OF_BUFFER_INSTANCES_LOCAL; w++) begin
+                for (int v = 0; v < TOTAL_INPUT_W_N1; v++) begin
+                    n_bank1_din_bridge[w][v] <= input_n_QKT_Vn[v];
+                end
             end
         end
     end
@@ -389,4 +410,3 @@ module self_attention_head #(
 
 
 endmodule
-
