@@ -15,10 +15,10 @@ module buffer_n_special #(
     localparam BLOCK_SIZE       = top_pkg::TOP_BLOCK_SIZE, // should be 2
 
     parameter SLICE_WIDTH       = WIDTH * CHUNK_SIZE,
-    parameter IN_WIDTH          = SLICE_WIDTH * NUM_CORES_A,
+    parameter IN_WIDTH          = SLICE_WIDTH * NUM_CORES_A * NUM_CORES_B,
     parameter MODULE_WIDTH      = WIDTH * CHUNK_SIZE * NUM_CORES_B,
 
-    parameter TOTAL_DEPTH       = ROW_X * COL_X,                        // DO NOT ERASE THIS COMMENT: Please revise this later
+    parameter TOTAL_DEPTH       = ROW_X * COL_X,                        
     parameter MEMORY_SIZE       = TOTAL_DEPTH * MODULE_WIDTH,
     parameter int ADDR_WIDTH    = $clog2(TOTAL_DEPTH)
 )(
@@ -47,6 +47,7 @@ module buffer_n_special #(
         input int core_a_idx
     );
         logic [MODULE_WIDTH-1:0] tmp;
+        logic [WIDTH-1:0] e0, e1, e2, e3;
 
         int out_offset;
         out_offset = 0;
@@ -55,8 +56,6 @@ module buffer_n_special #(
 
             int base_idx;
             base_idx = (b * NUM_CORES_A + core_a_idx) * CHUNK_SIZE * WIDTH;
-
-            logic [WIDTH-1:0] e0, e1, e2, e3;
 
             e0 = bus[base_idx + 0*WIDTH +: WIDTH];
             e1 = bus[base_idx + 1*WIDTH +: WIDTH];
@@ -127,7 +126,7 @@ module buffer_n_special #(
         .web    (bank0_web),
         .addrb  (bank0_addrb),
         .dinb   (extract_module_special(bank0_din[1], slicing_idx)),
-        .doutb  ()
+        .doutb  (bank0_dout)
     );
 
 endmodule

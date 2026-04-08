@@ -4,6 +4,7 @@
 
 module top_buffer #(
     parameter NUMBER_OF_BUFFER_INSTANCES = 4,
+    parameter SPECIAL_CASE               = 0,
     // ================= WEST PARAMETERS =================
     parameter WIDTH            = 16,
     parameter W_NUM_CORES_A      = 4,
@@ -76,62 +77,121 @@ module top_buffer #(
     // Slicing + global control
     logic [$clog2(W_TOTAL_MODULES)-1:0] w_slicing_idx;
     logic [$clog2(N_TOTAL_MODULES)-1:0] n_slicing_idx;
+    logic [$clog2(N_TOTAL_MODULES)-1:0] n_slicing_idx_special;  // For buffer_n_special
 
     logic state_now;
-    
-    buffer_ctrl #(
-    
-        .TOTAL_MODULES_N   (N_TOTAL_MODULES),
-        .TOTAL_MODULES_W   (W_TOTAL_MODULES),
-    
-        .ADDR_WIDTH_N      (ADDR_WIDTH_N),
-        .ADDR_WIDTH_W      (ADDR_WIDTH_W),
-    
-        .W_TOTAL_IN        (W_TOTAL_IN),
-        .W_COL_X           (W_COL_X),
-        .W_ROW_X           (W_ROW_X),
-    
-        .N_ROW_X           (N_ROW_X),
-        .N_COL_X           (N_COL_X),
-    
-        .N_TOTAL_DEPTH     (N_TOTAL_DEPTH),
-        .W_TOTAL_DEPTH     (W_TOTAL_DEPTH),
-    
-        .MAX_FLAG          (MAX_FLAG),
-        .COL_Y             (COL_Y),
-        .INNER_DIMENSION   (INNER_DIMENSION)
 
-    ) buffer_controller (
-        .clk                    (clk),
-        .rst_n                  (rst_n),
-        .in_valid_w             (in_valid_w),
-        .in_valid_n             (in_valid_n),
-        .acc_done_wrap          (acc_done_wrap),
-        .systolic_finish_wrap   (systolic_finish_wrap),
+    generate
+        if (SPECIAL_CASE) begin : GEN_SPECIAL_CONTROLLER
+            buffer_ctrl_special #(
+                .N_NUM_CORES_A     (N_NUM_CORES_A),
+                .TOTAL_MODULES_W   (W_TOTAL_MODULES),
+            
+                .ADDR_WIDTH_N      (ADDR_WIDTH_N),
+                .ADDR_WIDTH_W      (ADDR_WIDTH_W),
+            
+                .W_TOTAL_IN        (W_TOTAL_IN),
+                .W_COL_X           (W_COL_X),
+                .W_ROW_X           (W_ROW_X),
+            
+                .N_ROW_X           (N_ROW_X),
+                .N_COL_X           (N_COL_X),
+            
+                .N_TOTAL_DEPTH     (N_TOTAL_DEPTH),
+                .W_TOTAL_DEPTH     (W_TOTAL_DEPTH),
+            
+                .MAX_FLAG          (MAX_FLAG),
+                .COL_Y             (COL_Y),
+                .INNER_DIMENSION   (INNER_DIMENSION)
 
-        // -------- West Interface --------
-        .w_bank0_ena_ctrl       (w_bank0_ena_ctrl),
-        .w_bank0_enb_ctrl       (w_bank0_enb_ctrl),
-        .w_bank0_wea_ctrl       (w_bank0_wea_ctrl),
-        .w_bank0_addra_ctrl     (w_bank0_addra_ctrl),
-        .w_bank0_addrb_ctrl     (w_bank0_addrb_ctrl),
+            ) buffer_controller_special (
+                .clk                    (clk),
+                .rst_n                  (rst_n),
+                .in_valid_w             (in_valid_w),
+                .in_valid_n             (in_valid_n),
+                .acc_done_wrap          (acc_done_wrap),
+                .systolic_finish_wrap   (systolic_finish_wrap),
 
-        // -------- North Interface --------
-        .n_bank0_ena_ctrl       (n_bank0_ena_ctrl),
-        .n_bank0_enb_ctrl       (n_bank0_enb_ctrl),
-        .n_bank0_wea_ctrl       (n_bank0_wea_ctrl),     
-        .n_bank0_addra_ctrl     (n_bank0_addra_ctrl),   
-        .n_bank0_addrb_ctrl     (n_bank0_addrb_ctrl),   
+                // -------- West Interface --------
+                .w_bank0_ena_ctrl       (w_bank0_ena_ctrl),
+                .w_bank0_enb_ctrl       (w_bank0_enb_ctrl),
+                .w_bank0_wea_ctrl       (w_bank0_wea_ctrl),
+                .w_bank0_addra_ctrl     (w_bank0_addra_ctrl),
+                .w_bank0_addrb_ctrl     (w_bank0_addrb_ctrl),
 
-        // -------- Global Control --------
-        .w_slicing_idx          (w_slicing_idx),
-        .n_slicing_idx          (n_slicing_idx),
-        .internal_rst_n_ctrl    (internal_rst_n_ctrl),
-        .internal_reset_acc_ctrl(internal_reset_acc_ctrl),
-        .out_valid              (out_valid),
-        .enable_matmul          (enable_matmul),
-        .state_now              (state_now)
-    );
+                // -------- North Interface --------
+                .n_bank0_ena_ctrl       (n_bank0_ena_ctrl),
+                .n_bank0_enb_ctrl       (n_bank0_enb_ctrl),
+                .n_bank0_wea_ctrl       (n_bank0_wea_ctrl),     
+                .n_bank0_addra_ctrl     (n_bank0_addra_ctrl),   
+                .n_bank0_addrb_ctrl     (n_bank0_addrb_ctrl),   
+
+                // -------- Global Control --------
+                .w_slicing_idx          (w_slicing_idx),
+                .n_slicing_idx          (n_slicing_idx_special),
+                .internal_rst_n_ctrl    (internal_rst_n_ctrl),
+                .internal_reset_acc_ctrl(internal_reset_acc_ctrl),
+                .out_valid              (out_valid),
+                .enable_matmul          (enable_matmul),
+                .state_now              (state_now)
+            );
+        end else begin : GEN_NORMAL_CONTROLLER
+            buffer_ctrl #(
+                .TOTAL_MODULES_N   (N_TOTAL_MODULES),
+                .TOTAL_MODULES_W   (W_TOTAL_MODULES),
+            
+                .ADDR_WIDTH_N      (ADDR_WIDTH_N),
+                .ADDR_WIDTH_W      (ADDR_WIDTH_W),
+            
+                .W_TOTAL_IN        (W_TOTAL_IN),
+                .W_COL_X           (W_COL_X),
+                .W_ROW_X           (W_ROW_X),
+            
+                .N_ROW_X           (N_ROW_X),
+                .N_COL_X           (N_COL_X),
+            
+                .N_TOTAL_DEPTH     (N_TOTAL_DEPTH),
+                .W_TOTAL_DEPTH     (W_TOTAL_DEPTH),
+            
+                .MAX_FLAG          (MAX_FLAG),
+                .COL_Y             (COL_Y),
+                .INNER_DIMENSION   (INNER_DIMENSION)
+
+            ) buffer_controller_norm (
+                .clk                    (clk),
+                .rst_n                  (rst_n),
+                .in_valid_w             (in_valid_w),
+                .in_valid_n             (in_valid_n),
+                .acc_done_wrap          (acc_done_wrap),
+                .systolic_finish_wrap   (systolic_finish_wrap),
+
+                // -------- West Interface --------
+                .w_bank0_ena_ctrl       (w_bank0_ena_ctrl),
+                .w_bank0_enb_ctrl       (w_bank0_enb_ctrl),
+                .w_bank0_wea_ctrl       (w_bank0_wea_ctrl),
+                .w_bank0_addra_ctrl     (w_bank0_addra_ctrl),
+                .w_bank0_addrb_ctrl     (w_bank0_addrb_ctrl),
+
+                // -------- North Interface --------
+                .n_bank0_ena_ctrl       (n_bank0_ena_ctrl),
+                .n_bank0_enb_ctrl       (n_bank0_enb_ctrl),
+                .n_bank0_wea_ctrl       (n_bank0_wea_ctrl),     
+                .n_bank0_addra_ctrl     (n_bank0_addra_ctrl),   
+                .n_bank0_addrb_ctrl     (n_bank0_addrb_ctrl),   
+
+                // -------- Global Control --------
+                .w_slicing_idx          (w_slicing_idx),
+                .n_slicing_idx          (n_slicing_idx),
+                .internal_rst_n_ctrl    (internal_rst_n_ctrl),
+                .internal_reset_acc_ctrl(internal_reset_acc_ctrl),
+                .out_valid              (out_valid),
+                .enable_matmul          (enable_matmul),
+                .state_now              (state_now)
+            );
+        end
+    endgenerate
+    
+    
 
     // ************************************ PING PONG BUFFERS ************************************
     logic [W_MODULE_WIDTH-1:0] w_bank0_dout_i [NUMBER_OF_BUFFER_INSTANCES];
@@ -142,6 +202,7 @@ module top_buffer #(
     generate
         for (i = 0; i < NUMBER_OF_BUFFER_INSTANCES; i++) begin : GEN_BUFFER
             buffer_wrapper #(
+                .SPECIAL_CASE       (SPECIAL_CASE),
                 // WEST
                 .WIDTH              (WIDTH),
                 .W_NUM_CORES_A      (W_NUM_CORES_A),

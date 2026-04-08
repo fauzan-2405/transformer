@@ -5,7 +5,7 @@
 module buffer_ctrl_special #(
     parameter N_NUM_CORES_A       = 2,
     parameter TOTAL_MODULES_W     = 4,
-    
+
     parameter ADDR_WIDTH_W      = 2,
     parameter ADDR_WIDTH_N      = 4,
     parameter W_TOTAL_IN        = 4,
@@ -89,7 +89,6 @@ module buffer_ctrl_special #(
     logic [ADDR_WIDTH_N-1:0] n_bank0_addra_wr;
     logic [ADDR_WIDTH_N-1:0] n_bank0_addrb_wr;
     // For bank Read
-    logic [ADDR_WIDTH_N-1:0] n_bank0_addra_rd
     logic [ADDR_WIDTH_N-1:0] n_bank0_addrb_rd;
 
     // ************************************ FSM Next State Logic ************************************
@@ -135,10 +134,12 @@ module buffer_ctrl_special #(
     assign n_bank0_wea_ctrl   = (state_reg == S_LOAD_N) ? ((write_now_n) ? 1 : 0) : 0;
     assign n_bank0_web_ctrl   = (state_reg == S_LOAD_N) ? ((write_now_n) ? 1 : 0) : 0;
 
-    assign n_bank0_addra_ctrl = (state_reg == S_LOAD_N) ? n_bank0_addra_wr :
-                                (state_reg == S_LOAD_N_FINISHED) ? n_bank0_addra_rd : '0;
+    /*assign n_bank0_addra_ctrl = n_bank0_addra_wr;
+    assign n_bank0_addrb_ctrl = (state_reg == S_LOAD_N_FINISHED) ? n_bank0_addrb_rd : n_bank0_addrb_wr;*/
+
+    assign n_bank0_addra_ctrl = (state_reg == S_LOAD_N) ? n_bank0_addra_wr : '0;
     assign n_bank0_addrb_ctrl = (state_reg == S_LOAD_N) ? n_bank0_addrb_wr :
-                                (state_reg == S_LOAD_N_FINISHED) ? n_bank0_addrb_rd : '0;
+                                (state_reg == S_LOAD_N_FINISHED) ? n_bank0_addrb_rd : 2;
 
 
     // ************************************ FSM Sequential Logic ************************************
@@ -165,8 +166,7 @@ module buffer_ctrl_special #(
 
             // North Input Bank Controllers
             n_bank0_addra_wr      <= '0;
-            n_bank0_addrb_wr      <= 1;     // Because we need this to be the next address of the n_bank0_addra_wr
-            n_bank0_addra_rd      <= '0;
+            n_bank0_addrb_wr      <= 2;     // Because we need this to be the next address of the n_bank0_addra_wr
             n_bank0_addrb_rd      <= '0;
 
             col_idx               <= '0;
@@ -213,7 +213,7 @@ module buffer_ctrl_special #(
                     end else begin
                         col_idx     <= col_idx + 1;
                     end
-                    
+
                 end
             end
 
@@ -243,8 +243,8 @@ module buffer_ctrl_special #(
             if (write_now_n) begin
                 n_slicing_idx       <= n_slicing_idx + 1;
 
-                n_bank0_addra_wr    <= (row_idx*N_NUM_CORES_A*BLOCK_SIZE) + (col_idx*(N_ROW_X)*N_NUM_CORES_A*BLOCK_SIZE) + n_slicing_idx*2; 
-                n_bank0_addrb_wr    <= (row_idx*N_NUM_CORES_A*BLOCK_SIZE) + (col_idx*(N_ROW_X)*N_NUM_CORES_A*BLOCK_SIZE) + n_slicing_idx*2 + 1;
+                n_bank0_addra_wr    <= (row_idx*N_NUM_CORES_A*BLOCK_SIZE) + (col_idx*(N_ROW_X)*N_NUM_CORES_A*BLOCK_SIZE) + n_slicing_idx;
+                n_bank0_addrb_wr    <= (row_idx*N_NUM_CORES_A*BLOCK_SIZE) + (col_idx*(N_ROW_X)*N_NUM_CORES_A*BLOCK_SIZE) + n_slicing_idx + N_NUM_CORES_A;
             end else begin
                 n_slicing_idx       <= '0;
             end

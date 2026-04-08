@@ -64,16 +64,16 @@ package buffer0_pkg;
     //localparam W1_TOTAL_IN          = W1_ROW_X * W1_COL_X / TOTAL_INPUT_W_W1;
     localparam W1_TOTAL_IN          = W1_ROW_X * W1_COL_X;
 
-    // For North Buffer 1
+    // For North Buffer 1 (Buffer N Special)
     parameter TOTAL_INPUT_W_N1      = TOTAL_INPUT_W_N0;
-    parameter int N1_ROW_X          = W0_ROW_X;
-    parameter int N1_COL_X          = W0_COL_X;
-    parameter int N1_NUM_CORES_A    = 1;
+    parameter int N1_ROW_X          = linear_proj_pkg::A_OUTER_DIMENSION / (linear_proj_pkg::BLOCK_SIZE * linear_proj_pkg::NUM_CORES_A * linear_proj_pkg::TOTAL_INPUT_W); // In BLOCK_SIZE
+    parameter int N1_COL_X          = linear_proj_pkg::B_OUTER_DIMENSION / (linear_proj_pkg::NUM_CORES_B * linear_proj_pkg::TOTAL_MODULES_V * linear_proj_pkg::BLOCK_SIZE); 
+    parameter int N1_NUM_CORES_A    = self_attention_pkg::NUM_CORES_A_Qn_KnT;
     parameter int N1_NUM_CORES_B    = self_attention_pkg::NUM_CORES_B_Qn_KnT;
-    parameter int N1_TOTAL_MODULES  = self_attention_pkg::TOTAL_MODULES_LP_K; // How many modules used from the last multiplication for this west buffer
-    localparam N1_SLICE_WIDTH       = B1_WIDTH*(top_pkg::TOP_CHUNK_SIZE)*N1_NUM_CORES_B;
-    localparam N1_MODULE_WIDTH      = N1_SLICE_WIDTH*TOTAL_INPUT_W_N1;
-    localparam N1_IN_WIDTH          = N1_SLICE_WIDTH * N1_NUM_CORES_A * N1_TOTAL_MODULES;
+    //parameter int N1_TOTAL_MODULES  = self_attention_pkg::TOTAL_MODULES_LP_K; // How many modules used from the last multiplication for this west buffer
+    localparam N1_SLICE_WIDTH       = B1_WIDTH*(top_pkg::TOP_CHUNK_SIZE);
+    localparam N1_MODULE_WIDTH      = N1_SLICE_WIDTH*N1_NUM_CORES_B;
+    localparam N1_IN_WIDTH          = N1_SLICE_WIDTH * N1_NUM_CORES_A * N1_NUM_CORES_B;
     localparam N1_TOTAL_DEPTH       = N1_ROW_X * N1_COL_X;
     localparam N1_MEMORY_SIZE       = N1_TOTAL_DEPTH * N1_MODULE_WIDTH;
     localparam int ADDR_WIDTH_N1    = $clog2(N1_TOTAL_DEPTH);
