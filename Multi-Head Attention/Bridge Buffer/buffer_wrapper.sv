@@ -3,6 +3,7 @@
 // Controller signals are assumed to be driven externally (buffer_ctrl)
 
 module buffer_wrapper #(
+    parameter SPECIAL_CASE      = 0,
     parameter WIDTH             = 16,
 
     // West Buffer
