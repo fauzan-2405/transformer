@@ -379,16 +379,40 @@ def main():
     parser.add_argument('--cols_a', type=int, default=6)
     parser.add_argument('--proj_dim', type=int, default=8)
 
+    # Fixed-point configs (NEW)
+    parser.add_argument('--A_total_bits', type=int, default=16)
+    parser.add_argument('--A_frac_bits', type=int, default=8)
+
+    parser.add_argument('--B_total_bits', type=int, default=16)
+    parser.add_argument('--B_frac_bits', type=int, default=8)
+
+    parser.add_argument('--C_total_bits', type=int, default=16)
+    parser.add_argument('--C_frac_bits', type=int, default=8)
+
+    parser.add_argument('--unsigned', action='store_true',
+                        help='Use unsigned fixed-point (default signed)')
+
     args = parser.parse_args()
 
-    # fixed-point config (can be made CLI params if needed)
-    fp_A = (16, 8, True)
-    fp_B = (16, 8, True)
-    fp_C = (16, 8, True)
+    is_signed = not args.unsigned
 
-    conv_A = FixedPointConverter(*fp_A)
-    conv_W = FixedPointConverter(*fp_B)
-    conv_C = FixedPointConverter(*fp_C)
+    conv_A = FixedPointConverter(
+        total_bits=args.A_total_bits,
+        fractional_bits=args.A_frac_bits,
+        is_signed=is_signed
+    )
+
+    conv_W = FixedPointConverter(
+        total_bits=args.B_total_bits,
+        fractional_bits=args.B_frac_bits,
+        is_signed=is_signed
+    )
+
+    conv_C = FixedPointConverter(
+        total_bits=args.C_total_bits,
+        fractional_bits=args.C_frac_bits,
+        is_signed=is_signed
+    )
 
     processor = MatrixProcessor()
     processor.cores_a = args.cores_a
