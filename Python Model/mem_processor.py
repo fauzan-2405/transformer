@@ -1,10 +1,10 @@
-# mem_processor_v2.py
+# mem_processor.py
 # Recursively process .mem files in a directory OR a single .mem file
 # Automatically detect core/row modes + linear-projection mem patterns
 # Clean each file and display values in int/float/binary formats
 
 # How to use:
-# python mem_processor_v2.py exports/ --total_bits 16 --frac_bits 8 --display float
+# python mem_processor.py exports/ --total_bits 16 --frac_bits 8 --display float
 
 
 import os

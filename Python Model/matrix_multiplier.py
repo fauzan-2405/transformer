@@ -1,18 +1,18 @@
 #!/usr/bin/env python3
 """
-matrix_multiplier_v2.py
+matrix_multiplier.py
 
 Usage examples:
 
 # original matmul:
-python matrix_multiplier_v2.py --task matmul --display float --integers --min_val 0 --max_val 2 --cores_a 2 --cores_b 4
+python matrix_multiplier.py --task matmul --display float --integers --min_val 0 --max_val 2 --cores_a 2 --cores_b 4
 
 # linear projection (unique per type; only one Q/K/V, single out_* exported & printed)
-python matrix_multiplier_v2.py --task linear_projection --rows_a 8 --cols_a 6 --proj_dim 8 \
+python matrix_multiplier.py --task linear_projection --rows_a 8 --cols_a 6 --proj_dim 8 \
     --unique_per_type --display float --integers --min_val 0 --max_val 2 --cores_a 2 --cores_b 4
 
 # linear projection (unique per head; generate 4 heads by default)
-python matrix_multiplier_v2.py --task linear_projection --rows_a 8 --cols_a 6 --proj_dim 8 \
+python matrix_multiplier.py --task linear_projection --rows_a 8 --cols_a 6 --proj_dim 8 \
     --unique_per_head --heads 4 --display float --integers --min_val 0 --max_val 2 --cores_a 2 --cores_b 4
 """
 import os
