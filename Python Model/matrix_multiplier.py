@@ -14,6 +14,10 @@ python matrix_multiplier.py --task linear_projection --rows_a 8 --cols_a 6 --pro
 # linear projection (unique per head; generate 4 heads by default)
 python matrix_multiplier.py --task linear_projection --rows_a 8 --cols_a 6 --proj_dim 8 \
     --unique_per_head --heads 4 --display float --integers --min_val 0 --max_val 2 --cores_a 2 --cores_b 4
+
+# Another example:
+python "d:\DATA\Documents\Xirka Internship\PME\Transformer\transformer\Python Model\matrix_multiplier_new.py"  --task linear_projection  --rows_a 16 --cols_a 10 --proj_dim 12  
+                    --cores_a 2 --cores_b 1  --total_modules 2  --export_c_v2  --unique_per_type  --display float --output_format hex --integers --min_val 0 --max_val 1
 """
 import os
 import argparse
@@ -60,6 +64,17 @@ class FixedPointConverter:
         if self.is_signed and v < 0:
             v = (1 << self.total_bits) + v
         return format(v & mask, f'0{self.total_bits}b')
+    
+    def int_to_hex(self, val: int) -> str:
+        """Convert integer representation to hex string of width total_bits"""
+        v = int(val)
+        mask = (1 << self.total_bits) - 1
+
+        if self.is_signed and v < 0:
+            v = (1 << self.total_bits) + v
+
+        width = (self.total_bits + 3) // 4  # hex digits
+        return format(v & mask, f'0{width}X')
 
 # ---------------------------
 # Matrix processing helper
@@ -229,6 +244,105 @@ class MatrixProcessor:
                                 for c in range(block_size):
                                     elements.append(converter.int_to_binary(int(block[r, c])))
                     f.write(" ".join(elements) + "\n")
+    
+    def export_matrix_C_v2(self,
+                      matrix: np.ndarray,
+                      converter,
+                      filename: str,
+                      block_size: int,
+                      total_input_w: int,
+                      total_modules: int,
+                      output_format: str,
+                      debug_print: bool = True):
+        """
+        New C export matching RTL behavior:
+
+        Order:
+        row_group → col_group → input_w → module → core_b
+
+        Constraints:
+        rows % (cores_a * total_input_w * block_size) == 0
+        cols % (cores_b * total_modules * block_size) == 0
+        """
+
+        rows, cols = matrix.shape
+
+        cores_a = self.cores_a
+        cores_b = self.cores_b
+
+        # -------------------------
+        # VALIDATION
+        # -------------------------
+        if rows % (cores_a * total_input_w * block_size) != 0:
+            raise ValueError("Rows not divisible by cores_a * total_input_w * block_size")
+
+        if cols % (cores_b * total_modules * block_size) != 0:
+            raise ValueError("Cols not divisible by cores_b * total_modules * block_size")
+
+        row_groups = rows // (cores_a * total_input_w * block_size)
+        col_groups = cols // (cores_b * total_modules * block_size)
+
+        # -------------------------
+        # EXPORT
+        # -------------------------
+        with open(filename, 'w') as f:
+
+            line_idx = 0
+
+            for rg in range(row_groups):
+                rbase = rg * cores_a * total_input_w * block_size
+
+                for cg in range(col_groups):
+                    cbase = cg * cores_b * total_modules * block_size
+
+                    # Store per input_w (for debug display)
+                    line_slices = []
+
+                    for iw in range(total_input_w):
+
+                        elements = []
+
+                        for module in range(total_modules):
+                            for cb in range(cores_b):
+
+                                cstart = cbase + (module * cores_b + cb) * block_size
+
+                                for ra in range(cores_a):
+                                    rstart = rbase + (iw * cores_a + ra) * block_size
+
+                                    block = matrix[
+                                        rstart:rstart+block_size,
+                                        cstart:cstart+block_size
+                                    ]
+
+                                    for r in range(block_size):
+                                        for c in range(block_size):
+                                            val = int(block[r, c])
+                                            if output_format == 'hex':
+                                                elements.append(converter.int_to_hex(val))
+                                            else:
+                                                elements.append(converter.int_to_binary(val))
+
+                        line_slices.append(elements)
+
+                    # -------------------------
+                    # WRITE TO FILE (flattened)
+                    # -------------------------
+                    flat_line = []
+                    for s in line_slices:
+                        flat_line.extend(s)
+
+                    f.write(" ".join(flat_line) + "\n")
+
+                    # -------------------------
+                    # DEBUG PRINT (YOUR FORMAT)
+                    # -------------------------
+                    if debug_print:
+                        print(f"\nLine {line_idx}, 0:", " ".join(line_slices[0]))
+                        for idx in range(1, len(line_slices)):
+                            print(f"         {idx}:", " ".join(line_slices[idx]))
+
+                    line_idx += 1
 
 # ---------------------------
 # Linear projection generation
@@ -249,6 +363,11 @@ def generate_linear_projection(processor: MatrixProcessor,
                                integers_only: bool,
                                min_val: float,
                                max_val: float,
+                               total_input_w: int,
+                               total_modules: int,
+                               export_c_v2: bool,
+                               output_format: str,
+                               debug_flag: bool,
                                display: str):
     """
     Generate input matrix A, weight matrices (Wq/Wk/Wv) and compute projections (Q/K/V).
@@ -338,13 +457,58 @@ def generate_linear_projection(processor: MatrixProcessor,
         out_k_name = f"exports/mem_out_k{idx+1}.mem"
         out_v_name = f"exports/mem_out_v{idx+1}.mem"
 
+        out_q_row  = f"exports/mem_out_q_row{idx+1}.mem"
+        out_k_row  = f"exports/mem_out_k_row{idx+1}.mem"
+        out_v_row  = f"exports/mem_out_v_row{idx+1}.mem"
+
         # Ensure processor has correct cores for exporting C
         processor.cores_a = cores_a
         processor.cores_b = cores_b
 
-        processor.export_matrix(Q, conv_C, out_q_name, mode='core', block_size=block_size, num_cores=None, matrix_type='C')
-        processor.export_matrix(K, conv_C, out_k_name, mode='core', block_size=block_size, num_cores=None, matrix_type='C')
-        processor.export_matrix(V, conv_C, out_v_name, mode='core', block_size=block_size, num_cores=None, matrix_type='C')
+        if export_c_v2:
+            print("\n" + "="*60)
+            print(f"HEAD {idx+1}")
+            print("="*60)
+
+            print("\n[Q OUTPUT]")
+            processor.export_matrix_C_v2(
+                Q, conv_C, out_q_name,
+                block_size=block_size,
+                total_input_w=total_input_w,
+                total_modules=total_modules,
+                output_format=output_format,
+                debug_print=debug_flag
+            )
+            processor.export_matrix(Q, conv_C, out_q_row, mode='row')
+
+            print("\n[K OUTPUT]")
+            processor.export_matrix_C_v2(
+                K, conv_C, out_k_name,
+                block_size=block_size,
+                total_input_w=total_input_w,
+                total_modules=total_modules,
+                output_format=output_format,
+                debug_print=debug_flag
+            )
+            processor.export_matrix(Q, conv_C, out_k_row, mode='row')
+
+            print("\n[V OUTPUT]")
+            processor.export_matrix_C_v2(
+                V, conv_C, out_v_name,
+                block_size=block_size,
+                total_input_w=total_input_w,
+                total_modules=total_modules,
+                output_format=output_format,
+                debug_print=debug_flag
+            )
+            processor.export_matrix(Q, conv_C, out_v_row, mode='row')
+        else:
+            processor.export_matrix(Q, conv_C, out_q_name, mode='core',
+                                    block_size=block_size, num_cores=None, matrix_type='C')
+            processor.export_matrix(K, conv_C, out_k_name, mode='core',
+                                    block_size=block_size, num_cores=None, matrix_type='C')
+            processor.export_matrix(V, conv_C, out_v_name, mode='core',
+                                    block_size=block_size, num_cores=None, matrix_type='C')
 
         # Print results (float or int depending display)
         processor.print_matrix(Q, conv_C, f"Out_Q{idx+1}", display)
@@ -378,6 +542,9 @@ def main():
     parser.add_argument('--rows_a', type=int, default=8)
     parser.add_argument('--cols_a', type=int, default=6)
     parser.add_argument('--proj_dim', type=int, default=8)
+    parser.add_argument('--total_input_w', type=int, default=2, help='Number of input ports (default: 2)')
+    parser.add_argument('--total_modules', type=int, default=1, help='Number of parallel modules (default: 1)')
+    parser.add_argument('--export_c_v2', action='store_true', help='Use RTL-aligned export format for Matrix C')
 
     # Fixed-point configs (NEW)
     parser.add_argument('--A_total_bits', type=int, default=16)
@@ -391,6 +558,11 @@ def main():
 
     parser.add_argument('--unsigned', action='store_true',
                         help='Use unsigned fixed-point (default signed)')
+    
+    # Debugging configs
+    parser.add_argument('--output_format', choices=['bin', 'hex'], default='hex',
+                    help='Output format for exported matrices')
+    parser.add_argument('--debug_all_heads', action='store_true', default='true')
 
     args = parser.parse_args()
 
@@ -437,7 +609,11 @@ def main():
 
         processor.export_matrix(A, conv_A, "exports/matrix_A_core.mem", mode='core', block_size=args.block_size, num_cores=args.cores_a, matrix_type='A')
         processor.export_matrix(B, conv_W, "exports/matrix_B_core.mem", mode='core', block_size=args.block_size, num_cores=args.cores_b, matrix_type='B')
-        processor.export_matrix(C, conv_C, "exports/matrix_C_core.mem", mode='core', block_size=args.block_size, num_cores=None, matrix_type='C')
+        if args.export_c_v2:
+            processor.export_matrix_C_v2(C, conv_C, "exports/matrix_C_core_v2.mem", block_size=args.block_size, total_input_w=args.total_input_w, total_modules=args.total_modules, debug_print=args.debug_all_heads)
+        else:
+            processor.export_matrix(C, conv_C, "exports/matrix_C_core.mem", mode='core', block_size=args.block_size, num_cores=None, matrix_type='C')
+        
 
         print("\nExports saved to 'exports' directory (matmul)")
 
@@ -467,6 +643,11 @@ def main():
             integers_only=args.integers,
             min_val=args.min_val,
             max_val=args.max_val,
+            total_input_w=args.total_input_w,
+            total_modules=args.total_modules,
+            output_format=args.output_format,
+            export_c_v2=args.export_c_v2,
+            debug_flag = args.debug_all_heads,
             display=args.display
         )
 
