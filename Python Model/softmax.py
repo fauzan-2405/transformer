@@ -2,11 +2,13 @@ import argparse
 
 """
 python "d:\DATA\Documents\Xirka Internship\PME\Transformer\transformer\Python Model\softmax.py" --input "d:\DATA\Documents\Xirka Internship\PME\Transformer\transformer\Python Model\A.txt" 
-        --input_format float --output_format hex --apply_div --div_value 16 -- width 16 --frac 8
+        --input_format float --output_format hex --output_file "D:\DATA\Documents\Xirka Internship\PME\Transformer\transformer\exports\softmax_results.txt" --apply_div --div_value 16 --width 16 --frac 8
 """
 # ==============================
 # Fixed-point configuration
 # ==============================
+
+MASK32 = 0xFFFFFFFF
 
 def to_signed32(x):
     x &= MASK32
@@ -18,19 +20,21 @@ def wrap32(x):
 # ==============================
 # Conversion
 # ==============================
-def float_to_q16(x):
-    return wrap32(int(round(x * (1 << FRAC))))
+def float_to_q16(x, frac):
+    return wrap32(int(round(x * (1 << frac))))
 
-def q16_to_float(x):
-    return float(to_signed32(x)) / (1 << FRAC)
+def q16_to_float(x, frac):
+    return float(to_signed32(x)) / (1 << frac)
 
 def hex_to_q16(h):
     return to_signed32(int(h, 16))
 
-def q16_to_hex(x):
-    return f"{(x & MASK32):08X}"
+def q16_to_hex(x, width):
+    hex_digits = width // 4
+    mask = (1 << width) - 1
+    return f"{(x & mask):0{hex_digits}x}"
 
-def div_q16(x, d):
+def div_qx(x, d):
     # assume d is power of 2 (like 16)
     shift = int(d).bit_length() - 1
     return to_signed32(x >> shift)
@@ -93,7 +97,7 @@ def exp_q16(x):
     A = to_signed32(lutA[idx])
     C = to_signed32(lutC[idx])
 
-    prod = (x * A) >> FRAC
+    prod = (x * A) >> 16
     prod = to_signed32(prod)
 
     return to_signed32(prod + C)
@@ -133,7 +137,7 @@ def lnu_q16(x):
 # ==============================
 # Softmax (row-wise)
 # ==============================
-def softmax_row_q16(row):
+def softmax_row_q16(row, frac):
     # PASS 0: max
     max_val = max(row)
 
@@ -152,7 +156,7 @@ def softmax_row_q16(row):
 # ==============================
 # File IO
 # ==============================
-def read_matrix(file, fmt):
+def read_matrix(file, fmt, frac):
     mat = []
     with open(file) as f:
         for line in f:
@@ -161,34 +165,58 @@ def read_matrix(file, fmt):
                 continue
             if fmt == "float":
                 mat.append([
-                    to_q16_from_qx(float_to_q16(float(v)), FRAC)
+                    float_to_q16(float(v), frac)
                     for v in vals
                 ])
             else:
                 mat.append([hex_to_q16(v) for v in vals])
     return mat
 
-def write_matrix(mat, fmt):
+import os
+
+def write_matrix(mat, fmt, frac, width, output_file=None):
+    lines = []
+
     for row in mat:
         if fmt == "hex":
-            print(" ".join(q16_to_hex(v) for v in row))
+            line = " ".join(q16_to_hex(v, width) for v in row)
         else:
-            print(" ".join(f"{q16_to_float(v):.6f}" for v in row))
+            line = " ".join(f"{q16_to_float(v, frac):.6f}" for v in row)
+
+        lines.append(line)
+
+    if output_file:
+        # 🔥 create directory if not exists
+        os.makedirs(os.path.dirname(output_file), exist_ok=True)
+
+        with open(output_file, "w") as f:
+            for line in lines:
+                f.write(line + "\n")
+
+        print(f"[INFO] Saved to: {output_file}")
+    else:
+        for line in lines:
+            print(line)
             
-def softmax_row_wrapper(row, frac):
+def softmax_row_wrapper(row, frac, apply_div=False, div_val=16):
+    # Qm.n (optional divide)
+    if apply_div:
+        row = [div_qx(x, div_val) for x in row]
+
     # Convert input → Q16.16
     row_q16 = [to_q16_from_qx(x, frac) for x in row]
 
     # Run core softmax
-    out_q16 = softmax_row_q16(row_q16)
+    out_q16 = softmax_row_q16(row_q16, frac)
 
     # Convert back → Qm.n
     return [from_q16_to_qx(x, frac) for x in out_q16]
 
+
 # ==============================
 # MAIN
 # ==============================
-if __name__ == "__main__":
+def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--input", required=True)
     parser.add_argument("--input_format", default="hex", choices=["hex","float"])
@@ -197,18 +225,15 @@ if __name__ == "__main__":
     parser.add_argument("--div_value", type=int, default=16)
     parser.add_argument("--width", type=int, default=32)
     parser.add_argument("--frac", type=int, default=16)
+    parser.add_argument("--output_file", default="softmax_results.txt")
     
     args = parser.parse_args()
 
-    mat = read_matrix(args.input, args.input_format)
+    mat = read_matrix(args.input, args.input_format, args.frac)
 
-    WIDTH = args.width
-    FRAC = args.frac
-    MASK32 = 0xFFFFFFFF
+    out = [softmax_row_wrapper(row, args.frac, args.apply_div, args.div_value) for row in mat]
 
-    if args.apply_div:
-        mat = [[div_q16(x, args.div_value) for x in row] for row in mat]
+    write_matrix(out, args.output_format, args.frac, args.width, args.output_file)
 
-    out = [softmax_row_wrapper(row, FRAC) for row in mat]
-
-    write_matrix(out, args.output_format)
+if __name__ == "__main__":
+    main()
