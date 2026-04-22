@@ -16,7 +16,7 @@ python matrix_multiplier.py --task linear_projection --rows_a 8 --cols_a 6 --pro
     --unique_per_head --heads 4 --display float --integers --min_val 0 --max_val 2 --cores_a 2 --cores_b 4
 
 # Another example:
-python "d:\DATA\Documents\Xirka Internship\PME\Transformer\transformer\Python Model\matrix_multiplier_new.py"  --task linear_projection  --rows_a 16 --cols_a 10 --proj_dim 12  
+python "d:\DATA\Documents\Xirka Internship\PME\Transformer\transformer\Python Model\matrix_multiplier.py"  --task linear_projection  --rows_a 16 --cols_a 10 --proj_dim 12  
                     --cores_a 2 --cores_b 1  --total_modules 2  --export_c_v2  --unique_per_type  --display float --output_format hex --integers --min_val 0 --max_val 1
 """
 import os
@@ -148,7 +148,7 @@ class MatrixProcessor:
     def _export_row_mode(self, matrix: np.ndarray, converter: FixedPointConverter, filename: str):
         with open(filename, 'w') as f:
             for row in matrix:
-                f.write(" ".join(converter.int_to_binary(int(x)) for x in row) + "\n")
+                f.write(" ".join(converter.int_to_hex(int(x)) for x in row) + "\n")
 
     def _export_core_mode_A(self, matrix: np.ndarray, converter: FixedPointConverter, filename: str,
                              block_size: int, num_cores: int):
@@ -344,6 +344,15 @@ class MatrixProcessor:
 
                     line_idx += 1
 
+    def export_matrix_row_hex(matrix, filename):
+        import os
+        os.makedirs(os.path.dirname(filename), exist_ok=True)
+
+        with open(filename, 'w') as f:
+            for row in matrix:
+                line = " ".join(f"{int(v) & 0xFFFF:04x}" for v in row)
+                f.write(line + "\n")
+
 # ---------------------------
 # Linear projection generation
 # ---------------------------
@@ -368,25 +377,26 @@ def generate_linear_projection(processor: MatrixProcessor,
                                export_c_v2: bool,
                                output_format: str,
                                debug_flag: bool,
+                               output_dir: str,
                                display: str):
     """
     Generate input matrix A, weight matrices (Wq/Wk/Wv) and compute projections (Q/K/V).
     Export:
-      - exports/mem_input.mem         (A arrangement, core mode)
-      - exports/mem_q{h}.mem, ...     (B arrangement for weights)
-      - exports/mem_out_q{h}.mem ... (C arrangement for outputs)
+      - {output_dir}/mem_input.mem         (A arrangement, core mode)
+      - {output_dir}/mem_q{h}.mem, ...     (B arrangement for weights)
+      - {output_dir}/mem_out_q{h}.mem ... (C arrangement for outputs)
     Behavior:
       - If unique_per_type: generate only one Wq/Wk/Wv (exported as mem_q1.mem etc.)
         and compute/export/print only out_q1/out_k1/out_v1.
       - If unique_per_head: generate distinct weights per head and compute/export/print all heads.
     """
-    os.makedirs("exports", exist_ok=True)
+    os.makedirs(output_dir, exist_ok=True)
     processor.cores_a = cores_a
     processor.cores_b = cores_b
 
     # Create input A
     A = processor.create_matrix(rows_a, cols_a, min_val, max_val, conv_A, integers_only)
-    in_fname = "exports/mem_input.mem"
+    in_fname = f"{output_dir}/mem_input.mem"
     processor.export_matrix(A, conv_A, in_fname, mode='core', block_size=block_size, num_cores=cores_a, matrix_type='A')
     processor.print_matrix(A, conv_A, "Input Matrix A", display)
 
@@ -410,11 +420,11 @@ def generate_linear_projection(processor: MatrixProcessor,
         Wv_list = [Wv]
 
         # Export only one set of weights
-        processor.export_matrix(Wq, conv_W, "exports/mem_q1.mem", mode='core',
+        processor.export_matrix(Wq, conv_W, f"{output_dir}/mem_q1.mem", mode='core',
                                 block_size=block_size, num_cores=cores_b, matrix_type='B')
-        processor.export_matrix(Wk, conv_W, "exports/mem_k1.mem", mode='core',
+        processor.export_matrix(Wk, conv_W, f"{output_dir}/mem_k1.mem", mode='core',
                                 block_size=block_size, num_cores=cores_b, matrix_type='B')
-        processor.export_matrix(Wv, conv_W, "exports/mem_v1.mem", mode='core',
+        processor.export_matrix(Wv, conv_W, f"{output_dir}/mem_v1.mem", mode='core',
                                 block_size=block_size, num_cores=cores_b, matrix_type='B')
 
         # Print (optional)
@@ -435,9 +445,9 @@ def generate_linear_projection(processor: MatrixProcessor,
             Wq_list.append(wq)
             Wk_list.append(wk)
             Wv_list.append(wv)
-            processor.export_matrix(wq, conv_W, f"exports/mem_q{h+1}.mem", mode='core', block_size=block_size, num_cores=cores_b, matrix_type='B')
-            processor.export_matrix(wk, conv_W, f"exports/mem_k{h+1}.mem", mode='core', block_size=block_size, num_cores=cores_b, matrix_type='B')
-            processor.export_matrix(wv, conv_W, f"exports/mem_v{h+1}.mem", mode='core', block_size=block_size, num_cores=cores_b, matrix_type='B')
+            processor.export_matrix(wq, conv_W, f"{output_dir}/mem_q{h+1}.mem", mode='core', block_size=block_size, num_cores=cores_b, matrix_type='B')
+            processor.export_matrix(wk, conv_W, f"{output_dir}/mem_k{h+1}.mem", mode='core', block_size=block_size, num_cores=cores_b, matrix_type='B')
+            processor.export_matrix(wv, conv_W, f"{output_dir}/mem_v{h+1}.mem", mode='core', block_size=block_size, num_cores=cores_b, matrix_type='B')
             if display:
                 processor.print_matrix(wq, conv_W, f"Weight Wq head {h+1}", display)
                 processor.print_matrix(wk, conv_W, f"Weight Wk head {h+1}", display)
@@ -453,13 +463,13 @@ def generate_linear_projection(processor: MatrixProcessor,
         K = processor.multiply_matrices(A, Wk_list[idx], conv_A, conv_W, conv_C)
         V = processor.multiply_matrices(A, Wv_list[idx], conv_A, conv_W, conv_C)
 
-        out_q_name = f"exports/mem_out_q{idx+1}.mem"
-        out_k_name = f"exports/mem_out_k{idx+1}.mem"
-        out_v_name = f"exports/mem_out_v{idx+1}.mem"
+        out_q_name = f"{output_dir}/mem_out_q{idx+1}.mem"
+        out_k_name = f"{output_dir}/mem_out_k{idx+1}.mem"
+        out_v_name = f"{output_dir}/mem_out_v{idx+1}.mem"
 
-        out_q_row  = f"exports/mem_out_q_row{idx+1}.mem"
-        out_k_row  = f"exports/mem_out_k_row{idx+1}.mem"
-        out_v_row  = f"exports/mem_out_v_row{idx+1}.mem"
+        out_q_row  = f"{output_dir}/mem_out_q{idx+1}_row.mem"
+        out_k_row  = f"{output_dir}/mem_out_k{idx+1}_row.mem"
+        out_v_row  = f"{output_dir}/mem_out_v{idx+1}_row.mem"
 
         # Ensure processor has correct cores for exporting C
         processor.cores_a = cores_a
@@ -490,7 +500,7 @@ def generate_linear_projection(processor: MatrixProcessor,
                 output_format=output_format,
                 debug_print=debug_flag
             )
-            processor.export_matrix(Q, conv_C, out_k_row, mode='row')
+            processor.export_matrix(K, conv_C, out_k_row, mode='row')
 
             print("\n[V OUTPUT]")
             processor.export_matrix_C_v2(
@@ -501,7 +511,7 @@ def generate_linear_projection(processor: MatrixProcessor,
                 output_format=output_format,
                 debug_print=debug_flag
             )
-            processor.export_matrix(Q, conv_C, out_v_row, mode='row')
+            processor.export_matrix(V, conv_C, out_v_row, mode='row')
         else:
             processor.export_matrix(Q, conv_C, out_q_name, mode='core',
                                     block_size=block_size, num_cores=None, matrix_type='C')
@@ -515,7 +525,7 @@ def generate_linear_projection(processor: MatrixProcessor,
         processor.print_matrix(K, conv_C, f"Out_K{idx+1}", display)
         processor.print_matrix(V, conv_C, f"Out_V{idx+1}", display)
 
-    print("\nLinear projection exports written to 'exports/'")
+    print(f"\nLinear projection exports written to '{output_dir}/'")
 
 # ---------------------------
 # main
@@ -523,7 +533,7 @@ def generate_linear_projection(processor: MatrixProcessor,
 def main():
     parser = argparse.ArgumentParser(description="Matrix multiplier + linear projection exporter")
     parser.add_argument('--task', choices=['matmul', 'linear_projection'], default='matmul')
-    parser.add_argument('--display', choices=['int', 'float'], default='int',
+    parser.add_argument('--display', choices=['int', 'float'], default='float',
                         help='Format to display matrices (int: raw fixed-int, float: converted)')
     parser.add_argument('--min_val', type=float, default=0.0)
     parser.add_argument('--max_val', type=float, default=2.0)
@@ -562,7 +572,10 @@ def main():
     # Debugging configs
     parser.add_argument('--output_format', choices=['bin', 'hex'], default='hex',
                     help='Output format for exported matrices')
-    parser.add_argument('--debug_all_heads', action='store_true', default='true')
+    parser.add_argument('--debug_all_heads', action='store_true', default='false')
+
+    parser.add_argument('--out_dir', type=str, default='exports',
+                    help='Output directory for generated files')
 
     args = parser.parse_args()
 
@@ -602,20 +615,20 @@ def main():
         processor.print_matrix(B, conv_W, "Matrix B", args.display)
         processor.print_matrix(C, conv_C, "Matrix C (A x B)", args.display)
 
-        os.makedirs("exports", exist_ok=True)
-        processor.export_matrix(A, conv_A, "exports/matrix_A_row.mem", mode='row')
-        processor.export_matrix(B, conv_W, "exports/matrix_B_row.mem", mode='row')
-        processor.export_matrix(C, conv_C, "exports/matrix_C_row.mem", mode='row')
+        os.makedirs(args.out_dir, exist_ok=True)
+        processor.export_matrix(A, conv_A, f"{args.out_dir}/matrix_A_row.mem", mode='row')
+        processor.export_matrix(B, conv_W, f"{args.out_dir}/matrix_B_row.mem", mode='row')
+        processor.export_matrix(C, conv_C, f"{args.out_dir}/matrix_C_row.mem", mode='row')
 
-        processor.export_matrix(A, conv_A, "exports/matrix_A_core.mem", mode='core', block_size=args.block_size, num_cores=args.cores_a, matrix_type='A')
-        processor.export_matrix(B, conv_W, "exports/matrix_B_core.mem", mode='core', block_size=args.block_size, num_cores=args.cores_b, matrix_type='B')
+        processor.export_matrix(A, conv_A, f"{args.out_dir}/matrix_A_core.mem", mode='core', block_size=args.block_size, num_cores=args.cores_a, matrix_type='A')
+        processor.export_matrix(B, conv_W, f"{args.out_dir}/matrix_B_core.mem", mode='core', block_size=args.block_size, num_cores=args.cores_b, matrix_type='B')
         if args.export_c_v2:
-            processor.export_matrix_C_v2(C, conv_C, "exports/matrix_C_core_v2.mem", block_size=args.block_size, total_input_w=args.total_input_w, total_modules=args.total_modules, debug_print=args.debug_all_heads)
+            processor.export_matrix_C_v2(C, conv_C, f"{args.out_dir}/matrix_C_core_v2.mem", block_size=args.block_size, total_input_w=args.total_input_w, total_modules=args.total_modules, debug_print=args.debug_all_heads)
         else:
-            processor.export_matrix(C, conv_C, "exports/matrix_C_core.mem", mode='core', block_size=args.block_size, num_cores=None, matrix_type='C')
+            processor.export_matrix(C, conv_C, f"{args.out_dir}/matrix_C_core.mem", mode='core', block_size=args.block_size, num_cores=None, matrix_type='C')
         
 
-        print("\nExports saved to 'exports' directory (matmul)")
+        print(f"\n{args.out_dir} saved to '{args.out_dir}' directory (matmul)")
 
     elif args.task == 'linear_projection':
         heads = args.heads if args.heads > 0 else 4
@@ -648,6 +661,7 @@ def main():
             output_format=args.output_format,
             export_c_v2=args.export_c_v2,
             debug_flag = args.debug_all_heads,
+            output_dir = args.out_dir,
             display=args.display
         )
 
