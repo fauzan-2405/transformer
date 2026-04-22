@@ -8,13 +8,18 @@ Features:
     B: float / hex
 - Output format: float / int / hex
 - Output layout: normal / block
+
+example usage:
+ python "d:\DATA\Documents\Xirka Internship\PME\Transformer\transformer\Python Model\block_matmul.py" --matrix_A "D:\DATA\Documents\Xirka Internship\PME\Transformer\transformer\exports\softmax_results.txt" 
+            --matrix_B "D:\DATA\Documents\Xirka Internship\PME\Transformer\transformer\Python Model\B.txt" --input_format_A hex --input_format_B float 
+            --cores_a 2 --cores_b 2 --display --export_c_v2 --transpose_B
 """
 
 import argparse
 import numpy as np
 import os
 
-from matrix_multiplier_v2 import FixedPointConverter, MatrixProcessor
+from matrix_multiplier import FixedPointConverter, MatrixProcessor
 
 BLOCK_SIZE = 2
 
@@ -89,7 +94,9 @@ def block_matmul(A, B, conv):
 # Export helper
 # ------------------------------------------------------------
 def export_matrix_custom(matrix, conv, filename, fmt, layout):
-    os.makedirs(os.path.dirname(filename), exist_ok=True)
+    dirpath = os.path.dirname(filename)
+    if dirpath:
+        os.makedirs(dirpath, exist_ok=True)
 
     if layout == 'normal':
         with open(filename, 'w') as f:
@@ -127,6 +134,49 @@ def export_matrix_custom(matrix, conv, filename, fmt, layout):
 
                     f.write(" ".join(elements) + "\n")
 
+def debug_print_c_v2(matrix, conv, cores_a, cores_b, block_size, total_input_w, total_modules):
+    rows, cols = matrix.shape
+
+    row_groups = rows // (cores_a * total_input_w * block_size)
+    col_groups = cols // (cores_b * total_modules * block_size)
+
+    line_idx = 0
+
+    for rg in range(row_groups):
+        rbase = rg * cores_a * total_input_w * block_size
+
+        for cg in range(col_groups):
+            cbase = cg * cores_b * total_modules * block_size
+
+            line_slices = []
+
+            for iw in range(total_input_w):
+                elements = []
+
+                for module in range(total_modules):
+                    for cb in range(cores_b):
+
+                        cstart = cbase + (module * cores_b + cb) * block_size
+
+                        for ra in range(cores_a):
+                            rstart = rbase + (iw * cores_a + ra) * block_size
+
+                            block = matrix[
+                                rstart:rstart+block_size,
+                                cstart:cstart+block_size
+                            ]
+
+                            for r in range(block_size):
+                                for c in range(block_size):
+                                    elements.append(f"{int(block[r, c]):04x}")
+
+                line_slices.append(elements)
+
+            print(f"\nLine {line_idx}, 0:", " ".join(line_slices[0]))
+            for i in range(1, len(line_slices)):
+                print(f"         {i}:", " ".join(line_slices[i]))
+
+            line_idx += 1
 
 # ------------------------------------------------------------
 # Main
@@ -137,11 +187,11 @@ def main():
     parser.add_argument('--matrix_A', required=True)
     parser.add_argument('--matrix_B', required=True)
 
-    # 🔥 NEW: separate formats
+    # separate formats
     parser.add_argument('--input_format_A', choices=['float', 'hex'], default='float')
     parser.add_argument('--input_format_B', choices=['float', 'hex'], default='float')
 
-    parser.add_argument('--output_format', choices=['float', 'int', 'hex'], default='int')
+    parser.add_argument('--output_format', choices=['float', 'int', 'hex'], default='hex')
     parser.add_argument('--output_layout', choices=['normal', 'block'], default='block')
 
     parser.add_argument('--total_bits', type=int, default=16)
@@ -150,6 +200,15 @@ def main():
 
     parser.add_argument('--cores_a', type=int, required=True)
     parser.add_argument('--cores_b', type=int, required=True)
+    parser.add_argument('--total_input_w', type=int, default=2)
+    parser.add_argument('--total_modules', type=int, default=1)
+
+    parser.add_argument('--export_c_v2', action='store_true')
+    parser.add_argument('--transpose_B', action='store_true',
+                    help='Transpose matrix B before multiplication')
+
+    parser.add_argument('--output_file', required=True,
+                    help='Output file path (.txt or .mem)')
 
     parser.add_argument('--display', action='store_true')
 
@@ -182,6 +241,12 @@ def main():
     else:
         B = load_hex_matrix(args.matrix_B)
 
+    # --------------------------------------------------------
+    # Optional transpose (for Q × Kᵀ)
+    # --------------------------------------------------------
+    if args.transpose_B:
+        B = B.T
+
     rows_a, cols_a = A.shape
     rows_b, cols_b = B.shape
 
@@ -191,11 +256,11 @@ def main():
     # --------------------------------------------------------
     # Dimension checks (important for HW)
     # --------------------------------------------------------
-    if rows_a % (args.cores_a * BLOCK_SIZE) != 0:
-        raise ValueError("Rows not divisible by cores_a × block_size")
+    if rows_a % (args.cores_a * args.total_input_w * BLOCK_SIZE) != 0:
+        raise ValueError("Rows not divisible by cores_a × total_input_w × block_size")
 
-    if cols_b % (args.cores_b * BLOCK_SIZE) != 0:
-        raise ValueError("Cols not divisible by cores_b × block_size")
+    if cols_b % (args.cores_b * args.total_modules * BLOCK_SIZE) != 0:
+        raise ValueError("Cols not divisible by cores_b × total_modules × block_size")
 
     # --------------------------------------------------------
     # Compute
@@ -213,18 +278,44 @@ def main():
     # --------------------------------------------------------
     # Export
     # --------------------------------------------------------
-    out_file = "exports/matrix_C_result.mem"
+    out_file = args.output_file
 
-    export_matrix_custom(
-        matrix=C,
-        conv=conv,
-        filename=out_file,
-        fmt=args.output_format,
-        layout=args.output_layout
-    )
+    processor = MatrixProcessor()
+    processor.cores_a = args.cores_a
+    processor.cores_b = args.cores_b
 
-    print("\n✅ Done")
-    print(f"📄 Output: {out_file}")
+    if args.export_c_v2:
+        processor.export_matrix_C_v2(
+            matrix=C,
+            converter=conv,
+            filename=out_file,
+            block_size=BLOCK_SIZE,
+            total_input_w=args.total_input_w,
+            total_modules=args.total_modules,
+            output_format='hex',
+            debug_print=True
+        )
+    else:
+        export_matrix_custom(
+            matrix=C,
+            conv=conv,
+            filename=out_file,
+            fmt=args.output_format,
+            layout=args.output_layout
+        )
+    
+    if args.display and args.export_c_v2:
+        debug_print_c_v2(
+            C, conv,
+            args.cores_a,
+            args.cores_b,
+            BLOCK_SIZE,
+            args.total_input_w,
+            args.total_modules
+        )
+
+    print("\n Done")
+    print(f"Output: {out_file}")
 
 
 if __name__ == "__main__":
