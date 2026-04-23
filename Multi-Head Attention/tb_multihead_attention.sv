@@ -41,7 +41,8 @@ module tb_multihead_attention;
     //logic [TILE_SIZE_SOFTMAX*WIDTH_OUT-1:0] out_softmax_data [NUMBER_OF_BUFFER_INSTANCES][TOTAL_INPUT_W_Qn_KnT][TOTAL_SOFTMAX_ROW];
     //logic out_softmax_valid [NUMBER_OF_BUFFER_INSTANCES][TOTAL_INPUT_W_Qn_KnT][TOTAL_SOFTMAX_ROW];
     //logic [WIDTH_OUT*CHUNK_SIZE*NUM_CORES_A_QKT_Vn-1:0] out_data_r2b [NUMBER_OF_BUFFER_INSTANCES][TOTAL_INPUT_W_Qn_KnT][TOTAL_TILE_SOFTMAX];
-    logic [(WIDTH_OUT*CHUNK_SIZE*NUM_CORES_A_QKT_Vn)-1:0] out_data_fifo [TOTAL_INPUT_W_Qn_KnT][NUM_BANKS_FIFO]
+    logic [(WIDTH_OUT*CHUNK_SIZE*NUM_CORES_A_QKT_Vn)-1:0] out_data_fifo [TOTAL_INPUT_W_Qn_KnT][NUM_BANKS_FIFO];
+
 
     // ============================================================
     // Memory for stimulus
@@ -53,7 +54,7 @@ module tb_multihead_attention;
     // ============================================================
     multihead_attention #(
         .OUT_KEYS(OUT_KEYS),
-        .NUMBER_OF_BUFFER_INSTANCES(NUMBER_OF_BUFFER_INSTANCES1)
+        .NUMBER_OF_BUFFER_INSTANCES(NUMBER_OF_BUFFER_INSTANCES)
     ) dut (
         .clk(clk),
         .rst_n(rst_n),
@@ -66,13 +67,13 @@ module tb_multihead_attention;
         .in_mat_enb(in_mat_enb),
         .in_mat_web(in_mat_web),
         .in_mat_wr_addrb(in_mat_wr_addrb),
-        .in_mat_dinb(in_mat_dinb),
+        .in_mat_dinb(in_mat_dinb)
         
         // Temporary output to see the intermediate results
         //.out_softmax_data(out_softmax_data),
         //.out_softmax_valid(out_softmax_valid)
         //.out_data_r2b(out_data_r2b)
-        .out_data_fifo(out_data_fifo)
+        //.out_data_fifo(out_data_fifo)
     );
 
     // ============================================================
@@ -82,6 +83,8 @@ module tb_multihead_attention;
         $display("[%0t] TB start", $time);
 
         // Load input matrix
+        //mat_A_lp_bridge
+        //mem_input_1st
         $readmemh("mat_A_lp_bridge.mem", mem_A);
 
         // Default values
@@ -137,3 +140,4 @@ module tb_multihead_attention;
     end
 
 endmodule
+
