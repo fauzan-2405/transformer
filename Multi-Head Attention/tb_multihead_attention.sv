@@ -15,6 +15,11 @@ module tb_multihead_attention;
     localparam int ADDR_WIDTH_A = $clog2(MEMORY_SIZE_A / DATA_WIDTH_A);
     localparam TOTAL_SOFTMAX_ROW = NUM_CORES_A_Qn_KnT * BLOCK_SIZE;
     localparam NUMBER_OF_BUFFER_INSTANCES = 1;
+    
+    parameter MEM_INPUT_MAT   = "mat_A_lp_bridge.mem";
+    parameter MEM_INIT_FILE_Q = "mat_B_lp_bridge.mem";
+    parameter MEM_INIT_FILE_K = "mat_B_lp_bridge.mem";
+    parameter MEM_INIT_FILE_V = "mat_B_lp_bridge.mem";
 
     // ============================================================
     // Clock & Reset
@@ -38,10 +43,25 @@ module tb_multihead_attention;
     // ============================================================
     // DUT outputs (CAN BE EDITED)
     // ============================================================
+    logic [OUT_KEYS-1:0] out_Q_matrix [TOTAL_INPUT_W];
+    logic [OUT_KEYS-1:0] out_K_matrix [TOTAL_INPUT_W]; 
+    logic [OUT_KEYS-1:0] out_V_matrix [TOTAL_INPUT_W];
+    logic linproj_valid, linproj_done;
+    
+    logic [(WIDTH_OUT*CHUNK_SIZE*NUM_CORES_A_Qn_KnT*NUM_CORES_B_Qn_KnT*TOTAL_MODULES_LP_Q)-1:0]
+        out_matmul_Qn_KnT [NUMBER_OF_BUFFER_INSTANCES][TOTAL_INPUT_W_Qn_KnT];
+    logic out_Qn_KnT_valid;
+    logic Qn_KnT_done;
+    
+    logic [(WIDTH_OUT*CHUNK_SIZE*NUM_CORES_A_QKT_Vn*NUM_CORES_B_QKT_Vn*TOTAL_MODULES_LP_V)-1:0]
+        out_matmul_QKT_Vn [NUMBER_OF_BUFFER_INSTANCES][TOTAL_INPUT_W_Qn_KnT];
+    logic out_QKT_Vn_valid;
+    logic QKT_Vn_done;
+    
     //logic [TILE_SIZE_SOFTMAX*WIDTH_OUT-1:0] out_softmax_data [NUMBER_OF_BUFFER_INSTANCES][TOTAL_INPUT_W_Qn_KnT][TOTAL_SOFTMAX_ROW];
     //logic out_softmax_valid [NUMBER_OF_BUFFER_INSTANCES][TOTAL_INPUT_W_Qn_KnT][TOTAL_SOFTMAX_ROW];
     //logic [WIDTH_OUT*CHUNK_SIZE*NUM_CORES_A_QKT_Vn-1:0] out_data_r2b [NUMBER_OF_BUFFER_INSTANCES][TOTAL_INPUT_W_Qn_KnT][TOTAL_TILE_SOFTMAX];
-    logic [(WIDTH_OUT*CHUNK_SIZE*NUM_CORES_A_QKT_Vn)-1:0] out_data_fifo [TOTAL_INPUT_W_Qn_KnT][NUM_BANKS_FIFO];
+    //logic [(WIDTH_OUT*CHUNK_SIZE*NUM_CORES_A_QKT_Vn)-1:0] out_data_fifo [TOTAL_INPUT_W_Qn_KnT][NUM_BANKS_FIFO];
 
 
     // ============================================================
@@ -53,6 +73,9 @@ module tb_multihead_attention;
     // DUT
     // ============================================================
     multihead_attention #(
+        .MEM_INIT_FILE_Q(MEM_INIT_FILE_Q),
+        .MEM_INIT_FILE_K(MEM_INIT_FILE_K),
+        .MEM_INIT_FILE_V(MEM_INIT_FILE_V),
         .OUT_KEYS(OUT_KEYS),
         .NUMBER_OF_BUFFER_INSTANCES(NUMBER_OF_BUFFER_INSTANCES)
     ) dut (
@@ -67,7 +90,22 @@ module tb_multihead_attention;
         .in_mat_enb(in_mat_enb),
         .in_mat_web(in_mat_web),
         .in_mat_wr_addrb(in_mat_wr_addrb),
-        .in_mat_dinb(in_mat_dinb)
+        .in_mat_dinb(in_mat_dinb),
+        
+        // Output
+        .out_Q_matrix(out_Q_matrix),
+        .out_K_matrix(out_K_matrix),
+        .out_V_matrix(out_V_matrix),
+        .linproj_valid(linproj_valid), 
+        .linproj_done(linproj_done),
+        
+        .out_matmul_Qn_KnT(out_matmul_Qn_KnT),
+        .out_Qn_KnT_valid(out_Qn_KnT_valid),
+        .Qn_KnT_done(Qn_KnT_done),
+        
+        .out_matmul_QKT_Vn(out_matmul_QKT_Vn),
+        .out_QKT_Vn_valid(out_QKT_Vn_valid),
+        .QKT_Vn_done(QKT_Vn_done)
         
         // Temporary output to see the intermediate results
         //.out_softmax_data(out_softmax_data),
@@ -85,7 +123,7 @@ module tb_multihead_attention;
         // Load input matrix
         //mat_A_lp_bridge
         //mem_input_1st
-        $readmemh("mat_A_lp_bridge.mem", mem_A);
+        $readmemh(MEM_INPUT_MAT, mem_A);
 
         // Default values
         in_mat_ena = 0; in_mat_wea = 0;
@@ -103,41 +141,3 @@ module tb_multihead_attention;
 
         // ========================================================
         // Write input BRAM (dual-port even/odd)
-        // ========================================================
-        $display("[%0t] Writing input BRAM...", $time);
-        in_mat_ena = 1; in_mat_enb = 1;
-        in_mat_wea = 1; in_mat_web = 1;
-
-        for (int i = 0; i < (NUM_A_ELEMENTS + 1)/2; i++) begin
-            @(posedge clk);
-
-            // Port A: even
-            in_mat_wr_addra <= 2*i;
-            in_mat_dina     <= mem_A[2*i];
-
-            // Port B: odd
-            if (2*i + 1 < NUM_A_ELEMENTS) begin
-                in_mat_wr_addrb <= 2*i + 1;
-                in_mat_dinb     <= mem_A[2*i + 1];
-            end else begin
-                in_mat_wr_addrb <= NUM_A_ELEMENTS - 1;
-                in_mat_dinb     <= mem_A[NUM_A_ELEMENTS - 1];
-            end
-        end
-
-        @(posedge clk);
-        in_mat_wea = 0; in_mat_web = 0;
-        in_mat_ena = 0; in_mat_enb = 0;
-        $display("[%0t] Input write done", $time);
-
-        // ========================================================
-        // Observe pipeline
-        // ========================================================
-        $display("[%0t] Waiting for pipeline activity...", $time);
-        repeat (2000) @(posedge clk);
-
-        $finish;
-    end
-
-endmodule
-
