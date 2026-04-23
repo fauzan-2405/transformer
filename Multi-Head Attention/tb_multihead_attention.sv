@@ -141,3 +141,41 @@ module tb_multihead_attention;
 
         // ========================================================
         // Write input BRAM (dual-port even/odd)
+        // ========================================================
+        $display("[%0t] Writing input BRAM...", $time);
+        in_mat_ena = 1; in_mat_enb = 1;
+        in_mat_wea = 1; in_mat_web = 1;
+
+        for (int i = 0; i < (NUM_A_ELEMENTS + 1)/2; i++) begin
+            @(posedge clk);
+
+            // Port A: even
+            in_mat_wr_addra <= 2*i;
+            in_mat_dina     <= mem_A[2*i];
+
+            // Port B: odd
+            if (2*i + 1 < NUM_A_ELEMENTS) begin
+                in_mat_wr_addrb <= 2*i + 1;
+                in_mat_dinb     <= mem_A[2*i + 1];
+            end else begin
+                in_mat_wr_addrb <= NUM_A_ELEMENTS - 1;
+                in_mat_dinb     <= mem_A[NUM_A_ELEMENTS - 1];
+            end
+        end
+
+        @(posedge clk);
+        in_mat_wea = 0; in_mat_web = 0;
+        in_mat_ena = 0; in_mat_enb = 0;
+        $display("[%0t] Input write done", $time);
+
+        // ========================================================
+        // Observe pipeline
+        // ========================================================
+        $display("[%0t] Waiting for pipeline activity...", $time);
+        repeat (2000) @(posedge clk);
+
+        $finish;
+    end
+
+endmodule
+
