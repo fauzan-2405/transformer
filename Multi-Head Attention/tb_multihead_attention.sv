@@ -1,7 +1,11 @@
+// TO DO: STEP 3 on the GPT
+
 `timescale 1ns/1ps
 
 import linear_proj_pkg::*;
 import self_attention_pkg::*;
+
+string OUT_DIR;
 
 module tb_multihead_attention;
 
@@ -68,6 +72,9 @@ module tb_multihead_attention;
     // Memory for stimulus
     // ============================================================
     logic [DATA_WIDTH_A-1:0] mem_A [0:NUM_A_ELEMENTS-1];
+    logic linproj_done_seen = 0;
+    logic qkt_done_seen     = 0;
+    logic final_done_seen   = 0;
 
     // ============================================================
     // DUT
@@ -117,6 +124,14 @@ module tb_multihead_attention;
     // ============================================================
     // Test sequence
     // ============================================================
+    initial begin
+        if (!$value$plusargs("OUT_DIR=%s", OUT_DIR)) begin
+            OUT_DIR = "./";  // fallback
+        end
+
+        $display("[TB] Output directory = %s", OUT_DIR);
+    end
+
     initial begin
         $display("[%0t] TB start", $time);
 
@@ -175,6 +190,98 @@ module tb_multihead_attention;
         repeat (2000) @(posedge clk);
 
         $finish;
+    end
+
+    // ========================================================
+    // Linear Projection
+    // ========================================================
+    integer f_q, f_k, f_v;
+
+    initial begin
+        f_q = $fopen({OUT_DIR, "/out_Q.mem"}, "w");
+        f_k = $fopen({OUT_DIR, "/out_K.mem"}, "w");
+        f_v = $fopen({OUT_DIR, "/out_V.mem"}, "w");
+    end
+
+    always @(posedge clk) begin
+        if (rst_n && linproj_valid && !linproj_done_seen) begin
+            for (int iw = 0; iw < TOTAL_INPUT_W; iw++) begin
+                for (int k = 0; k < OUT_KEYS; k += WIDTH_OUT) begin
+                    $fwrite(f_q, "%h ", out_Q_matrix[iw][k +: WIDTH_OUT]);
+                    $fwrite(f_k, "%h ", out_K_matrix[iw][k +: WIDTH_OUT]);
+                    $fwrite(f_v, "%h ", out_V_matrix[iw][k +: WIDTH_OUT]);
+                end
+            end
+            $fwrite(f_q, "\n");
+            $fwrite(f_k, "\n");
+            $fwrite(f_v, "\n");
+        end
+
+        //  STOP CONDITION
+        if (linproj_done && !linproj_done_seen) begin
+            linproj_done_seen <= 1;
+            $display("[%0t] Linear Projection DONE → stop dumping", $time);
+
+            $fclose(f_q);
+            $fclose(f_k);
+            $fclose(f_v);
+        end
+    end
+
+    // ========================================================
+    // QKT Calculation
+    // ========================================================
+    integer f_qkt;
+
+    initial begin
+        f_qkt = $fopen({OUT_DIR, "/out_QKT.mem"}, "w");
+    end
+
+    always @(posedge clk) begin
+        if (rst_n && out_Qn_KnT_valid && !qkt_done_seen) begin
+            for (int iw = 0; iw < TOTAL_INPUT_W_Qn_KnT; iw++) begin
+                for (int l = 0; l < WIDTH_OUT*CHUNK_SIZE*NUM_CORES_A_Qn_KnT*NUM_CORES_B_Qn_KnT*TOTAL_MODULES_LP_Q;
+                    l += WIDTH_OUT) begin
+                    $fwrite(f_qkt, "%h ",
+                        out_matmul_Qn_KnT[0][iw][l +: WIDTH_OUT]);
+                end
+            end
+            $fwrite(f_qkt, "\n");
+        end
+
+        if (Qn_KnT_done && !qkt_done_seen) begin
+            qkt_done_seen <= 1;
+            $display("[%0t] QK^T DONE → stop dumping", $time);
+            $fclose(f_qkt);
+        end
+    end
+
+    / ========================================================
+    // Final Calculation
+    / ========================================================
+    integer f_final;
+
+    initial begin
+        f_final = $fopen({OUT_DIR, "/out_FINAL.mem"}, "w");
+    end
+
+    always @(posedge clk) begin
+        if (rst_n && out_QKT_Vn_valid && !final_done_seen) begin
+            for (int iw = 0; iw < TOTAL_INPUT_W_Qn_KnT; iw++) begin
+                for (int l = 0; l < WIDTH_OUT*CHUNK_SIZE*NUM_CORES_A_QKT_Vn*NUM_CORES_B_QKT_Vn*TOTAL_MODULES_LP_V;
+                    l += WIDTH_OUT) begin
+                    $fwrite(f_final, "%h ",
+                        out_matmul_QKT_Vn[0][iw][l +: WIDTH_OUT]);
+                end
+            end
+            $fwrite(f_final, "\n");
+        end
+
+        if (QKT_Vn_done && !final_done_seen) begin
+            final_done_seen <= 1;
+            $display("[%0t] FINAL DONE → stop dumping", $time);
+            $fclose(f_final);
+        end
     end
 
 endmodule
