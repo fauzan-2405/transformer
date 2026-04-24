@@ -5,10 +5,12 @@
 import linear_proj_pkg::*;
 import self_attention_pkg::*;
 
-string OUT_DIR;
-string MEM_INPUT_PATH;
-
 module tb_multihead_attention_script;
+    string OUT_DIR;
+    string MEM_INPUT_PATH;
+    string MEM_Q_FILE;
+    string MEM_K_FILE;
+    string MEM_V_FILE;
 
     // ============================================================
     // Localparams (match packages)
@@ -21,10 +23,11 @@ module tb_multihead_attention_script;
     localparam TOTAL_SOFTMAX_ROW = NUM_CORES_A_Qn_KnT * BLOCK_SIZE;
     localparam NUMBER_OF_BUFFER_INSTANCES = 1;
     
+    /*
     parameter MEM_INPUT_MAT   = "mat_A_lp_bridge.mem";
     parameter MEM_INIT_FILE_Q = "mat_B_lp_bridge.mem";
     parameter MEM_INIT_FILE_K = "mat_B_lp_bridge.mem";
-    parameter MEM_INIT_FILE_V = "mat_B_lp_bridge.mem";
+    parameter MEM_INIT_FILE_V = "mat_B_lp_bridge.mem";*/
 
     // ============================================================
     // Clock & Reset
@@ -80,10 +83,23 @@ module tb_multihead_attention_script;
     // ============================================================
     // DUT
     // ============================================================
+    // Weight
+    initial begin
+        if (!$value$plusargs("MEM_Q=%s", MEM_Q_FILE)) begin
+            MEM_Q_FILE = "mat_B_lp_bridge.mem";
+        end
+        if (!$value$plusargs("MEM_K=%s", MEM_K_FILE)) begin
+            MEM_K_FILE = "mat_B_lp_bridge.mem";
+        end
+        if (!$value$plusargs("MEM_V=%s", MEM_V_FILE)) begin
+            MEM_V_FILE = "mat_B_lp_bridge.mem";
+        end
+    end
+
     multihead_attention #(
-        .MEM_INIT_FILE_Q(MEM_INIT_FILE_Q),
-        .MEM_INIT_FILE_K(MEM_INIT_FILE_K),
-        .MEM_INIT_FILE_V(MEM_INIT_FILE_V),
+        .MEM_INIT_FILE_Q(MEM_Q_FILE),
+        .MEM_INIT_FILE_K(MEM_K_FILE),
+        .MEM_INIT_FILE_V(MEM_V_FILE),
         .OUT_KEYS(OUT_KEYS),
         .NUMBER_OF_BUFFER_INSTANCES(NUMBER_OF_BUFFER_INSTANCES)
     ) dut (
@@ -125,33 +141,16 @@ module tb_multihead_attention_script;
     // ============================================================
     // Test sequence
     // ============================================================
-    // Output directory
     initial begin
-        if (!$value$plusargs("OUT_DIR=%s", OUT_DIR)) begin
-            OUT_DIR = "./";  // fallback
-        end
+        $display("[%0t] TB start", $time);
 
-        $display("[TB] Output directory = %s", OUT_DIR);
-    end
-
-    // Input directory
-    initial begin
+        // Load input matrix
         if (!$value$plusargs("INPUT_FILE=%s", MEM_INPUT_PATH)) begin
             MEM_INPUT_PATH = "mat_A_lp_bridge.mem";
         end
 
         $display("[TB] Input file = %s", MEM_INPUT_PATH);
-
         $readmemh(MEM_INPUT_PATH, mem_A);
-    end
-
-    initial begin
-        $display("[%0t] TB start", $time);
-
-        // Load input matrix
-        //mat_A_lp_bridge
-        //mem_input_1st
-        $readmemh(MEM_INPUT_MAT, mem_A);
 
         // Default values
         in_mat_ena = 0; in_mat_wea = 0;
@@ -199,9 +198,9 @@ module tb_multihead_attention_script;
         // ========================================================
         // Observe pipeline
         // ========================================================
-        $display("[%0t] Waiting for pipeline activity...", $time);
-        repeat (2000) @(posedge clk);
-
+        wait(QKT_Vn_done);
+        repeat(10) @(posedge clk);
+        $display("Simulation finished cleanly");
         $finish;
     end
 
@@ -211,9 +210,17 @@ module tb_multihead_attention_script;
     integer f_q, f_k, f_v;
 
     initial begin
+        if (!$value$plusargs("OUT_DIR=%s", OUT_DIR)) begin
+            OUT_DIR = "./";  // fallback
+        end
+
+        $display("[TB] Output directory = %s", OUT_DIR);
+
         f_q = $fopen({OUT_DIR, "/out_Q.mem"}, "w");
         f_k = $fopen({OUT_DIR, "/out_K.mem"}, "w");
         f_v = $fopen({OUT_DIR, "/out_V.mem"}, "w");
+        f_qkt = $fopen({OUT_DIR, "/out_QKT.mem"}, "w");
+        f_final = $fopen({OUT_DIR, "/out_FINAL.mem"}, "w");
     end
 
     always @(posedge clk) begin
@@ -245,11 +252,7 @@ module tb_multihead_attention_script;
     // QKT Calculation
     // ========================================================
     integer f_qkt;
-
-    initial begin
-        f_qkt = $fopen({OUT_DIR, "/out_QKT.mem"}, "w");
-    end
-
+    
     always @(posedge clk) begin
         if (rst_n && out_Qn_KnT_valid && !qkt_done_seen) begin
             for (int iw = 0; iw < TOTAL_INPUT_W_Qn_KnT; iw++) begin
@@ -269,14 +272,10 @@ module tb_multihead_attention_script;
         end
     end
 
-    / ========================================================
+    // ========================================================
     // Final Calculation
-    / ========================================================
+    // ========================================================
     integer f_final;
-
-    initial begin
-        f_final = $fopen({OUT_DIR, "/out_FINAL.mem"}, "w");
-    end
 
     always @(posedge clk) begin
         if (rst_n && out_QKT_Vn_valid && !final_done_seen) begin
