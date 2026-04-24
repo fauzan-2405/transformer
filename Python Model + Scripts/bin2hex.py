@@ -14,7 +14,9 @@ Automatically handles:
     - spaced binary (e.g., "0001 0010 1111 ...")
     - unspaced binary ("000100101111...")
 
-python -u "d:\DATA\Documents\Xirka Internship\PME\Transformer\transformer\Python Model\bin2hex.py" "d:\DATA\Documents\Xirka Internship\PME\Transformer\transformer\exports\Tested Mem Files\#7 Linear Projection Testing" --element-bits 16
+python -u "d:\DATA\Documents\Xirka Internship\PME\Transformer\transformer\Python Model\bin2hex.py" 
+        "d:\DATA\Documents\Xirka Internship\PME\Transformer\transformer\exports\Tested Mem Files\#7 Linear Projection Testing" 
+        --out_dir exports_1/hex_ready --element-bits 16
 """
 
 import argparse
@@ -52,7 +54,7 @@ def process_line_to_hex(line, elem_bits):
     return "".join(hex_chunks)
 
 
-def convert_file(infile, elem_bits=16, out_suffix="_hex.mem"):
+def convert_file(infile, elem_bits=16, out_suffix="_hex.mem", out_dir=None):
     with open(infile, "r") as f:
         raw_lines = [ln.strip() for ln in f.readlines() if ln.strip()]
 
@@ -69,7 +71,13 @@ def convert_file(infile, elem_bits=16, out_suffix="_hex.mem"):
 
         out_lines.append(hex_line)
 
-    outfile = os.path.splitext(infile)[0] + out_suffix
+    base_name = os.path.splitext(os.path.basename(infile))[0] + out_suffix
+
+    if out_dir:
+        os.makedirs(out_dir, exist_ok=True)
+        outfile = os.path.join(out_dir, base_name)
+    else:
+        outfile = os.path.splitext(infile)[0] + out_suffix
 
     # Write XPM-compatible hex
     with open(outfile, "w") as f:
@@ -81,14 +89,15 @@ def convert_file(infile, elem_bits=16, out_suffix="_hex.mem"):
 
 def find_mem_files(path, recursive=True):
     files = []
+
     if os.path.isfile(path):
-        if path.lower().endswith("_cleaned.mem"):
+        if path.lower().endswith(".mem") and not path.lower().endswith("_hex.mem"):
             files.append(path)
         return files
 
     for root, dirs, filenames in os.walk(path):
         for fn in filenames:
-            if fn.lower().endswith("_cleaned.mem"):
+            if fn.lower().endswith(".mem") and not fn.lower().endswith("_hex.mem"):
                 files.append(os.path.join(root, fn))
         if not recursive:
             break
@@ -104,6 +113,8 @@ def main():
                         help="Bit width per element (default 16)")
     parser.add_argument("--no-recursive", action="store_true",
                         help="Disable recursive directory scan")
+    parser.add_argument("--out_dir", type=str, default=None,
+                        help="Optional output directory")
     args = parser.parse_args()
 
     recursive = not args.no_recursive
@@ -123,7 +134,7 @@ def main():
     fail = 0
 
     for fn in mem_files:
-        ok, msg = convert_file(fn, elem_bits)
+        ok, msg = convert_file(fn, elem_bits, out_dir=args.out_dir)
         if ok:
             print(f"[OK] {fn} → {msg}")
             success += 1
