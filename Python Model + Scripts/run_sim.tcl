@@ -40,10 +40,16 @@ update_compile_order -fileset sim_1
 
 # Set TB as top
 set_property top tb_multihead_attention_script [get_filesets sim_1]
+# Parameter override
+set_property generic [format { \
+    MEM_Q_FILE=%s \
+    MEM_K_FILE=%s \
+    MEM_V_FILE=%s \
+} $mem_q $mem_k $mem_v] [get_filesets sim_1]
 
 # Pass +args into simulator
 set_property -name {xsim.simulate.xsim.more_options} \
-    -value "+OUT_DIR=$out_dir +INPUT_FILE=$input_file +MEM_Q=$mem_q +MEM_K=$mem_k +MEM_V=$mem_v" \
+    -value "+OUT_DIR=$out_dir +INPUT_FILE=$input_file" \
     -objects [get_filesets sim_1]
 
 # Run simulation
