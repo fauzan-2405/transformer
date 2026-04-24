@@ -1,5 +1,3 @@
-// TO DO: STEP 3 on the GPT
-
 `timescale 1ns/1ps
 
 import linear_proj_pkg::*;
@@ -8,9 +6,9 @@ import self_attention_pkg::*;
 module tb_multihead_attention_script;
     string OUT_DIR;
     string MEM_INPUT_PATH;
-    string MEM_Q_FILE;
+    /*string MEM_Q_FILE;
     string MEM_K_FILE;
-    string MEM_V_FILE;
+    string MEM_V_FILE;*/
 
     // ============================================================
     // Localparams (match packages)
@@ -23,11 +21,11 @@ module tb_multihead_attention_script;
     localparam TOTAL_SOFTMAX_ROW = NUM_CORES_A_Qn_KnT * BLOCK_SIZE;
     localparam NUMBER_OF_BUFFER_INSTANCES = 1;
     
-    /*
-    parameter MEM_INPUT_MAT   = "mat_A_lp_bridge.mem";
-    parameter MEM_INIT_FILE_Q = "mat_B_lp_bridge.mem";
-    parameter MEM_INIT_FILE_K = "mat_B_lp_bridge.mem";
-    parameter MEM_INIT_FILE_V = "mat_B_lp_bridge.mem";*/
+    
+    //parameter MEM_INPUT_MAT   = "mat_A_lp_bridge.mem";
+    parameter MEM_Q_FILE = "mat_B_lp_bridge.mem";
+    parameter MEM_K_FILE = "mat_B_lp_bridge.mem";
+    parameter MEM_V_FILE = "mat_B_lp_bridge.mem";
 
     // ============================================================
     // Clock & Reset
@@ -84,6 +82,7 @@ module tb_multihead_attention_script;
     // DUT
     // ============================================================
     // Weight
+    /*
     initial begin
         if (!$value$plusargs("MEM_Q=%s", MEM_Q_FILE)) begin
             MEM_Q_FILE = "mat_B_lp_bridge.mem";
@@ -94,7 +93,7 @@ module tb_multihead_attention_script;
         if (!$value$plusargs("MEM_V=%s", MEM_V_FILE)) begin
             MEM_V_FILE = "mat_B_lp_bridge.mem";
         end
-    end
+    end */
 
     multihead_attention #(
         .MEM_INIT_FILE_Q(MEM_Q_FILE),
@@ -208,6 +207,8 @@ module tb_multihead_attention_script;
     // Linear Projection
     // ========================================================
     integer f_q, f_k, f_v;
+    integer f_qkt;
+    integer f_final;
 
     initial begin
         if (!$value$plusargs("OUT_DIR=%s", OUT_DIR)) begin
@@ -251,8 +252,7 @@ module tb_multihead_attention_script;
     // ========================================================
     // QKT Calculation
     // ========================================================
-    integer f_qkt;
-    
+        
     always @(posedge clk) begin
         if (rst_n && out_Qn_KnT_valid && !qkt_done_seen) begin
             for (int iw = 0; iw < TOTAL_INPUT_W_Qn_KnT; iw++) begin
@@ -275,8 +275,7 @@ module tb_multihead_attention_script;
     // ========================================================
     // Final Calculation
     // ========================================================
-    integer f_final;
-
+    
     always @(posedge clk) begin
         if (rst_n && out_QKT_Vn_valid && !final_done_seen) begin
             for (int iw = 0; iw < TOTAL_INPUT_W_Qn_KnT; iw++) begin
