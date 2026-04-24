@@ -78,6 +78,7 @@ def main():
     V = os.path.join(args.out_dir, "mem_out_v1_row.mem")
 
     QKT = os.path.join(args.out_dir, "Q_KT.mem")
+    QKT_as_input = os.path.join(args.out_dir, "Q_KT_row.mem")
     SOFTMAX = os.path.join(args.out_dir, "softmax_results.mem")
     FINAL = os.path.join(args.out_dir, "final_results.mem")
 
@@ -89,6 +90,9 @@ def main():
         r"D:\DATA\Documents\Xirka Internship\PME\Transformer\transformer\Python Model\block_matmul.py",
         "--matrix_A", Q,
         "--matrix_B", K,
+
+        "--total_bits", str(args.total_bits),
+        "--frac_bits", str(args.frac_bits),
 
         "--input_format_A", "hex",
         "--input_format_B", "hex",
@@ -109,7 +113,7 @@ def main():
     run_cmd([
         "python", 
         r"D:\DATA\Documents\Xirka Internship\PME\Transformer\transformer\Python Model\softmax.py",
-        "--input", QKT,
+        "--input", QKT_as_input,
 
         "--input_format", "hex",
         "--output_format", "hex",
@@ -117,8 +121,8 @@ def main():
         "--apply_div",
         "--div_value", "16",
 
-        "--total_bits", str(args.total_bits),
-        "--frac_bits", str(args.frac_bits),
+        "--width", str(args.total_bits),
+        "--frac", str(args.frac_bits),
 
         "--output_file", SOFTMAX
     ])
@@ -134,6 +138,9 @@ def main():
 
         "--input_format_A", "hex",
         "--input_format_B", "hex",
+
+        "--total_bits", str(args.total_bits),
+        "--frac_bits", str(args.frac_bits),
 
         "--cores_a", str(args.cores_a),
         "--cores_b", str(args.total_modules),
