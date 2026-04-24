@@ -16,7 +16,7 @@ Automatically handles:
 
 python -u "d:\DATA\Documents\Xirka Internship\PME\Transformer\transformer\Python Model\bin2hex.py" 
         "d:\DATA\Documents\Xirka Internship\PME\Transformer\transformer\exports\Tested Mem Files\#7 Linear Projection Testing" 
-        --out_dir exports_1/hex_ready --element-bits 16
+        --out_dir  "d:\DATA\Documents\Xirka Internship\PME\Transformer\transformer\exports" --element-bits 16
 """
 
 import argparse
