@@ -285,6 +285,7 @@ def main():
     processor.cores_b = args.cores_b
 
     if args.export_c_v2:
+        # RTL Format Export
         processor.export_matrix_C_v2(
             matrix=C,
             converter=conv,
@@ -295,6 +296,16 @@ def main():
             output_format='hex',
             debug_print=True
         )
+
+        #2 Real Format Export
+        base, ext = os.path.splitext(out_file)
+        row_file = f"{base}_row{ext}"
+        with open(row_file, 'w') as f:
+            for row in C:
+                line = " ".join(conv.int_to_hex(int(v)) for v in row)
+                f.write(line + "\n")
+
+        print(f"Row output: {row_file}")
     else:
         export_matrix_custom(
             matrix=C,
