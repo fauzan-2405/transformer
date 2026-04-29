@@ -5,7 +5,8 @@
 /mnt/ssd/mfauzan/transformer/source_code_real/linear_proj_pkg.sv
 /mnt/ssd/mfauzan/transformer/source_code_real/self_attention_pkg.sv
 /mnt/ssd/mfauzan/transformer/source_code_real/buffer/buffer0_pkg.sv
-
+#mnt/ssd/mfauzan/transformer/source_code_real/mat_A_lp_bridge.mem
+#mnt/ssd/mfauzan/transformer/source_code_real/mat_B_lp_bridge.mem
 # =========================
 # BASIC BUILDING BLOCKS
 # =========================
@@ -15,7 +16,7 @@
 /mnt/ssd/mfauzan/transformer/source_code_real/mux2_1.v
 /mnt/ssd/mfauzan/transformer/source_code_real/control_mux2_1.v
 /mnt/ssd/mfauzan/transformer/source_code_real/softmax/ram_1w2r.v
-/mnt/ssd/mfauzan/transformer/source_code_real/ram_1w_1r.v
+/mnt/ssd/mfauzan/transformer/source_code_real/ram_1w1r.v
 
 # =========================
 # COMPUTE UNITS
@@ -72,4 +73,4 @@
 /mnt/ssd/mfauzan/transformer/source_code_real/self_attention_head/self_attention_head.sv
 /mnt/ssd/mfauzan/transformer/source_code_real/self_attention_head/top_self_attention_head.sv
 /mnt/ssd/mfauzan/transformer/source_code_real/multi_head_attention/multihead_attention.sv
-/mnt/ssd/mfauzan/transformer/source_code_real/multi_head_attention/tb_multihead_attention_script.sv
+/mnt/ssd/mfauzan/transformer/source_code_real/multi_head_attention/tb_multihead_attention.sv
