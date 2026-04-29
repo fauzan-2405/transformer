@@ -16,9 +16,9 @@ puts "Elaborating..."
 
 exec xelab tb_multihead_attention -s tb_sim \
     --relax --debug typical -L xpm \
-    -generic_top {MEM_INIT_Q_FILE=/mnt/ssd/mfauzan/transformer/source_code_real/mat_B_lp_bridge.mem} \
-    -generic_top {MEM_INIT_K_FILE=/mnt/ssd/mfauzan/transformer/source_code_real/mat_B_lp_bridge.mem} \
-    -generic_top {MEM_INIT_V_FILE=/mnt/ssd/mfauzan/transformer/source_code_real/mat_B_lp_bridge.mem}
+    -generic_top {MEM_INIT_FILE_Q=/mnt/ssd/mfauzan/transformer/source_code_real/mat_B_lp_bridge.mem} \
+    -generic_top {MEM_INIT_FILE_K=/mnt/ssd/mfauzan/transformer/source_code_real/mat_B_lp_bridge.mem} \
+    -generic_top {MEM_INIT_FILE_V=/mnt/ssd/mfauzan/transformer/source_code_real/mat_B_lp_bridge.mem}
 
 # Run simulation with plusargs
 puts "Running simulation..."
