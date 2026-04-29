@@ -6,7 +6,7 @@ import argparse
 
 """
 example run:
-python "d:\DATA\Documents\Xirka Internship\PME\Transformer\transformer\Python Model\pipeline_runner.py" --rows 16 --cols 10 --proj_dim 12 --cores_a 2  --total_modules 2 --out_dir exports
+python "d:\DATA\Documents\Xirka Internship\PME\Transformer\transformer\Python Model + Scripts\pipeline_runner.py" --rows 16 --cols 10 --proj_dim 12 --cores_a 2  --total_modules 2 --out_dir exports
 """
 
 def run_cmd(cmd):
@@ -44,7 +44,7 @@ def main():
     # ----------------------------------
     run_cmd([
         "python", 
-        r"D:\DATA\Documents\Xirka Internship\PME\Transformer\transformer\Python Model\matrix_multiplier.py",
+        r"D:\DATA\Documents\Xirka Internship\PME\Transformer\transformer\Python Model + Scripts\matrix_multiplier.py",
         "--task", "linear_projection",
         "--rows_a", str(args.rows),
         "--cols_a", str(args.cols),
@@ -87,7 +87,7 @@ def main():
     # ----------------------------------
     run_cmd([
         "python", 
-        r"D:\DATA\Documents\Xirka Internship\PME\Transformer\transformer\Python Model\block_matmul.py",
+        r"D:\DATA\Documents\Xirka Internship\PME\Transformer\transformer\Python Model + Scripts\block_matmul.py",
         "--matrix_A", Q,
         "--matrix_B", K,
 
@@ -112,7 +112,7 @@ def main():
     # ----------------------------------
     run_cmd([
         "python", 
-        r"D:\DATA\Documents\Xirka Internship\PME\Transformer\transformer\Python Model\softmax.py",
+        r"D:\DATA\Documents\Xirka Internship\PME\Transformer\transformer\Python Model + Scripts\softmax.py",
         "--input", QKT_as_input,
 
         "--input_format", "hex",
@@ -132,7 +132,7 @@ def main():
     # ----------------------------------
     run_cmd([
         "python", 
-        r"D:\DATA\Documents\Xirka Internship\PME\Transformer\transformer\Python Model\block_matmul.py",
+        r"D:\DATA\Documents\Xirka Internship\PME\Transformer\transformer\Python Model + Scripts\block_matmul.py",
         "--matrix_A", SOFTMAX,
         "--matrix_B", V,
 
