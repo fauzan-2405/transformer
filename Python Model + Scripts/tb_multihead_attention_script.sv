@@ -3,7 +3,7 @@
 import linear_proj_pkg::*;
 import self_attention_pkg::*;
 
-module tb_multihead_attention_script;
+module tb_multihead_attention;
     string OUT_DIR;
     string MEM_INPUT_PATH;
     /*string MEM_Q_FILE;
@@ -23,9 +23,9 @@ module tb_multihead_attention_script;
     
     
     //parameter MEM_INPUT_MAT   = "mat_A_lp_bridge.mem";
-    parameter MEM_Q_FILE = "mat_B_lp_bridge.mem";
-    parameter MEM_K_FILE = "mat_B_lp_bridge.mem";
-    parameter MEM_V_FILE = "mat_B_lp_bridge.mem";
+    parameter MEM_INIT_FILE_Q = "mat_B_lp_bridge.mem";
+    parameter MEM_INIT_FILE_K = "mat_B_lp_bridge.mem";
+    parameter MEM_INIT_FILE_V = "mat_B_lp_bridge.mem";
 
     // ============================================================
     // Clock & Reset
@@ -96,9 +96,9 @@ module tb_multihead_attention_script;
     end */
 
     multihead_attention #(
-        .MEM_INIT_FILE_Q(MEM_Q_FILE),
-        .MEM_INIT_FILE_K(MEM_K_FILE),
-        .MEM_INIT_FILE_V(MEM_V_FILE),
+        .MEM_INIT_FILE_Q(MEM_INIT_FILE_Q),
+        .MEM_INIT_FILE_K(MEM_INIT_FILE_K),
+        .MEM_INIT_FILE_V(MEM_INIT_FILE_V),
         .OUT_KEYS(OUT_KEYS),
         .NUMBER_OF_BUFFER_INSTANCES(NUMBER_OF_BUFFER_INSTANCES)
     ) dut (
@@ -192,15 +192,34 @@ module tb_multihead_attention_script;
         @(posedge clk);
         in_mat_wea = 0; in_mat_web = 0;
         in_mat_ena = 0; in_mat_enb = 0;
+        $display("dwe");
         $display("[%0t] Input write done", $time);
-
+        $display("fauzan ganteng");
+        //$finish;
+        $display("fauzan wunderschoen");
         // ========================================================
         // Observe pipeline
         // ========================================================
-        wait(QKT_Vn_done);
+        
+        fork
+            begin
+                @(posedge QKT_Vn_done);
+                $display("[%0t] FINAL DONE detected", $time);
+            end
+            
+            begin
+                #10ms;
+                $display("[%0t] TIMEOUT reached", $time);
+            end
+        join_any
+        
+        repeat(10) @(posedge clk);
+        $finish; 
+        /*
+        @(posedge QKT_Vn_done);
         repeat(10) @(posedge clk);
         $display("Simulation finished cleanly");
-        $finish;
+        $finish;*/
     end
 
     // ========================================================
@@ -212,7 +231,7 @@ module tb_multihead_attention_script;
 
     initial begin
         if (!$value$plusargs("OUT_DIR=%s", OUT_DIR)) begin
-            OUT_DIR = "./";  // fallback
+            OUT_DIR = "/mnt/ssd/mfauzan/transformer/python_code/exports/";  // fallback
         end
 
         $display("[TB] Output directory = %s", OUT_DIR);
@@ -227,7 +246,7 @@ module tb_multihead_attention_script;
     always @(posedge clk) begin
         if (rst_n && linproj_valid && !linproj_done_seen) begin
             for (int iw = 0; iw < TOTAL_INPUT_W; iw++) begin
-                for (int k = 0; k < OUT_KEYS; k += WIDTH_OUT) begin
+                for (int k = OUT_KEYS - WIDTH_OUT; k >= 0 ; k -= WIDTH_OUT) begin
                     $fwrite(f_q, "%h ", out_Q_matrix[iw][k +: WIDTH_OUT]);
                     $fwrite(f_k, "%h ", out_K_matrix[iw][k +: WIDTH_OUT]);
                     $fwrite(f_v, "%h ", out_V_matrix[iw][k +: WIDTH_OUT]);
@@ -255,11 +274,11 @@ module tb_multihead_attention_script;
         
     always @(posedge clk) begin
         if (rst_n && out_Qn_KnT_valid && !qkt_done_seen) begin
-            for (int iw = 0; iw < TOTAL_INPUT_W_Qn_KnT; iw++) begin
-                for (int l = 0; l < WIDTH_OUT*CHUNK_SIZE*NUM_CORES_A_Qn_KnT*NUM_CORES_B_Qn_KnT*TOTAL_MODULES_LP_Q;
-                    l += WIDTH_OUT) begin
+            for (int ix = 0; ix < TOTAL_INPUT_W_Qn_KnT; ix++) begin
+                for (int l = WIDTH_OUT*CHUNK_SIZE*NUM_CORES_A_Qn_KnT*NUM_CORES_B_Qn_KnT*TOTAL_MODULES_LP_Q - WIDTH_OUT; l >= 0;
+                    l -= WIDTH_OUT) begin
                     $fwrite(f_qkt, "%h ",
-                        out_matmul_Qn_KnT[0][iw][l +: WIDTH_OUT]);
+                        out_matmul_Qn_KnT[0][ix][l +: WIDTH_OUT]);
                 end
             end
             $fwrite(f_qkt, "\n");
@@ -279,10 +298,10 @@ module tb_multihead_attention_script;
     always @(posedge clk) begin
         if (rst_n && out_QKT_Vn_valid && !final_done_seen) begin
             for (int iw = 0; iw < TOTAL_INPUT_W_Qn_KnT; iw++) begin
-                for (int l = 0; l < WIDTH_OUT*CHUNK_SIZE*NUM_CORES_A_QKT_Vn*NUM_CORES_B_QKT_Vn*TOTAL_MODULES_LP_V;
-                    l += WIDTH_OUT) begin
+                for (int m = WIDTH_OUT*CHUNK_SIZE*NUM_CORES_A_QKT_Vn*NUM_CORES_B_QKT_Vn*TOTAL_MODULES_LP_V - WIDTH_OUT; m >= 0;
+                    m -= WIDTH_OUT) begin
                     $fwrite(f_final, "%h ",
-                        out_matmul_QKT_Vn[0][iw][l +: WIDTH_OUT]);
+                        out_matmul_QKT_Vn[0][iw][m +: WIDTH_OUT]);
                 end
             end
             $fwrite(f_final, "\n");
