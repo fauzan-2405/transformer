@@ -1,7 +1,7 @@
 #!/bin/bash
 # run_pipeline.sh
-set -e
-set -x
+#set -e
+#set -x
 # ============================================
 # USER CONFIG
 # ============================================
@@ -31,9 +31,13 @@ echo "STEP 1: Python Golden Model"
 echo "========================================"
 
 python3 $ROOT/pipeline_runner.py \
-    --rows_a 16 --cols_a 10 --proj_dim 12 \
+    --rows 16 --cols 10 --proj_dim 12 \
     --cores_a 2 \
     --total_modules 2 \
+    --min_val 0 \
+    --max_val 1 \
+    --total_bits 16 \
+    --frac_bits 4 \
     --out_dir $SOFT_DIR
 
 echo "========================================"
@@ -41,8 +45,8 @@ echo "STEP 2: Clean (bin2hex + mem+processor)"
 echo "========================================"
 
 python3 $ROOT/bin2hex.py $SOFT_DIR/mem_input.mem --out_dir $CLEAN_DIR
-python3 $ROOT/bin2hex.py $SOFT_DIR/mem_q1.mem --out_dir $CLEAN_DIR
-python3 $ROOT/bin2hex.py $SOFT_DIR/mem_k1.mem --out_dir $CLEAN_DIR
+python3 $ROOT/bin2hex.py $SOFT_DIR/mem_q1.mem --out_dir $CLEAN_DIR   
+python3 $ROOT/bin2hex.py $SOFT_DIR/mem_k1.mem --out_dir $CLEAN_DIR     
 python3 $ROOT/bin2hex.py $SOFT_DIR/mem_v1.mem --out_dir $CLEAN_DIR
 
 
@@ -54,17 +58,37 @@ vivado -mode batch -source $ROOT/run_sim.tcl -tclargs \
     $HW_DIR \
     $CLEAN_DIR/mem_input_hex.mem \
     $CLEAN_DIR/mem_q1_hex.mem \
-    $CLEAN_DIR/mem_k1_hex.mem \  
-    $CLEAN_DIR/mem_v1_hex.mem     
+    $CLEAN_DIR/mem_k1_hex.mem \
+    $CLEAN_DIR/mem_v1_hex.mem
 
-# echo "========================================"
-# echo "STEP 4: Compare"
-# echo "========================================"
+echo "========================================"
+echo "STEP 4: Compare"
+echo "========================================"
 
-# python3 compare.py \
-#     --golden $SOFT_DIR/final_results.mem \
-#     --rtl    $HW_DIR/out_FINAL.mem
+echo "KEYS COMPARISON"
+echo "================"
+python3 $ROOT/compare.py \
+     --golden $SOFT_DIR/mem_out_q1.mem \
+     --rtl    $HW_DIR/out_Q.mem
+python3 $ROOT/compare.py \
+     --golden $SOFT_DIR/mem_out_k1.mem \
+     --rtl    $HW_DIR/out_K.mem
+python3 $ROOT/compare.py \
+     --golden $SOFT_DIR/mem_out_v1.mem \
+     --rtl    $HW_DIR/out_V.mem
 
-# echo "========================================"
-# echo "PIPELINE DONE"
-# echo "========================================"
+echo "QKT COMPARISON"
+echo "================"
+python3 $ROOT/compare.py \
+     --golden $SOFT_DIR/Q_KT.mem \
+     --rtl    $HW_DIR/out_QKT.mem
+
+echo "FINAL COMPARISON"
+echo "================"
+python3 $ROOT/compare.py \
+     --golden $SOFT_DIR/final_results.mem \
+     --rtl    $HW_DIR/out_FINAL.mem    
+
+echo "========================================"
+echo "PIPELINE DONE"
+echo "========================================"
