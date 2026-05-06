@@ -36,7 +36,7 @@ file delete -force *.log *.jou *.pb
 
 puts "Compiling..."
 exec xvlog -sv \
-    -d SYSTEM_TOP_WIDH=$width \
+    -d SYSTEM_TOP_WIDTH=$width \
     -d SYSTEM_FRAC_WIDTH=$frac \
     -d I_MATRIX_DIMENSION=$i_mat \
     -d INNER_MATRIX_DIMENSION=$inner_mat \
