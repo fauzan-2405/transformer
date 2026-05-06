@@ -16,6 +16,7 @@ while [ -d "$ROOT/exports_$i" ]; do
 done
 
 BASE=$ROOT/exports_$i
+LOG_FILE=$BASE/run_config.log
 echo "Using export directory: $BASE"
 
 SOFT_DIR=$BASE/software
@@ -26,28 +27,102 @@ mkdir -p $SOFT_DIR
 mkdir -p $CLEAN_DIR
 mkdir -p $HW_DIR
 
+# USER INPUTS
+ROWS=16
+COLS=10
+PROJ_DIM=12
+CORES_A=2
+TOTAL_MODULES=2
+MIN_VAL=0
+MAX_VAL=1
+TOTAL_BITS=12
+FRAC_BITS=8
+
+#DERIVED PARAMETERS
+ROW_SIZE_MAT_KEYS=$((ROWS/(2*2*CORES_A)))
+COL_SIZE_MAT_KEYS=$((PROJ_DIM/(2*1*TOTAL_MODULES)))
+MAX_FLAG_MAT_KEYS=$(($ROW_SIZE_MAT_KEYS * $COL_SIZE_MAT_KEYS))
+CORES_A_MAT_KEYS=$CORES_A
+CORES_B_MAT_KEYS=$TOTAL_MODULES
+
+ROW_SIZE_MAT_Q_KT=$ROW_SIZE_MAT_KEYS
+COL_SIZE_MAT_Q_KT=$ROW_SIZE_MAT_Q_KT
+MAX_FLAG_MAT_Q_KT=$(($ROW_SIZE_MAT_Q_KT * $COL_SIZE_MAT_Q_KT))
+CORES_A_MAT_Q_KT=$CORES_A
+CORES_B_MAT_Q_KT=$CORES_A
+
+SOFTMAX_ROW=$((CORES_A * 2))
+TOTAL_TILE_SOFT=$((ROWS/(CORES_A*2*2)))
+NUM_BANK_FIFO_MIN=$TOTAL_TILE_SOFT
+NUM_BANK_FIFO_MAX=$(((CORES_A*2*2)/2))
+
+ROW_SIZE_MAT_FINAL=$((ROWS/(2*2*CORES_A)))
+COL_SIZE_MAT_FINAL=$((PROJ_DIM/(2*1*TOTAL_MODULES)))
+MAX_FLAG_MAT_FINAL=$(($ROW_SIZE_MAT_FINAL * $COL_SIZE_MAT_FINAL))
+CORES_A_MAT_FINAL=$CORES_A
+CORES_B_MAT_FINAL=$TOTAL_MODULES
+
+echo "[MODEL CONFIG]" >> $LOG_FILE
+echo "rows           : $ROWS" >> $LOG_FILE
+echo "cols           : $COLS" >> $LOG_FILE
+echo "proj_dim       : $PROJ_DIM" >> $LOG_FILE
+echo "cores_a        : $CORES_A" >> $LOG_FILE
+echo "total_modules  : $TOTAL_MODULES" >> $LOG_FILE
+echo "min_val        : $MIN_VAL" >> $LOG_FILE
+echo "max_val        : $MAX_VAL" >> $LOG_FILE
+echo "total_bits     : $TOTAL_BITS" >> $LOG_FILE
+echo "frac_bits      : $FRAC_BITS" >> $LOG_FILE
+echo "========================================" >> $LOG_FILE
+echo "Q,K,V Parameters" >> $LOG_FILE
+echo "ROW_SIZE       : $ROW_SIZE_MAT_KEYS" >> $LOG_FILE
+echo "COL_SIZE       : $COL_SIZE_MAT_KEYS" >> $LOG_FILE
+echo "MAX_FLAG       : $MAX_FLAG_MAT_KEYS" >> $LOG_FILE
+echo "CORES_A        : $CORES_A_MAT_KEYS" >> $LOG_FILE
+echo "CORES_B        : $CORES_B_MAT_KEYS" >> $LOG_FILE
+echo "========================================" >> $LOG_FILE
+echo "QK_T Parameters" >> $LOG_FILE
+echo "ROW_SIZE       : $ROW_SIZE_MAT_Q_KT" >> $LOG_FILE
+echo "COL_SIZE       : $COL_SIZE_MAT_Q_KT" >> $LOG_FILE
+echo "MAX_FLAG       : $MAX_FLAG_MAT_Q_KT" >> $LOG_FILE
+echo "CORES_A        : $CORES_A_MAT_Q_KT" >> $LOG_FILE
+echo "CORES_B        : $CORES_B_MAT_Q_KT" >> $LOG_FILE
+echo "========================================" >> $LOG_FILE
+echo "PRECURSOR MODULES Parameters" >> $LOG_FILE
+echo "SOFTMAX_ROW    : $SOFTMAX_ROW" >> $LOG_FILE
+echo "HOW MANY SOFTMAX INPUT TO PRODUCE ONE OUTPUT/HOW MANY R2B CONVERTER    : $TOTAL_TILE_SOFT" >> $LOG_FILE
+echo "NUM_BANK_FIFO(MINIMAL)  : $NUM_BANK_FIFO_MIN" >> $LOG_FILE
+echo "NUM_BANK_FIFO(MAXIMAL)  : $NUM_BANK_FIFO_MAX" >> $LOG_FILE
+echo "========================================" >> $LOG_FILE
+echo "FINAL QKT_V Parameters" >> $LOG_FILE
+echo "ROW_SIZE       : $ROW_SIZE_MAT_FINAL" >> $LOG_FILE
+echo "COL_SIZE       : $COL_SIZE_MAT_FINAL" >> $LOG_FILE
+echo "MAX_FLAG       : $MAX_FLAG_MAT_FINAL" >> $LOG_FILE
+echo "CORES_A        : $CORES_A_MAT_FINAL" >> $LOG_FILE
+echo "CORES_B        : $CORES_B_MAT_FINAL" >> $LOG_FILE
+
+
 echo "========================================"
 echo "STEP 1: Python Golden Model"
 echo "========================================"
 
 python3 $ROOT/pipeline_runner.py \
-    --rows 16 --cols 10 --proj_dim 12 \
-    --cores_a 2 \
-    --total_modules 2 \
-    --min_val 0 \
-    --max_val 1 \
-    --total_bits 16 \
-    --frac_bits 4 \
+    --rows $ROWS --cols $COLS --proj_dim $PROJ_DIM \
+    --cores_a $CORES_A \
+    --total_modules $TOTAL_MODULES \
+    --min_val $MIN_VAL \
+    --max_val $MAX_VAL \
+    --total_bits $TOTAL_BITS \
+    --frac_bits $FRAC_BITS \
     --out_dir $SOFT_DIR
 
 echo "========================================"
 echo "STEP 2: Clean (bin2hex + mem+processor)"
 echo "========================================"
 
-python3 $ROOT/bin2hex.py $SOFT_DIR/mem_input.mem --out_dir $CLEAN_DIR
-python3 $ROOT/bin2hex.py $SOFT_DIR/mem_q1.mem --out_dir $CLEAN_DIR   
-python3 $ROOT/bin2hex.py $SOFT_DIR/mem_k1.mem --out_dir $CLEAN_DIR     
-python3 $ROOT/bin2hex.py $SOFT_DIR/mem_v1.mem --out_dir $CLEAN_DIR
+python3 $ROOT/bin2hex.py $SOFT_DIR/mem_input.mem --out_dir $CLEAN_DIR --element-bits $TOTAL_BITS
+python3 $ROOT/bin2hex.py $SOFT_DIR/mem_q1.mem --out_dir $CLEAN_DIR --element-bits $TOTAL_BITS
+python3 $ROOT/bin2hex.py $SOFT_DIR/mem_k1.mem --out_dir $CLEAN_DIR --element-bits $TOTAL_BITS
+python3 $ROOT/bin2hex.py $SOFT_DIR/mem_v1.mem --out_dir $CLEAN_DIR --element-bits $TOTAL_BITS
 
 
 echo "========================================"
@@ -59,7 +134,10 @@ vivado -mode batch -source $ROOT/run_sim.tcl -tclargs \
     $CLEAN_DIR/mem_input_hex.mem \
     $CLEAN_DIR/mem_q1_hex.mem \
     $CLEAN_DIR/mem_k1_hex.mem \
-    $CLEAN_DIR/mem_v1_hex.mem
+    $CLEAN_DIR/mem_v1_hex.mem \
+    $TOTAL_BITS $FRAC_BITS \
+    $ROWS $COLS $PROJ_DIM \
+    $CORES_A $TOTAL_MODULES
 
 echo "========================================"
 echo "STEP 4: Compare"

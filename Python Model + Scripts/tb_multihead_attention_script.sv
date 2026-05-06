@@ -23,9 +23,13 @@ module tb_multihead_attention;
     
     
     //parameter MEM_INPUT_MAT   = "mat_A_lp_bridge.mem";
-    parameter MEM_INIT_FILE_Q = "mat_B_lp_bridge.mem";
-    parameter MEM_INIT_FILE_K = "mat_B_lp_bridge.mem";
-    parameter MEM_INIT_FILE_V = "mat_B_lp_bridge.mem";
+    //mat_B_lp_bridge
+    //mem_q1_hex
+    //mem_k1_hex
+    //mem_v1_hex
+    parameter MEM_INIT_FILE_Q = "mem_q1_hex.mem";
+    parameter MEM_INIT_FILE_K = "mem_k1_hex.mem";
+    parameter MEM_INIT_FILE_V = "mem_v1_hex.mem";
 
     // ============================================================
     // Clock & Reset
@@ -144,8 +148,10 @@ module tb_multihead_attention;
         $display("[%0t] TB start", $time);
 
         // Load input matrix
+        //mat_A_lp_bridge
+        //mem_input_hex
         if (!$value$plusargs("INPUT_FILE=%s", MEM_INPUT_PATH)) begin
-            MEM_INPUT_PATH = "mat_A_lp_bridge.mem";
+            MEM_INPUT_PATH = "mem_input_hex.mem";
         end
 
         $display("[TB] Input file = %s", MEM_INPUT_PATH);
@@ -214,7 +220,7 @@ module tb_multihead_attention;
         join_any
         
         repeat(10) @(posedge clk);
-        $finish; 
+        $finish;
         /*
         @(posedge QKT_Vn_done);
         repeat(10) @(posedge clk);
@@ -312,7 +318,7 @@ module tb_multihead_attention;
             $display("[%0t] FINAL DONE → stop dumping", $time);
             $fclose(f_final);
         end
-    end
+    end 
 
 endmodule
 
