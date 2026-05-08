@@ -7,7 +7,7 @@ module softmax_vec #(
     parameter FRAC_WIDTH     = 16,
     parameter TOTAL_ELEMENTS = 1024,   // set small for sim; can be 2754 in HW
     parameter TILE_SIZE      = 16,
-    parameter USE_AMULT      = 0     // passed to exp_vec
+    parameter USE_AMULT      = 1     // passed to exp_vec
 )(
     input  wire                          clk,
     input  wire                          rst_n,
@@ -36,14 +36,14 @@ module softmax_vec #(
             //$display("Slice Flat[%0d]: %0h", idx, slice_flat);
         end
     endfunction
-
+    
     // Function to slice the x_flat for searching the max_value
     function signed [WIDTH-1:0] slice_flat_max_val;
         input [WIDTH*TILE_SIZE-1:0] x_flat;
         input integer idx;
         begin
             slice_flat_max_val = x_flat[(TILE_SIZE-1-idx)*WIDTH +: WIDTH];
-            $display("Slice Flat[%0d]: %0h", idx, slice_flat_max_val);
+            //$display("Slice Flat[%0d]: %0h", idx, slice_flat_max_val);
         end
     endfunction
 
@@ -128,21 +128,21 @@ module softmax_vec #(
     localparam S_LN         = 3'd3; // range reduction to calculate ln
     localparam S_PASS_2     = 3'd4; // Calculate exp(X_i - max_value - sum_exp) and stream the output
     localparam S_DONE       = 3'd5;
-
-
+    
+    
     // Max Val
     function automatic signed [INT_WIDTH-1:0] tile_max_q16_16;
         input signed [TILE_SIZE*WIDTH-1:0] x_flat;
         input signed [INT_WIDTH-1:0] prev_max;
-
+        
         //input [ADDRE:0] e_loaded_local;
         integer mi;
         reg signed [INT_WIDTH-1:0] cur_max;
         reg signed [INT_WIDTH-1:0] x_val;
         begin
-            $display("Max Function \t Input: %0h \t| prev_max: %0h \t| cur_max: %0h",x_flat,prev_max, cur_max);
+            //$display("Max Function \t Input: %0h \t| prev_max: %0h \t| cur_max: %0h",x_flat,prev_max, cur_max);
             cur_max = prev_max;
-            $display(" cur_max baru!: %0h", cur_max);
+            //$display(" cur_max baru!: %0h", cur_max);
             for (mi = 0; mi < TILE_SIZE; mi = mi + 1) begin
                 //if ((e_loaded_local + mi) <= TOTAL_ELEMENTS) begin
                     x_val = to_q16_16(slice_flat_max_val(x_flat, mi));
@@ -154,10 +154,10 @@ module softmax_vec #(
                 //end
             end
             tile_max_q16_16 = cur_max;
-            $display(" tile_max: %0h", tile_max_q16_16);
+            //$display(" tile_max: %0h", tile_max_q16_16);
         end
     endfunction
-
+    
 
     reg [2:0] state_reg, state_next, state_reg_d;
     integer i;
@@ -400,7 +400,7 @@ module softmax_vec #(
                         out_phase       <= 1'b0;
                     end
                 end
-
+                
                 S_DONE: begin
                     Y_tile_out <= 0;
                 end
@@ -473,6 +473,7 @@ module softmax_vec #(
             endcase
         end
     end
-
+    
     assign done = (state_next == S_DONE) ? 1 : 0 ;
 endmodule
+

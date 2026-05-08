@@ -12,7 +12,7 @@
 // Notes:
 // - LUT_A and LUT_C are implemented once via functions (shared definition).
 // - Each lane computes its own index (tiny logic).
-// - Flattened I/O: MS chunk is element 0.
+// - Flattened I/O: MS chunk is element 0 (matches your earlier convention).
 
 module exp_vec #(
     parameter integer WIDTH       = 32,
@@ -286,3 +286,4 @@ module exp_vec #(
     endgenerate
 
 endmodule
+

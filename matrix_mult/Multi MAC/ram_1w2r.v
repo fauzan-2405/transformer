@@ -15,12 +15,6 @@ module ram_1w2r #(
     (* ram_style = "block" *)
     reg [DATA_WIDTH-1:0] mem [0:DEPTH-1];
     integer i;
-    /*
-    always @* begin
-        if (we) begin
-            mem[write_addr] <= din;
-        end
-    end*/
 
     always @(posedge clk) begin
         if (!rst_n) begin
@@ -39,3 +33,4 @@ module ram_1w2r #(
         dout1 <= mem[read_addr1];
     end
 endmodule
+
