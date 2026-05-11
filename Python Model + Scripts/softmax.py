@@ -1,6 +1,8 @@
 import argparse
 
 """
+This code used the LUT in the softmax hardware
+
 python "d:\DATA\Documents\Xirka Internship\PME\Transformer\transformer\Python Model\softmax.py" --input "d:\DATA\Documents\Xirka Internship\PME\Transformer\transformer\Python Model\A.txt" 
         --input_format float --output_format hex --output_file "D:\DATA\Documents\Xirka Internship\PME\Transformer\transformer\exports\softmax_results.txt" --apply_div --div_value 16 --width 16 --frac 8
 """
