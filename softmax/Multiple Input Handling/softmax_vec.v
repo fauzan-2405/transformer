@@ -109,8 +109,7 @@ module softmax_vec #(
             from_q16_16 = x_q16 <<< (-shift);
     end
     endfunction
-
-
+    
     // Local Parameters
     localparam SUM_WIDTH            = INT_WIDTH + $clog2(TOTAL_ELEMENTS + 1); // sum_exp width size
     localparam [INT_WIDTH-1:0] LN2_Q    = 32'h0000B172; // ~0.693147 in Q16.16
@@ -224,6 +223,26 @@ module softmax_vec #(
     reg [SUM_WIDTH-1:0] sum_exp;
     reg [ADDRS-1:0] e_count_sum;
     reg minus, minus_d;
+    
+    
+    // Function to saturation
+    function automatic [SUM_WIDTH-1:0] sat_add;
+        input [SUM_WIDTH-1:0] a;
+        input [SUM_WIDTH-1:0] b;
+        
+        reg [SUM_WIDTH:0] tmp;
+    begin
+        tmp = a + b;
+        
+        // overflow detect
+        if (tmp[SUM_WIDTH]) begin
+            sat_add = {SUM_WIDTH{1'b1}};
+        end
+        else begin
+            sat_add = tmp[SUM_WIDTH-1:0];
+        end
+    end
+    endfunction
 
     // Sum-of-elements within a tile
     integer si;
@@ -458,22 +477,3 @@ module softmax_vec #(
             endcase
 
             // Case for state_reg_d
-            case (state_reg_d)
-                S_PASS_1: begin
-                    if (e_count_sum < COUNT_SUM) begin
-                       if (minus_d) begin
-                            sum_exp <= sum_exp + acc0 + acc1;
-                            e_count_sum <= e_count_sum + 2;
-                        end else begin
-                            sum_exp <= sum_exp + acc0;
-                            e_count_sum <= e_count_sum + 1;
-                        end
-                    end
-                end
-            endcase
-        end
-    end
-    
-    assign done = (state_next == S_DONE) ? 1 : 0 ;
-endmodule
-

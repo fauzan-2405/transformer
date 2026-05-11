@@ -270,9 +270,12 @@ module exp_vec #(
             end
 
             // Select multiply result and add C
-            wire signed [WIDTH-1:0] Y_i = (USE_AMULT != 0) ? (mult_approx + C_i)
+            wire signed [WIDTH-1:0] y_raw = (USE_AMULT != 0) ? (mult_approx + C_i)
                                                            : (mult_exact  + C_i);
-
+            
+            wire signed [WIDTH-1:0] Y_i = 
+                y_raw[WIDTH-1] ? {WIDTH{1'b0}} : y_raw;
+                
             // Register-less combinational output for now; we can pipeline later
             always @* begin
                 Y[i] = Y_i;
