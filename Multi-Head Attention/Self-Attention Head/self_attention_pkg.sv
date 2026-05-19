@@ -40,7 +40,10 @@ package self_attention_pkg;
     parameter TOTAL_OUTPUTS_PER_TILE = TILE_SIZE_SOFTMAX/SA_BLOCK_SIZE;
     parameter TOTAL_SOFTMAX_ROW      = NUM_CORES_A_Qn_KnT * SA_BLOCK_SIZE;
     
-    parameter NUM_BANKS_FIFO         = (TOTAL_OUTPUTS_PER_TILE*2 + 1 > TOTAL_TILE_SOFTMAX)? TOTAL_TILE_SOFTMAX : (TOTAL_OUTPUTS_PER_TILE*2 + 1);
+    //parameter NUM_BANKS_FIFO         = (TOTAL_OUTPUTS_PER_TILE*2 + 1 > TOTAL_TILE_SOFTMAX)? TOTAL_TILE_SOFTMAX : (TOTAL_OUTPUTS_PER_TILE*2 + 1); // Old
+    parameter NUM_BANKS_FIFO         = TOTAL_TILE_SOFTMAX; // New, because there will be mismatch between the self
+                                        // attention control (it's using TOTAL_TILE_SOFTMAX as the dimension) and 
+                                        // the module itself (using the old TOTAL_OUTPUTS_PER_TILE*2 + 1                                                                                                                               
     parameter int FIFO_WRITE_DEPTH   = (TOTAL_OUTPUTS_PER_TILE <= 16) ? 16 : TOTAL_OUTPUTS_PER_TILE; 
     parameter int WR_DATA_COUNT_WIDTH= ($clog2(TOTAL_OUTPUTS_PER_TILE)+1 <= 5) ? 5 : ($clog2(TOTAL_OUTPUTS_PER_TILE)+1);
     parameter int RD_DATA_COUNT_WIDTH= ($clog2(TOTAL_OUTPUTS_PER_TILE)+1 <= 5) ? 5 : ($clog2(TOTAL_OUTPUTS_PER_TILE)+1);

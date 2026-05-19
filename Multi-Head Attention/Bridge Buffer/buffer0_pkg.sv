@@ -22,8 +22,10 @@ package buffer0_pkg;
     localparam W0_SLICE_WIDTH       = B0_WIDTH*(top_pkg::TOP_CHUNK_SIZE)*W0_NUM_CORES_A;
     localparam W0_MODULE_WIDTH      = W0_SLICE_WIDTH*TOTAL_INPUT_W_W0;
     localparam W0_IN_WIDTH          = W0_SLICE_WIDTH * W0_NUM_CORES_B * W0_TOTAL_MODULES;
-    //localparam W0_TOTAL_DEPTH       = W0_ROW_X * W0_COL_X; // Can be reduced even further 
-    localparam W0_TOTAL_DEPTH       = ((2 * W0_COL_X) < (W0_ROW_X * W0_COL_X)) ? (2 * W0_COL_X) : (W0_ROW_X * W0_COL_X); // New formula, basically 2*W0_COL_X of TOTAL_DEPTH
+    localparam W0_TOTAL_DEPTH       = W0_ROW_X * W0_COL_X; 
+    // I guess these new W0_TOTAL_DEPTH are not working because it will overwrite the old memory while we still need the old memory
+    //localparam W0_TOTAL_DEPTH       = ((2 * W0_COL_X) < (W0_ROW_X * W0_COL_X)) ? (2 * W0_COL_X) : (W0_ROW_X * W0_COL_X); // New formula 1.0, basically 2*W0_COL_X of TOTAL_DEPTH
+    //localparam W0_TOTAL_DEPTH       = (1 * W0_COL_X < (W0_ROW_X * W0_COL_X)) ? (2 * W0_COL_X) : (W0_ROW_X * W0_COL_X); // Newer formula 1.1, basically 2*W0_COL_X of TOTAL_DEPTH
     localparam W0_MEMORY_SIZE       = W0_TOTAL_DEPTH * W0_MODULE_WIDTH;
     localparam int ADDR_WIDTH_W0    = $clog2(W0_TOTAL_DEPTH);
     //localparam W0_TOTAL_IN          = W0_ROW_X * W0_COL_X / TOTAL_INPUT_W_W0;                 // Old
@@ -68,8 +70,9 @@ package buffer0_pkg;
     localparam W1_SLICE_WIDTH       = B1_WIDTH*(top_pkg::TOP_CHUNK_SIZE)*W1_NUM_CORES_A;
     localparam W1_MODULE_WIDTH      = W1_SLICE_WIDTH*TOTAL_INPUT_W_W1;
     localparam W1_IN_WIDTH          = W1_SLICE_WIDTH * W1_NUM_CORES_B * W1_TOTAL_MODULES;
-    //localparam W1_TOTAL_DEPTH       = W1_ROW_X * W1_COL_X; // Old, Can be reduced even further (maybe == N_TOTAL_DEPTH because we will wait at the same time as the entire north matrix is loaded, then do the circular address computation)
-    localparam W1_TOTAL_DEPTH       = ((2 * W1_COL_X) < (W1_ROW_X * W1_COL_X)) ? (2 * W1_COL_X) : (W1_ROW_X * W1_COL_X); // New formula
+    localparam W1_TOTAL_DEPTH       = W1_ROW_X * W1_COL_X; // Old, Can be reduced even further (maybe == N_TOTAL_DEPTH because we will wait at the same time as the entire north matrix is loaded, then do the circular address computation)
+    //localparam W1_TOTAL_DEPTH       = ((2 * W1_COL_X) < (W1_ROW_X * W1_COL_X)) ? (2 * W1_COL_X) : (W1_ROW_X * W1_COL_X); // New formula 1.0
+    //localparam W1_TOTAL_DEPTH       = (W1_COL_X < (W1_ROW_X * W1_COL_X)) ? (W1_COL_X) : (W1_ROW_X * W1_COL_X); // New formula 1.1, More aggressive because we cut in half
     localparam W1_MEMORY_SIZE       = W1_TOTAL_DEPTH * W1_MODULE_WIDTH;
     localparam int ADDR_WIDTH_W1    = $clog2(W1_TOTAL_DEPTH);
     //localparam W1_TOTAL_IN          = W1_ROW_X * W1_COL_X / TOTAL_INPUT_W_W1;
