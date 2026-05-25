@@ -103,21 +103,20 @@ module softmax_vec #(
     function automatic signed [WIDTH_OUT-1:0] from_q16_16;
         input signed [INT_WIDTH-1:0] x_q16;
         integer shift;
+        reg signed [INT_WIDTH-1:0] clamped;
         reg signed [INT_WIDTH-1:0] rounded;
     begin
         // Clamp the input
-        if (x_q16 <0) begin
-            x_q16 = 0;
-        end
+        clamped  = (x_q16 < 0) ? 0 : x_q16;
         
         shift = INT_FRAC - FRAC_WIDTH_OUT;
         if (shift >= 0) begin
-            rounded = x_q16 + (1 <<< (shift-1));
+            rounded = clamped + (1 <<< (shift-1));
             from_q16_16 = rounded >>> shift;
         end else if (shift < 0) begin
-            from_q16_16 = x_q16 <<< (-shift);
+            from_q16_16 = clamped <<< (-shift);
         end else begin
-            from_q16_16 = x_q16;
+            from_q16_16 = clamped;
         end
     end
     endfunction
