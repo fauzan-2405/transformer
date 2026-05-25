@@ -7,8 +7,9 @@ package linear_proj_pkg;
     parameter int FRAC_WIDTH_A   = top_pkg::TOP_FRAC_WIDTH_A;
     parameter int WIDTH_B        = top_pkg::TOP_WIDTH_B;
     parameter int FRAC_WIDTH_B   = top_pkg::TOP_FRAC_WIDTH_B;
-    parameter int WIDTH_OUT      = top_pkg::TOP_WIDTH_OUT;
-    parameter int FRAC_WIDTH_OUT = top_pkg::TOP_FRAC_WIDTH_OUT;
+    
+    parameter int WIDTH_OUT      = top_pkg::TOP_WIDTH_KEYS;         // Width per bits of the Q, K, V outputs
+    parameter int FRAC_WIDTH_OUT = top_pkg::TOP_FRAC_WIDTH_KEYS;    // Width per bits of the Q, K, V outputs
 
     parameter int BLOCK_SIZE     = top_pkg::TOP_BLOCK_SIZE; 
     parameter int CHUNK_SIZE     = top_pkg::TOP_CHUNK_SIZE;

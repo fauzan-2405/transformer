@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 
 import os
+import sys
 import subprocess
 import argparse
+sys.executable
 
 """
 example run:
@@ -43,17 +45,18 @@ def main():
     # STEP 1: MATRIX MULTIPLIER
     # ----------------------------------
     run_cmd([
-        "python", 
-        r"D:\DATA\Documents\Xirka Internship\PME\Transformer\transformer\Python Model + Scripts\matrix_multiplier.py",
+        sys.executable,
+        r"/mnt/ssd/mfauzan/transformer/python_code/matrix_multiplier.py",
         "--task", "linear_projection",
         "--rows_a", str(args.rows),
         "--cols_a", str(args.cols),
         "--proj_dim", str(args.proj_dim),
 
         "--cores_a", str(args.cores_a),
-        "--cores_b", "1",
-        "--total_modules", str(args.total_modules),
-
+        "--cores_b", str(args.total_modules),
+        #"--total_modules", str(args.total_modules),
+        "--total_modules", "1",
+        
         "--unique_per_type",
         "--integers",
 
@@ -86,8 +89,8 @@ def main():
     # STEP 2: Q × K^T
     # ----------------------------------
     run_cmd([
-        "python", 
-        r"D:\DATA\Documents\Xirka Internship\PME\Transformer\transformer\Python Model + Scripts\block_matmul.py",
+        sys.executable,
+        r"/mnt/ssd/mfauzan/transformer/python_code/block_matmul.py",
         "--matrix_A", Q,
         "--matrix_B", K,
 
@@ -111,8 +114,8 @@ def main():
     # STEP 3: SOFTMAX
     # ----------------------------------
     run_cmd([
-        "python", 
-        r"D:\DATA\Documents\Xirka Internship\PME\Transformer\transformer\Python Model + Scripts\softmax.py",
+        sys.executable,
+        r"/mnt/ssd/mfauzan/transformer/python_code/softmax.py",
         "--input", QKT_as_input,
 
         "--input_format", "hex",
@@ -131,8 +134,8 @@ def main():
     # STEP 4: SOFTMAX × V
     # ----------------------------------
     run_cmd([
-        "python", 
-        r"D:\DATA\Documents\Xirka Internship\PME\Transformer\transformer\Python Model + Scripts\block_matmul.py",
+        sys.executable,
+        r"/mnt/ssd/mfauzan/transformer/python_code/block_matmul.py",
         "--matrix_A", SOFTMAX,
         "--matrix_B", V,
 

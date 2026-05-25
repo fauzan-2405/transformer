@@ -12,6 +12,18 @@ python "d:\DATA\Documents\Xirka Internship\PME\Transformer\transformer\Python Mo
 
 MASK32 = 0xFFFFFFFF
 
+SUM_WIDTH = 48
+SUM_MASK = (1 << SUM_WIDTH) - 1
+
+def sat_sum(x):
+    if x < 0:
+        return 0
+
+    if x > SUM_MASK:
+        return SUM_MASK
+
+    return x
+
 def to_signed32(x):
     x &= MASK32
     return x if x < (1 << 31) else x - (1 << 32)
@@ -102,7 +114,14 @@ def exp_q16(x):
     prod = (x * A) >> 16
     prod = to_signed32(prod)
 
-    return to_signed32(prod + C)
+    y = to_signed32(prod + C)
+
+    # RTL clamp:
+    # if negative -> 0
+    if y < 0:
+        y = 0
+
+    return y
 
 # ==============================
 # LNU (your PWL ln)
@@ -145,7 +164,10 @@ def softmax_row_q16(row, frac):
 
     # PASS 1: exp + sum
     exp_vals = [exp_q16(x - max_val) for x in row]
-    sum_exp = sum(exp_vals)
+    sum_exp = 0
+
+    for v in exp_vals:
+        sum_exp = sat_sum(sum_exp + v)
 
     # LN
     ln_sum = lnu_q16(sum_exp)

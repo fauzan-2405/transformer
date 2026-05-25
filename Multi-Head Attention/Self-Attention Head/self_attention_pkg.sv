@@ -1,12 +1,19 @@
 // This package contains parameters used in self attention head 
 
 package self_attention_pkg;
-    parameter int SA_WIDTH_A        = top_pkg::TOP_WIDTH_A;
-    parameter int SA_FRAC_WIDTH_A   = top_pkg::TOP_FRAC_WIDTH_A;
-    parameter int SA_WIDTH_B        = top_pkg::TOP_WIDTH_B;
-    parameter int SA_FRAC_WIDTH_B   = top_pkg::TOP_FRAC_WIDTH_B;
-    parameter int SA_WIDTH_OUT      = top_pkg::TOP_WIDTH_OUT;
-    parameter int SA_FRAC_WIDTH_OUT = top_pkg::TOP_FRAC_WIDTH_OUT;
+    parameter int SA_WIDTH_A        = top_pkg::TOP_WIDTH_KEYS;      // From the output of the Q and K operation (linear projection)
+    parameter int SA_FRAC_WIDTH_A   = top_pkg::TOP_FRAC_WIDTH_KEYS; 
+    parameter int SA_WIDTH_B        = top_pkg::TOP_WIDTH_KEYS;      // From the output of the Q and K operation (linear projection)
+    parameter int SA_FRAC_WIDTH_B   = top_pkg::TOP_FRAC_WIDTH_KEYS;
+    
+    parameter int SA_WIDTH_OUT      = top_pkg::TOP_WIDTH_QKT;       // The output width of the Qn_KnT operation
+    parameter int SA_FRAC_WIDTH_OUT = top_pkg::TOP_FRAC_WIDTH_QKT;  // The output width of the Qn_KnT operation
+    
+    parameter int SA_WIDTH_SOFT_OUT = top_pkg::TOP_WIDTH_SOFTMAX;           // The output width of softmax
+    parameter int SA_FRAC_WIDTH_SOFT_OUT = top_pkg::TOP_FRAC_WIDTH_SOFTMAX; // The output width of softmax
+    
+    parameter int SA_WIDTH_FINAL    = top_pkg::TOP_WIDTH_OUT;       // The output width of the QKT_Vn operation
+    parameter int SA_FRAC_WIDTH_FINAL= top_pkg::TOP_FRAC_WIDTH_OUT; // The output width of the QKT_Vn operation
 
     parameter int SA_BLOCK_SIZE     = top_pkg::TOP_BLOCK_SIZE; 
     parameter int SA_CHUNK_SIZE     = top_pkg::TOP_CHUNK_SIZE;

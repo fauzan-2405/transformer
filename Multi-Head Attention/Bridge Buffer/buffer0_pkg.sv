@@ -2,8 +2,8 @@
 // This package contains all necessary parameters for buffer0 buffer
 
 package buffer0_pkg;
-    parameter int B0_WIDTH          = top_pkg::TOP_WIDTH_OUT;
-    parameter int FRAC_WIDTH        = top_pkg::TOP_FRAC_WIDTH_OUT;
+    parameter int B0_WIDTH          = linear_proj_pkg::WIDTH_OUT;
+    parameter int FRAC_WIDTH        = linear_proj_pkg::FRAC_WIDTH_OUT;
     parameter int B0_INNER_DIMENSION = self_attention_pkg::INNER_DIMENSION_Qn_KnT; // In decimal unit
     //parameter int B0_INNER_DIMENSION = linear_proj_pkg::TOTAL_MODULES; // In decimal unit
 
@@ -55,7 +55,7 @@ package buffer0_pkg;
     parameter int MAX_FLAG_B0       = (ROW_SIZE_MAT_C_B0 * COL_SIZE_MAT_C_B0);
 
     // =================================== BUFFER 1 ===================================
-    parameter int B1_WIDTH          = top_pkg::TOP_WIDTH_OUT;
+    parameter int B1_WIDTH          = top_pkg::TOP_WIDTH_SOFTMAX;
     parameter int B1_INNER_DIMENSTION = 1;
 
     // For West Buffer 1
@@ -87,7 +87,7 @@ package buffer0_pkg;
     //parameter int N1_NUM_CORES_B    = self_attention_pkg::NUM_CORES_B_Qn_KnT;   // Old,
     parameter int N1_NUM_CORES_B    = linear_proj_pkg::TOTAL_MODULES; // New
     parameter int N1_TOTAL_MODULES  = 1; 
-    localparam N1_SLICE_WIDTH       = B1_WIDTH*(top_pkg::TOP_CHUNK_SIZE);
+    localparam N1_SLICE_WIDTH       = B0_WIDTH*(top_pkg::TOP_CHUNK_SIZE);
     localparam N1_MODULE_WIDTH      = N1_SLICE_WIDTH*N1_NUM_CORES_B;
     localparam N1_IN_WIDTH          = N1_SLICE_WIDTH * N1_NUM_CORES_A * N1_NUM_CORES_B;
     localparam N1_TOTAL_DEPTH       = N1_ROW_X * N1_COL_X;
