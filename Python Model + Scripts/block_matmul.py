@@ -57,7 +57,7 @@ def print_matrix_custom(matrix, conv, name, fmt):
             if fmt == 'float':
                 parts.append(f"{conv.fixed_to_float(vi):8.4f}")
             elif fmt == 'hex':
-                parts.append(f"{vi:04x}")
+                parts.append(conv.int_to_hex(vi))
             else:
                 parts.append(f"{vi}")
         print(" ".join(parts))
@@ -66,16 +66,17 @@ def print_matrix_custom(matrix, conv, name, fmt):
 # ------------------------------------------------------------
 # Block Matrix Multiplication
 # ------------------------------------------------------------
-def block_matmul(A, B, conv):
+def block_matmul(A, B, conv_A, conv_B, conv_C):
     rows_a, cols_a = A.shape
     rows_b, cols_b = B.shape
 
     assert cols_a == rows_b, "Matrix dimension mismatch"
 
-    to_float = np.vectorize(conv.fixed_to_float)
+    to_float_A = np.vectorize(conv_A.fixed_to_float)
+    to_float_B = np.vectorize(conv_B.fixed_to_float)
 
-    A_f = to_float(A)
-    B_f = to_float(B)
+    A_f = to_float_A(A)
+    B_f = to_float_B(B)
 
     C_f = np.zeros((rows_a, cols_b), dtype=np.float64)
 
@@ -86,7 +87,7 @@ def block_matmul(A, B, conv):
                 B_blk = B_f[k:k+BLOCK_SIZE, j:j+BLOCK_SIZE]
                 C_f[i:i+BLOCK_SIZE, j:j+BLOCK_SIZE] += A_blk @ B_blk
 
-    to_fixed = np.vectorize(conv.float_to_fixed)
+    to_fixed = np.vectorize(conv_C.float_to_fixed)
     return to_fixed(C_f).astype(np.int64)
 
 
@@ -107,7 +108,7 @@ def export_matrix_custom(matrix, conv, filename, fmt, layout):
                     if fmt == 'float':
                         line.append(f"{conv.fixed_to_float(vi):.6f}")
                     elif fmt == 'hex':
-                        line.append(f"{vi:04x}")
+                        line.append(conv.int_to_hex(vi))
                     else:
                         line.append(str(vi))
                 f.write(" ".join(line) + "\n")
@@ -128,7 +129,7 @@ def export_matrix_custom(matrix, conv, filename, fmt, layout):
                             if fmt == 'float':
                                 elements.append(f"{conv.fixed_to_float(vi):.6f}")
                             elif fmt == 'hex':
-                                elements.append(f"{vi:04x}")
+                                elements.append(conv.int_to_hex(vi))
                             else:
                                 elements.append(str(vi))
 
@@ -194,8 +195,18 @@ def main():
     parser.add_argument('--output_format', choices=['float', 'int', 'hex'], default='hex')
     parser.add_argument('--output_layout', choices=['normal', 'block'], default='block')
 
-    parser.add_argument('--total_bits', type=int, default=16)
-    parser.add_argument('--frac_bits', type=int, default=8)
+    # Matrix A format
+    parser.add_argument('--A_total_bits', type=int, default=16)
+    parser.add_argument('--A_frac_bits', type=int, default=8)
+
+    # Matrix B format
+    parser.add_argument('--B_total_bits', type=int, default=16)
+    parser.add_argument('--B_frac_bits', type=int, default=8)
+
+    # Output matrix format
+    parser.add_argument('--C_total_bits', type=int, default=16)
+    parser.add_argument('--C_frac_bits', type=int, default=8)
+
     parser.add_argument('--signed', action='store_true', default=True)
 
     parser.add_argument('--cores_a', type=int, required=True)
@@ -217,9 +228,21 @@ def main():
     # --------------------------------------------------------
     # Fixed-point setup
     # --------------------------------------------------------
-    conv = FixedPointConverter(
-        total_bits=args.total_bits,
-        fractional_bits=args.frac_bits,
+    conv_A = FixedPointConverter(
+        total_bits=args.A_total_bits,
+        fractional_bits=args.A_frac_bits,
+        is_signed=args.signed
+    )
+
+    conv_B = FixedPointConverter(
+        total_bits=args.B_total_bits,
+        fractional_bits=args.B_frac_bits,
+        is_signed=args.signed
+    )
+
+    conv_C = FixedPointConverter(
+        total_bits=args.C_total_bits,
+        fractional_bits=args.C_frac_bits,
         is_signed=args.signed
     )
 
@@ -228,7 +251,7 @@ def main():
     # --------------------------------------------------------
     if args.input_format_A == 'float':
         A_float = load_float_matrix(args.matrix_A)
-        A = float_to_fixed_matrix(A_float, conv)
+        A = float_to_fixed_matrix(A_float, conv_A)
     else:
         A = load_hex_matrix(args.matrix_A)
 
@@ -237,7 +260,7 @@ def main():
     # --------------------------------------------------------
     if args.input_format_B == 'float':
         B_float = load_float_matrix(args.matrix_B)
-        B = float_to_fixed_matrix(B_float, conv)
+        B = float_to_fixed_matrix(B_float, conv_B)
     else:
         B = load_hex_matrix(args.matrix_B)
 
@@ -265,15 +288,19 @@ def main():
     # --------------------------------------------------------
     # Compute
     # --------------------------------------------------------
-    C = block_matmul(A, B, conv)
+    C = block_matmul(
+        A, B,
+        conv_A,
+        conv_B,
+        conv_C
+    )
 
     # --------------------------------------------------------
     # Display
     # --------------------------------------------------------
-    if args.display:
-        print_matrix_custom(A, conv, "Matrix A", args.output_format)
-        print_matrix_custom(B, conv, "Matrix B", args.output_format)
-        print_matrix_custom(C, conv, "Matrix C", args.output_format)
+    print_matrix_custom(A, conv_A, "Matrix A", args.output_format)
+    print_matrix_custom(B, conv_B, "Matrix B", args.output_format)
+    print_matrix_custom(C, conv_C, "Matrix C", args.output_format)
 
     # --------------------------------------------------------
     # Export
@@ -288,7 +315,7 @@ def main():
         # RTL Format Export
         processor.export_matrix_C_v2(
             matrix=C,
-            converter=conv,
+            converter=conv_C,
             filename=out_file,
             block_size=BLOCK_SIZE,
             total_input_w=args.total_input_w,
@@ -302,14 +329,14 @@ def main():
         row_file = f"{base}_row{ext}"
         with open(row_file, 'w') as f:
             for row in C:
-                line = " ".join(conv.int_to_hex(int(v)) for v in row)
+                line = " ".join(conv_C.int_to_hex(int(v)) for v in row)
                 f.write(line + "\n")
 
         print(f"Row output: {row_file}")
     else:
         export_matrix_custom(
             matrix=C,
-            conv=conv,
+            conv=conv_C,
             filename=out_file,
             fmt=args.output_format,
             layout=args.output_layout
@@ -317,7 +344,7 @@ def main():
     
     if args.display and args.export_c_v2:
         debug_print_c_v2(
-            C, conv,
+            C, conv_C,
             args.cores_a,
             args.cores_b,
             BLOCK_SIZE,
