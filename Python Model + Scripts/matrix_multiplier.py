@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """
+helo
 matrix_multiplier.py
 
 Usage examples:
@@ -117,6 +118,8 @@ class MatrixProcessor:
                 vi = int(v)
                 if display_format == 'float':
                     parts.append(f"{converter.fixed_to_float(vi):8.4f}")
+                elif display_format == 'hex':
+                    parts.append(converter.int_to_hex(vi))
                 else:
                     parts.append(f"{vi:6}")
             print(" ".join(parts))
@@ -148,7 +151,7 @@ class MatrixProcessor:
     def _export_row_mode(self, matrix: np.ndarray, converter: FixedPointConverter, filename: str):
         with open(filename, 'w') as f:
             for row in matrix:
-                f.write(" ".join(converter.int_to_hex(int(x)) for x in row) + "\n")
+                f.write(" ".join(converter.int_to_shex(int(x)) for x in row) + "\n")
 
     def _export_core_mode_A(self, matrix: np.ndarray, converter: FixedPointConverter, filename: str,
                              block_size: int, num_cores: int):
@@ -344,13 +347,18 @@ class MatrixProcessor:
 
                     line_idx += 1
 
-    def export_matrix_row_hex(matrix, filename):
+    def export_matrix_row_hex(matrix, converter, filename):
         import os
         os.makedirs(os.path.dirname(filename), exist_ok=True)
+        hex_width = (converter.total_bits + 3) // 4
+        mask = (1 << converter.total_bits) - 1
 
         with open(filename, 'w') as f:
             for row in matrix:
-                line = " ".join(f"{int(v) & 0xFFFF:04x}" for v in row)
+                line = " ".join(
+                    f"{int(v) & mask:0{hex_width}x}"
+                    for v in row
+                )
                 f.write(line + "\n")
 
 # ---------------------------
@@ -533,7 +541,7 @@ def generate_linear_projection(processor: MatrixProcessor,
 def main():
     parser = argparse.ArgumentParser(description="Matrix multiplier + linear projection exporter")
     parser.add_argument('--task', choices=['matmul', 'linear_projection'], default='matmul')
-    parser.add_argument('--display', choices=['int', 'float'], default='float',
+    parser.add_argument('--display', choices=['int', 'float', 'hex'], default='float',
                         help='Format to display matrices (int: raw fixed-int, float: converted)')
     parser.add_argument('--min_val', type=float, default=0.0)
     parser.add_argument('--max_val', type=float, default=2.0)
@@ -572,7 +580,7 @@ def main():
     # Debugging configs
     parser.add_argument('--output_format', choices=['bin', 'hex'], default='hex',
                     help='Output format for exported matrices')
-    parser.add_argument('--debug_all_heads', action='store_true', default='false')
+    parser.add_argument('--debug_all_heads', action='store_true')
 
     parser.add_argument('--out_dir', type=str, default='exports',
                     help='Output directory for generated files')
