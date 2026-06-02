@@ -34,6 +34,17 @@ def wrap32(x):
 # ==============================
 # Conversion
 # ==============================
+def sat_signed(x, width):
+    max_val = (1 << (width - 1)) - 1
+    min_val = -(1 << (width - 1))
+
+    if x > max_val:
+        return max_val
+    elif x < min_val:
+        return min_val
+    else:
+        return x
+
 def float_to_q16(x, frac):
     return wrap32(int(round(x * (1 << frac))))
 
@@ -60,12 +71,28 @@ def to_q16_from_qx(x, frac_in):
     else:
         return to_signed32(x >> (-shift))
 
-def from_q16_to_qx(x, frac_out):
+def from_q16_to_qx(x, frac_out, width_out):
     shift = 16 - frac_out
-    if shift >= 0:
-        return to_signed32(x >> shift)
+
+    # clamp negative softmax
+    if x < 0:
+        x = 0
+
+    if shift > 0:
+        # round-to-nearest
+        rounded = x + (1 << (shift - 1))
+        out = rounded >> shift
+
+    elif shift < 0:
+        out = x << (-shift)
+
     else:
-        return to_signed32(x << (-shift))
+        out = x
+
+    # saturate to output width
+    out = sat_signed(out, width_out)
+
+    return to_signed32(out)
 
 # ==============================
 # EXP LUTs (from your RTL)
@@ -210,7 +237,7 @@ def write_matrix(mat, fmt, frac, width, output_file=None):
         lines.append(line)
 
     if output_file:
-        # 🔥 create directory if not exists
+        # create directory if not exists
         os.makedirs(os.path.dirname(output_file), exist_ok=True)
 
         with open(output_file, "w") as f:
@@ -222,19 +249,29 @@ def write_matrix(mat, fmt, frac, width, output_file=None):
         for line in lines:
             print(line)
             
-def softmax_row_wrapper(row, frac, apply_div=False, div_val=16):
-    # Qm.n (optional divide)
+def softmax_row_wrapper(
+    row,
+    frac_in,
+    frac_out,
+    width_out,
+    apply_div=False,
+    div_val=16
+):
+    # optional divide
     if apply_div:
         row = [div_qx(x, div_val) for x in row]
 
-    # Convert input → Q16.16
-    row_q16 = [to_q16_from_qx(x, frac) for x in row]
+    # input Qm.n -> Q16.16
+    row_q16 = [to_q16_from_qx(x, frac_in) for x in row]
 
-    # Run core softmax
-    out_q16 = softmax_row_q16(row_q16, frac)
+    # softmax core
+    out_q16 = softmax_row_q16(row_q16, frac_in)
 
-    # Convert back → Qm.n
-    return [from_q16_to_qx(x, frac) for x in out_q16]
+    # Q16.16 -> output Qm.n
+    return [
+        from_q16_to_qx(x, frac_out, width_out)
+        for x in out_q16
+    ]
 
 
 # ==============================
@@ -247,17 +284,22 @@ def main():
     parser.add_argument("--output_format", default="hex", choices=["hex","float"])
     parser.add_argument("--apply_div", action="store_true")
     parser.add_argument("--div_value", type=int, default=16)
-    parser.add_argument("--width", type=int, default=32)
-    parser.add_argument("--frac", type=int, default=16)
+    # input format
+    parser.add_argument("--width_in", type=int, default=16)
+    parser.add_argument("--frac_in", type=int, default=8)
+
+    # output format
+    parser.add_argument("--width_out", type=int, default=8)
+    parser.add_argument("--frac_out", type=int, default=7)
     parser.add_argument("--output_file", default="softmax_results.txt")
     
     args = parser.parse_args()
 
-    mat = read_matrix(args.input, args.input_format, args.frac)
+    mat = read_matrix(args.input, args.input_format, args.frac_in)
 
-    out = [softmax_row_wrapper(row, args.frac, args.apply_div, args.div_value) for row in mat]
+    out = [softmax_row_wrapper(row, args.frac_in, args.frac_out, args.width_out, args.apply_div, args.div_value) for row in mat]
 
-    write_matrix(out, args.output_format, args.frac, args.width, args.output_file)
+    write_matrix(out, args.output_format, args.frac_out, args.width_out, args.output_file)
 
 if __name__ == "__main__":
     main()
