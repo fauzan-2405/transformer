@@ -32,8 +32,36 @@ def main():
     parser.add_argument('--min_val', type=int, default=0)
     parser.add_argument('--max_val', type=int, default=1)
 
-    parser.add_argument('--total_bits', type=int, default=16)
-    parser.add_argument('--frac_bits', type=int, default=8)
+    parser.add_argument(
+        '--softmax_mode',
+        choices=['rtl', 'real'],
+        default='rtl',
+        help='Choose RTL-like softmax or real softmax'
+    )
+
+    # Input matrix precision
+    parser.add_argument('--input_total_bits', type=int, default=16)
+    parser.add_argument('--input_frac_bits', type=int, default=8)
+
+    # Weight matrix precision
+    parser.add_argument('--weight_total_bits', type=int, default=16)
+    parser.add_argument('--weight_frac_bits', type=int, default=8)
+
+    # Q, K, V matrix precision
+    parser.add_argument('--keys_total_bits', type=int, default=16)
+    parser.add_argument('--keys_frac_bits', type=int, default=8)
+
+    # Q_KT matrix precision
+    parser.add_argument('--qkt_total_bits', type=int, default=16)
+    parser.add_argument('--qkt_frac_bits', type=int, default=8)
+
+    # Softmax matrix precision
+    parser.add_argument('--soft_total_bits', type=int, default=8)
+    parser.add_argument('--soft_frac_bits', type=int, default=7)
+
+    # Final matrix precision
+    parser.add_argument('--final_total_bits', type=int, default=8)
+    parser.add_argument('--final_frac_bits', type=int, default=7)
 
     parser.add_argument('--out_dir', type=str, default="exports")
 
@@ -63,12 +91,14 @@ def main():
         "--min_val", str(args.min_val),
         "--max_val", str(args.max_val),
 
-        "--A_total_bits", str(args.total_bits),
-        "--A_frac_bits", str(args.frac_bits),
-        "--B_total_bits", str(args.total_bits),
-        "--B_frac_bits", str(args.frac_bits),
-        "--C_total_bits", str(args.total_bits),
-        "--C_frac_bits", str(args.frac_bits),
+        "--A_total_bits", str(args.input_total_bits),
+        "--A_frac_bits", str(args.input_frac_bits),
+
+        "--B_total_bits", str(args.weight_total_bits),
+        "--B_frac_bits", str(args.weight_frac_bits),
+
+        "--C_total_bits", str(args.keys_total_bits),
+        "--C_frac_bits", str(args.keys_frac_bits),
 
         "--export_c_v2",
         "--output_format", "hex",
@@ -94,8 +124,14 @@ def main():
         "--matrix_A", Q,
         "--matrix_B", K,
 
-        "--total_bits", str(args.total_bits),
-        "--frac_bits", str(args.frac_bits),
+        "--A_total_bits", str(args.keys_total_bits),
+        "--A_frac_bits", str(args.keys_frac_bits),
+
+        "--B_total_bits", str(args.keys_total_bits),
+        "--B_frac_bits", str(args.keys_frac_bits),
+
+        "--C_total_bits", str(args.qkt_total_bits),
+        "--C_frac_bits", str(args.qkt_frac_bits),
 
         "--input_format_A", "hex",
         "--input_format_B", "hex",
@@ -110,25 +146,52 @@ def main():
         "--output_file", QKT
     ])
 
-    # ----------------------------------
+        # ----------------------------------
     # STEP 3: SOFTMAX
     # ----------------------------------
-    run_cmd([
-        sys.executable,
-        r"/mnt/ssd/mfauzan/transformer/python_code/softmax.py",
-        "--input", QKT_as_input,
+    if args.softmax_mode == "rtl":
+        run_cmd([
+            sys.executable,
+            r"/mnt/ssd/mfauzan/transformer/python_code/softmax.py",
 
-        "--input_format", "hex",
-        "--output_format", "hex",
+            "--input", QKT_as_input,
 
-        "--apply_div",
-        "--div_value", "16",
+            "--input_format", "hex",
+            "--output_format", "hex",
 
-        "--width", str(args.total_bits),
-        "--frac", str(args.frac_bits),
+            "--apply_div",
+            "--div_value", "16",
 
-        "--output_file", SOFTMAX
-    ])
+            # Input precision
+            "--width_in", str(args.qkt_total_bits),
+            "--frac_in", str(args.qkt_frac_bits),
+
+            # Output precision
+            "--width_out", str(args.soft_total_bits),
+            "--frac_out", str(args.soft_frac_bits),
+
+            "--output_file", SOFTMAX
+        ])
+    else:
+        run_cmd([
+            sys.executable,
+            r"/mnt/ssd/mfauzan/transformer/python_code/softmax_real.py",
+
+            "--input_file", QKT_as_input,
+
+            "--apply_div",
+            "--div_value", "16",
+
+            # Input precision
+            "--width_in", str(args.qkt_total_bits),
+            "--frac_in", str(args.qkt_frac_bits),
+
+            # Output precision
+            "--width_out", str(args.soft_total_bits),
+            "--frac_out", str(args.soft_frac_bits),
+
+            "--output_file", SOFTMAX
+        ])
 
     # ----------------------------------
     # STEP 4: SOFTMAX × V
@@ -142,8 +205,14 @@ def main():
         "--input_format_A", "hex",
         "--input_format_B", "hex",
 
-        "--total_bits", str(args.total_bits),
-        "--frac_bits", str(args.frac_bits),
+        "--A_total_bits", str(args.soft_total_bits),
+        "--A_frac_bits", str(args.soft_frac_bits),
+
+        "--B_total_bits", str(args.keys_total_bits),
+        "--B_frac_bits", str(args.keys_frac_bits),
+
+        "--C_total_bits", str(args.final_total_bits),
+        "--C_frac_bits", str(args.final_frac_bits),
 
         "--cores_a", str(args.cores_a),
         "--cores_b", str(args.total_modules),
