@@ -45,7 +45,7 @@ import os
 # Fixed Point Converter
 # ============================================================
 class FixedPointConverter:
-    def __init__(self, total_bits=16, frac_bits=8):
+    def __init__(self, total_bits, frac_bits):
         self.total_bits = total_bits
         self.frac_bits = frac_bits
 
@@ -126,7 +126,8 @@ def float_matrix_to_fixed(matrix, conv):
 
     for i in range(matrix.shape[0]):
         for j in range(matrix.shape[1]):
-            out[i, j] = conv.float_to_fixed(float(matrix[i, j]))
+            x = max(0.0, min(1.0, float(matrix[i, j])))
+            out[i, j] = conv.float_to_fixed(x)
 
     return out
 
@@ -168,8 +169,13 @@ def main():
 
     parser.add_argument('--input_file', required=True)
 
-    parser.add_argument('--total_bits', type=int, default=16)
-    parser.add_argument('--frac_bits', type=int, default=8)
+    # input format
+    parser.add_argument("--width_in", type=int, default=16)
+    parser.add_argument("--frac_in", type=int, default=8)
+
+    # output format
+    parser.add_argument("--width_out", type=int, default=8)
+    parser.add_argument("--frac_out", type=int, default=7)
 
     parser.add_argument('--apply_div', action='store_true')
     parser.add_argument('--div_value', type=float, default=16.0)
@@ -186,9 +192,14 @@ def main():
     # --------------------------------------------------------
     # Converter
     # --------------------------------------------------------
-    conv = FixedPointConverter(
-        total_bits=args.total_bits,
-        frac_bits=args.frac_bits
+    conv_in = FixedPointConverter(
+        total_bits=args.width_in,
+        frac_bits=args.frac_in
+    )
+
+    conv_out = FixedPointConverter(
+        total_bits=args.width_out,
+        frac_bits=args.frac_out
     )
 
     # --------------------------------------------------------
@@ -199,7 +210,7 @@ def main():
     # --------------------------------------------------------
     # Convert to float
     # --------------------------------------------------------
-    matrix_float = fixed_matrix_to_float(matrix_fixed, conv)
+    matrix_float = fixed_matrix_to_float(matrix_fixed, conv_in)
 
     # --------------------------------------------------------
     # Optional division
@@ -215,14 +226,14 @@ def main():
     # --------------------------------------------------------
     # Quantize output
     # --------------------------------------------------------
-    softmax_fixed = float_matrix_to_fixed(softmax_out, conv)
+    softmax_fixed = float_matrix_to_fixed(softmax_out, conv_out)
 
     # --------------------------------------------------------
     # Export
     # --------------------------------------------------------
     export_hex_matrix(
         softmax_fixed,
-        conv,
+        conv_out,
         args.output_file
     )
 
