@@ -21,6 +21,24 @@
 	`define SYSTEM_FRAC_WIDTH_WEIGHT 8
 `endif
 
+// Linear projection width
+`ifndef SYSTEM_TOP_WIDTH_KEYS
+	`define SYSTEM_TOP_WIDTH_KEYS (`SYSTEM_TOP_WIDTH_INPUT + 2)
+`endif
+
+`ifndef SYSTEM_FRAC_WIDTH_KEYS
+	`define SYSTEM_FRAC_WIDTH_KEYS (`SYSTEM_FRAC_WIDTH_INPUT + 1)
+`endif
+
+// Q_KT width
+`ifndef SYSTEM_TOP_WIDTH_QKT
+	`define SYSTEM_TOP_WIDTH_QKT (`SYSTEM_TOP_WIDTH_KEYS + 4)
+`endif
+
+`ifndef SYSTEM_FRAC_WIDTH_QKT
+	`define SYSTEM_FRAC_WIDTH_QKT (`SYSTEM_FRAC_WIDTH_KEYS + 1)
+`endif
+
 // Softmax width
 `ifndef SYSTEM_TOP_WIDTH_SOFTMAX
 	`define SYSTEM_TOP_WIDTH_SOFTMAX 8
