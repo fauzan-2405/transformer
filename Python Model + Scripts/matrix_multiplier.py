@@ -151,7 +151,7 @@ class MatrixProcessor:
     def _export_row_mode(self, matrix: np.ndarray, converter: FixedPointConverter, filename: str):
         with open(filename, 'w') as f:
             for row in matrix:
-                f.write(" ".join(converter.int_to_shex(int(x)) for x in row) + "\n")
+                f.write(" ".join(converter.int_to_hex(int(x)) for x in row) + "\n")
 
     def _export_core_mode_A(self, matrix: np.ndarray, converter: FixedPointConverter, filename: str,
                              block_size: int, num_cores: int):

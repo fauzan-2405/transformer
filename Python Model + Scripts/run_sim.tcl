@@ -50,16 +50,12 @@ puts "Compiling..."
 exec xvlog -sv \
     -d SYSTEM_TOP_WIDTH_INPUT=$in_width \
     -d SYSTEM_FRAC_WIDTH_INPUT=$in_frac \
-
     -d SYSTEM_TOP_WIDTH_WEIGHT=$w_width \
     -d SYSTEM_FRAC_WIDTH_WEIGHT=$w_frac \
-
     -d SYSTEM_TOP_WIDTH_SOFTMAX=$soft_width \
     -d SYSTEM_FRAC_WIDTH_SOFTMAX=$soft_frac \
-
     -d SYSTEM_TOP_WIDTH_FINAL=$final_width \
     -d SYSTEM_FRAC_WIDTH_FINAL=$final_frac \
-
     -d I_MATRIX_DIMENSION=$i_mat \
     -d INNER_MATRIX_DIMENSION=$inner_mat \
     -d W_MATRIX_DIMENSION=$w_mat \
