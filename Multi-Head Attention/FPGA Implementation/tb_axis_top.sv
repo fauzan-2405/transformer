@@ -6,6 +6,9 @@ import self_attention_pkg::*;
 
 module tb_axis_top;
     parameter MEM_INPUT_MAT   = "mat_A_lp_bridge.mem";
+    parameter MEM_INIT_FILE_Q = "mat_B_lp_bridge.mem";
+    parameter MEM_INIT_FILE_K = "mat_B_lp_bridge.mem";
+    parameter MEM_INIT_FILE_V = "mat_B_lp_bridge.mem";
 
     // AXI Signals
     logic                    aclk;
@@ -49,7 +52,7 @@ module tb_axis_top;
         s_axis_0_tvalid = 0;
         s_axis_1_tvalid = 0;
 
-        @(posedge clk);
+        @(posedge aclk);
 
         for(int i=0;i<(NUM_A_ELEMENTS+1)/2;i++)
         begin
@@ -68,12 +71,12 @@ module tb_axis_top;
             s_axis_1_tlast <= (i == ((NUM_A_ELEMENTS+1)/2-1));
 
             do begin
-                @(posedge clk);
+                @(posedge aclk);
             end while(!(s_axis_0_tready && s_axis_1_tready));
 
         end
 
-        @(posedge clk);
+        @(posedge aclk);
 
         s_axis_0_tvalid <= 0;
         s_axis_1_tvalid <= 0;
@@ -91,19 +94,19 @@ module tb_axis_top;
         s_axis_0_tvalid = 0;
         s_axis_1_tvalid = 0;
 
-        rst_n = 0;
+        aresetn = 0;
 
-        repeat(10) @(posedge clk);
+        repeat(10) @(posedge aclk);
 
-        rst_n = 1;
+        aresetn = 1;
 
-        repeat(5) @(posedge clk);
+        repeat(5) @(posedge aclk);
 
         send_inputs();
 
         $display("[%0t] DMA transfer complete", $time);
 
-        repeat(5000) @(posedge clk);
+        repeat(5000) @(posedge aclk);
 
         $finish;
 
