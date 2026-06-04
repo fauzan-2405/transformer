@@ -1,3 +1,4 @@
+// axis_top.sv
 // AXI Stream Top Module
 // Used to connect AXI DMA DIRECTLY with the top module
 
@@ -7,10 +8,12 @@ import self_attention_pkg::*;
 
 module axis_top #(
     // DERIVED PARAMETERS
-    localparam OUT_KEYS                     = WIDTH_OUT*CHUNK_SIZE*NUM_CORES_A*NUM_CORES_B*TOTAL_MODULES;
-    localparam NUMBER_OF_BUFFER_INSTANCES   = 1;
-    localparam OUT_MULTIHEAD                = WIDTH_OUT*CHUNK_SIZE*NUM_CORES_A_QKT_Vn*NUM_CORES_B_QKT_Vn*TOTAL_MODULES_LP_V
-
+    localparam OUT_KEYS                     = WIDTH_OUT*CHUNK_SIZE*NUM_CORES_A*NUM_CORES_B*TOTAL_MODULES,
+    localparam NUMBER_OF_BUFFER_INSTANCES   = 1,
+    localparam OUT_MULTIHEAD                = WIDTH_OUT*CHUNK_SIZE*NUM_CORES_A_QKT_Vn*NUM_CORES_B_QKT_Vn*TOTAL_MODULES_LP_V,
+    parameter MEM_INIT_FILE_Q               = "mat_B_lp_bridge.mem",
+    parameter MEM_INIT_FILE_K               = "mat_B_lp_bridge.mem",
+    parameter MEM_INIT_FILE_V               = "mat_B_lp_bridge.mem",
     // MANDATORY PARAMETERS
     parameter S0_WIDTH  = DATA_WIDTH_A, // Input width
     parameter S1_WIDTH  = DATA_WIDTH_A,
@@ -24,12 +27,12 @@ module axis_top #(
     output wire                 s_axis_0_tready,
     input wire [S0_WIDTH-1:0]   s_axis_0_tdata, // Input Data
     input wire                  s_axis_0_tvalid,
-    input wire                  s_axis_0_tlast,
+    input wire                  s_axis_0_tlast, // Not used for now
     // *** AXIS Slave 1 port ***
     output wire                 s_axis_1_tready,
-    input wire [SN_WIDTH-1:0]   s_axis_1_tdata, // Input Data
+    input wire [S1_WIDTH-1:0]   s_axis_1_tdata, // Input Data
     input wire                  s_axis_1_tvalid,
-    input wire                  s_axis_1_tlast,
+    input wire                  s_axis_1_tlast, // Not used for now
 
     // *** AXIS master port ***
     input wire                  m_axis_tready,
@@ -39,9 +42,6 @@ module axis_top #(
     );
     
     // ========================================= TOP CUSTOM IP =========================================
-    parameter MEM_INIT_FILE_Q   = "mat_B_lp_bridge.mem";
-    parameter MEM_INIT_FILE_K   = "mat_B_lp_bridge.mem";
-    parameter MEM_INIT_FILE_V   = "mat_B_lp_bridge.mem";
     // DUT inputs
     logic in_mat_ena, in_mat_wea;
     logic [ADDR_WIDTH_A-1:0] in_mat_wr_addra;
@@ -75,18 +75,18 @@ module axis_top #(
         .OUT_KEYS(OUT_KEYS),
         .NUMBER_OF_BUFFER_INSTANCES(NUMBER_OF_BUFFER_INSTANCES)
     ) dut (
-        .clk(clk),
-        .rst_n(rst_n),
+        .clk(aclk),
+        .rst_n(aresetn),
 
         .in_mat_ena(in_mat_ena),
         .in_mat_wea(in_mat_wea),
         .in_mat_wr_addra(in_mat_wr_addra),
-        .in_mat_dina(in_mat_dina),
+        .in_mat_dina(s_axis_0_tdata),
 
         .in_mat_enb(in_mat_enb),
         .in_mat_web(in_mat_web),
         .in_mat_wr_addrb(in_mat_wr_addrb),
-        .in_mat_dinb(in_mat_dinb),
+        .in_mat_dinb(s_axis_1_tdata),
         
         // Output
         /* These sections are not used
@@ -169,7 +169,7 @@ module axis_top #(
         
         .s_axis_tready(s2mm_ready), // ready    
         .s_axis_tdata(s2mm_data), // data
-        .s_axis_tvalid(logic), // valid
+        .s_axis_tvalid(), // valid
         .s_axis_tdest(1'b0), 
         .s_axis_tid(1'b0), 
         .s_axis_tkeep({FIFO_0_TKEEP_WIDTH{1'b1}}), 
@@ -196,48 +196,39 @@ module axis_top #(
     logic idx_out;  // Because TOTAL_INPUT_W_Qn_KnT == 2
     logic [$clog2((NUM_A_ELEMENTS + 1)/2)-1:0] idx_elements;
 
-    always_ff @(aclk) begin
+    // Combinational controller
+    assign s_axis_0_tready  = in_mat_ena;
+    assign s_axis_1_tready  = in_mat_enb;
+    assign in_mat_wea   = s_axis_0_tvalid;
+    assign in_mat_web   = s_axis_1_tvalid;
+
+    // Sequential controller
+    always_ff @(posedge aclk) begin
         if (~aresetn) begin
-            idx_out     <= 0;
-            // Input Mat A
+            idx_out         <= 0;
             in_mat_ena      <= 0;
-            in_mat_wea      <= 0;
-            in_mat_wr_addra <= '0;
-            in_mat_dina     <= '0;
-            // Input Mat B
             in_mat_enb      <= 0;
-            in_mat_web      <= 0;
+            in_mat_wr_addra <= '0;
             in_mat_wr_addrb <= '0;
-            in_mat_dinb     <= '0;
+            idx_elements    <= '0;
         end else begin
             // ================== Write input BRAM ==================
-            in_mat_ena  <= 1; 
-            in_mat_enb  <= 1;
-            in_mat_wea  <= 1; 
-            in_mat_web  <= 1;
+            if (~s_axis_0_tlast) in_mat_ena  <= 1;
+            if (~s_axis_1_tlast) in_mat_enb  <= 1;
 
             if (in_mat_wea) begin
+                idx_elements        <= idx_elements + 1;
                 // Port A: even
-                in_mat_wr_addra     <= 2*i;
+                in_mat_wr_addra     <= 2*idx_elements;
 
                 // Port B: odd
                 if (in_mat_web) begin
-                    if (2*i + 1 < NUM_A_ELEMENTS) begin
-                        in_mat_wr_addrb <= 2*i + 1;
+                    if (2*idx_elements + 1 < NUM_A_ELEMENTS) begin
+                        in_mat_wr_addrb <= 2*idx_elements + 1;
                     end else begin
                         in_mat_wr_addrb <= NUM_A_ELEMENTS - 1;
                     end
                 end
-                idx_elements    <= idx_elements + 1;
-            end
-
-
-            // ================== Write input BRAM done ==================
-            if (idx_elements == ((NUM_A_ELEMENTS + 1)/2) - 1) begin
-                in_mat_ena  <= 0; 
-                in_mat_enb  <= 0;
-                in_mat_wea  <= 0; 
-                in_mat_web  <= 0;
             end
 
             // ================== Output FIFO takes the output fromt he multihead attention ==================
