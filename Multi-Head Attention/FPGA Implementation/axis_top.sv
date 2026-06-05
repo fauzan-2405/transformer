@@ -3,6 +3,7 @@
 // Used to connect AXI DMA DIRECTLY with the top module
 
 `timescale 1ns / 1ps
+import top_pkg::*;
 import linear_proj_pkg::*;
 import self_attention_pkg::*;
 
@@ -10,7 +11,7 @@ module axis_top #(
     // DERIVED PARAMETERS
     localparam OUT_KEYS                     = WIDTH_OUT*CHUNK_SIZE*NUM_CORES_A*NUM_CORES_B*TOTAL_MODULES,
     localparam NUMBER_OF_BUFFER_INSTANCES   = 1,
-    localparam OUT_MULTIHEAD                = WIDTH_OUT*CHUNK_SIZE*NUM_CORES_A_QKT_Vn*NUM_CORES_B_QKT_Vn*TOTAL_MODULES_LP_V,
+    localparam OUT_MULTIHEAD                = TOP_WIDTH_OUT*CHUNK_SIZE*NUM_CORES_A_QKT_Vn*NUM_CORES_B_QKT_Vn*TOTAL_MODULES_LP_V,
     parameter MEM_INIT_FILE_Q               = "mat_B_lp_bridge.mem",
     parameter MEM_INIT_FILE_K               = "mat_B_lp_bridge.mem",
     parameter MEM_INIT_FILE_V               = "mat_B_lp_bridge.mem",
@@ -27,13 +28,16 @@ module axis_top #(
     output wire                 s_axis_0_tready,
     input wire [S0_WIDTH-1:0]   s_axis_0_tdata, // Input Data
     input wire                  s_axis_0_tvalid,
-    input wire                  s_axis_0_tlast, // Not used for now
+    input wire                  s_axis_0_tlast,
     // *** AXIS Slave 1 port ***
     output wire                 s_axis_1_tready,
     input wire [S1_WIDTH-1:0]   s_axis_1_tdata, // Input Data
     input wire                  s_axis_1_tvalid,
-    input wire                  s_axis_1_tlast, // Not used for now
+    input wire                  s_axis_1_tlast,
 
+    // *** Custom IP port (optional) ***
+    output wire                 computation_done,
+    
     // *** AXIS master port ***
     input wire                  m_axis_tready,
     output wire [M0_WIDTH-1:0]  m_axis_tdata, // Output Data
@@ -81,12 +85,12 @@ module axis_top #(
         .in_mat_ena(in_mat_ena),
         .in_mat_wea(in_mat_wea),
         .in_mat_wr_addra(in_mat_wr_addra),
-        .in_mat_dina(s_axis_0_tdata),
+        .in_mat_dina(in_mat_dina),
 
         .in_mat_enb(in_mat_enb),
         .in_mat_web(in_mat_web),
         .in_mat_wr_addrb(in_mat_wr_addrb),
-        .in_mat_dinb(s_axis_1_tdata),
+        .in_mat_dinb(in_mat_dinb),
         
         // Output
         /* These sections are not used
@@ -169,7 +173,7 @@ module axis_top #(
         
         .s_axis_tready(s2mm_ready), // ready    
         .s_axis_tdata(s2mm_data), // data
-        .s_axis_tvalid(), // valid
+        .s_axis_tvalid(s2mm_valid), // valid
         .s_axis_tdest(1'b0), 
         .s_axis_tid(1'b0), 
         .s_axis_tkeep({FIFO_0_TKEEP_WIDTH{1'b1}}), 
@@ -194,25 +198,35 @@ module axis_top #(
     // ========================================= CONTROLLER =========================================
     // The controller goes here
     logic idx_out;  // Because TOTAL_INPUT_W_Qn_KnT == 2
+    logic idx_out_reg;  // Delayed version
     logic [$clog2((NUM_A_ELEMENTS + 1)/2)-1:0] idx_elements;
 
     // Combinational controller
     assign s_axis_0_tready  = in_mat_ena;
     assign s_axis_1_tready  = in_mat_enb;
-    assign in_mat_wea   = s_axis_0_tvalid;
-    assign in_mat_web   = s_axis_1_tvalid;
+    assign in_mat_wea       = s_axis_0_tvalid;
+    assign in_mat_web       = s_axis_1_tvalid;
+    assign computation_done = QKT_Vn_done;
+    assign s2mm_valid       = (idx_out_reg || idx_out);
+    assign s2mm_last        = QKT_Vn_done && idx_out_reg;
 
     // Sequential controller
     always_ff @(posedge aclk) begin
         if (~aresetn) begin
             idx_out         <= 0;
+            idx_out_reg     <= 0;
             in_mat_ena      <= 0;
             in_mat_enb      <= 0;
             in_mat_wr_addra <= '0;
             in_mat_wr_addrb <= '0;
+            in_mat_dina     <= '0;
+            in_mat_dinb     <= '0;
             idx_elements    <= '0;
         end else begin
             // ================== Write input BRAM ==================
+            in_mat_dina     <= s_axis_0_tdata;
+            in_mat_dinb     <= s_axis_1_tdata;
+            
             if (~s_axis_0_tlast) in_mat_ena  <= 1;
             if (~s_axis_1_tlast) in_mat_enb  <= 1;
 
@@ -231,7 +245,9 @@ module axis_top #(
                 end
             end
 
-            // ================== Output FIFO takes the output fromt he multihead attention ==================
+            // ================== Output FIFO takes the output fromt he multihead attention ==================   
+            idx_out_reg     <= idx_out;
+                     
             if (out_QKT_Vn_valid) begin
                 if (~idx_out) begin
                     idx_out <= 1;
@@ -239,6 +255,8 @@ module axis_top #(
             end else begin
                 idx_out <= 0;
             end
+            
+            
             s2mm_data   <= out_matmul_QKT_Vn[0][idx_out];
         end
     end
