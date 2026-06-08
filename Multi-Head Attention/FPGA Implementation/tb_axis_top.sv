@@ -33,7 +33,7 @@ module tb_axis_top;
     logic [DATA_WIDTH_A-1:0] mem_A [0:NUM_A_ELEMENTS-1];
     logic computation_done_wire;
 
-    axis_top #(
+    axis_top_sv #(
         .MEM_INIT_FILE_Q(MEM_INIT_FILE_Q),
         .MEM_INIT_FILE_K(MEM_INIT_FILE_K),
         .MEM_INIT_FILE_V(MEM_INIT_FILE_V)
