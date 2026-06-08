@@ -107,7 +107,7 @@ module softmax_vec #(
         reg signed [INT_WIDTH-1:0] rounded;
     begin
         // Clamp the input
-        clamped  = (x_q16 < 0) ? 0 : x_q16;
+        clamped = (x_q16 < 0) ? 0 : x_q16;
         
         shift = INT_FRAC - FRAC_WIDTH_OUT;
         if (shift >= 0) begin
