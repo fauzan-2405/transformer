@@ -1,13 +1,14 @@
-// axis_top.sv
+// axis_top_sv.sv
 // AXI Stream Top Module
 // Used to connect AXI DMA DIRECTLY with the top module
+// NOTE: we cannot use SystemVerilog file directly as a top module in block diagram when connecting it with FPGA
 
 `timescale 1ns / 1ps
 import top_pkg::*;
 import linear_proj_pkg::*;
 import self_attention_pkg::*;
 
-module axis_top #(
+module axis_top_sv #(
     // DERIVED PARAMETERS
     localparam OUT_KEYS                     = WIDTH_OUT*CHUNK_SIZE*NUM_CORES_A*NUM_CORES_B*TOTAL_MODULES,
     localparam NUMBER_OF_BUFFER_INSTANCES   = 1,
