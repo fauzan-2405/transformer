@@ -287,6 +287,3 @@ module exp_vec #(
             assign Y_flat[OMSB:OLSB] = Y[i];
         end
     endgenerate
-
-endmodule
-
