@@ -21,13 +21,37 @@ module exp_vec #(
     parameter integer USE_AMULT   = 0,   // 0: exact multiply, 1: approximate shift-add
     parameter integer AMULT_SHIFT = 16   // how many bits from A frac to use for amult SHIFT_VAL
 )(
+    input  wire clk,
+    input  wire rst_n,
     input  wire signed [TILE_SIZE*WIDTH-1:0] X_flat,
-    output wire signed [TILE_SIZE*WIDTH-1:0] Y_flat
+    output wire valid_out,
+    output reg signed [TILE_SIZE*WIDTH-1:0] Y_flat
 );
+    // Parameters
+    parameter DELAY_CYCLES = 3; // To match the timing
+    reg [DELAY_CYCLES-1:0] delay_pipe;
+    reg data_in;
+
     // Unpack flattened vector into arrays for readability
     wire signed [WIDTH-1:0] X [0:TILE_SIZE-1];
-    reg  signed [WIDTH-1:0] Y [0:TILE_SIZE-1];
+    reg signed [WIDTH-1:0] X_d [0:TILE_SIZE-1];
+    
+    reg [6:0] sel_i [0:TILE_SIZE-1];
+    reg signed [WIDTH-1:0] A_i [0:TILE_SIZE-1];
+    reg signed [WIDTH-1:0] C_i [0:TILE_SIZE-1];
+    reg signed [(2*WIDTH)-1:0] P_full [0:TILE_SIZE-1];
+    reg signed [WIDTH-1:0] mult_exact [0:TILE_SIZE-1];
+    reg [AMULT_SHIFT-1:0] shift_val_i [0:TILE_SIZE-1];
+    wire signed [WIDTH-1:0] mult_approx[0:TILE_SIZE-1];
+    
+    reg signed [WIDTH-1:0] y_raw    [0:TILE_SIZE-1];
+    reg signed [WIDTH-1:0] Y_i      [0:TILE_SIZE-1];
 
+    reg signed [WIDTH-1:0] A_i_d    [0:TILE_SIZE-1];
+    reg signed [WIDTH-1:0] C_i_d    [0:TILE_SIZE-1];
+    reg signed [WIDTH-1:0] C_i_d_2  [0:TILE_SIZE-1];
+    reg signed [(2*WIDTH)-1:0] P_full_d [0:TILE_SIZE-1];
+                
     genvar gi;
     generate
         for (gi = 0; gi < TILE_SIZE; gi = gi + 1) begin : UNPACK
@@ -236,55 +260,90 @@ module exp_vec #(
     // ----------------------------
     // Per-lane datapath (purely combinational here)
     // ----------------------------
+    integer i;
+//    localparam integer OMSB = (TILE_SIZE-1-i)*WIDTH + (WIDTH-1);
+//    localparam integer OLSB = (TILE_SIZE-1-i)*WIDTH;
+    
+    genvar k;
     generate
-        for (genvar i = 0; i < TILE_SIZE; i = i + 1) begin : PER_LANE
-            wire [6:0] sel_i;
-            wire signed [WIDTH-1:0] A_i, C_i;
-            wire signed [(2*WIDTH)-1:0] P_full;
-            wire signed [WIDTH-1:0] mult_exact;
-            wire [AMULT_SHIFT-1:0] shift_val_i;
-            wire signed [WIDTH-1:0] mult_approx;
-
-            assign sel_i = index_sel_soft(X[i]);
-            assign A_i   = lutA(sel_i);
-            assign C_i   = lutC(sel_i);
-
-            // Exact multiply path
-            assign P_full     = X[i] * A_i;
-            assign mult_exact = P_full[(FRAC+WIDTH-1):FRAC]; // >> FRAC
-
-            // Approximate multiply path (optional)
-            if (USE_AMULT != 0) begin : USE_AMULT_G
-                assign shift_val_i = pick_shift_val(A_i);
+        if (USE_AMULT != 0) begin
+            for (k = 0; k < TILE_SIZE; k = k + 1) begin
                 amult #(
                     .WIDTH(WIDTH),
                     .SHIFT(AMULT_SHIFT)
                 ) AMULT_I (
                     // .CLK(), // combinational version as in your code
-                    .DAT_IN(X[i]),
-                    .SHIFT_VAL(shift_val_i),
-                    .DAT_OUT(mult_approx)
+                    .DAT_IN(X_d[k]),
+                    .SHIFT_VAL(shift_val_i[k]),
+                    .DAT_OUT(mult_approx[k])
                 );
-            end else begin : NO_AMULT_G
-                assign mult_approx = {WIDTH{1'b0}}; // unused
+            end
+        end else begin
+        end
+    endgenerate
+    
+    always @(*) begin
+        for (i = 0; i < TILE_SIZE; i = i + 1) begin
+            sel_i[i] = index_sel_soft(X[i]);
+            A_i[i]   = lutA(sel_i[i]);
+            C_i[i]   = lutC(sel_i[i]);
+
+            // Exact multiply path
+            P_full[i]   = X_d[i] * A_i_d[i];
+            mult_exact[i] = P_full_d[i][(FRAC+WIDTH-1):FRAC]; // >> FRAC
+
+            // Approximate multiply path (optional)
+            if (USE_AMULT != 0) begin
+                shift_val_i[i] = pick_shift_val(A_i_d[i]);
             end
 
             // Select multiply result and add C
-            wire signed [WIDTH-1:0] y_raw = (USE_AMULT != 0) ? (mult_approx + C_i)
-                                                           : (mult_exact  + C_i);
+            y_raw[i] = (USE_AMULT != 0) ? (mult_approx[i] + C_i_d_2[i])
+                        : (mult_exact[i]  + C_i_d_2[i]);
             
-            wire signed [WIDTH-1:0] Y_i = 
-                y_raw[WIDTH-1] ? {WIDTH{1'b0}} : y_raw;
-                
-            // Register-less combinational output for now; we can pipeline later
-            always @* begin
-                Y[i] = Y_i;
-            end
+            Y_i[i] = y_raw[i][WIDTH-1] ? {WIDTH{1'b0}} : y_raw[i];
 
             // Pack back into Y_flat (MS chunk = element 0)
-            localparam integer OMSB = (TILE_SIZE-1-i)*WIDTH + (WIDTH-1);
-            localparam integer OLSB = (TILE_SIZE-1-i)*WIDTH;
-            assign Y_flat[OMSB:OLSB] = Y[i];
+            //OMSB[i] = (TILE_SIZE-1-i)*WIDTH + (WIDTH-1);
+            //Y_flat[OMSB:(TILE_SIZE-1-i)*WIDTH] = Y[i];
         end
-    endgenerate
+    end
+
+    
+    // ----------------------------
+    // Per-lane datapath (sequential ver.) 
+    // ----------------------------
+    integer j;
+    always @(posedge clk) begin
+        if (!rst_n) begin
+            for (j = 0; j < TILE_SIZE; j = j + 1) begin
+                X_d[j]      <= 0;
+                A_i_d[j]    <= 0;
+                C_i_d[j]    <= 0;
+                C_i_d_2[j]  <= 0;
+                P_full_d[j] <= 0;
+            end
+            data_in     <= 0;
+            delay_pipe  <= 0;
+            Y_flat      <= 0;
+        end
+        else begin
+            for (j = 0; j < TILE_SIZE; j = j + 1) begin
+                X_d[j]      <= X[j];
+                A_i_d[j]    <= A_i[j];
+                C_i_d[j]    <= C_i[j];
+                C_i_d_2[j]  <= C_i_d[j];
+                P_full_d [j]    <= P_full[j];
+                // Y_flat[(TILE_SIZE-1-j)*WIDTH + (WIDTH-1):(TILE_SIZE-1-j)*WIDTH]   <= Y_i[j];
+                Y_flat[(TILE_SIZE-1-j)*WIDTH +: WIDTH]   <= Y_i[j];
+            end
+
+            // Detect if one of the first pipeline register's value is changed
+            if (X_d[0] != 0) data_in <= 1;
+            delay_pipe  <= {delay_pipe[DELAY_CYCLES-2:0], data_in};
+        end
+    end
+
+    assign valid_out = delay_pipe[DELAY_CYCLES-1];
+
 endmodule

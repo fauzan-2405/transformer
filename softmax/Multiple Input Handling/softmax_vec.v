@@ -236,7 +236,7 @@ module softmax_vec #(
     // ----------------- SUM_EXP CALCULATIONS ----------------
     reg [SUM_WIDTH-1:0] sum_exp;
     reg [ADDRS-1:0] e_count_sum;
-    reg minus, minus_d;
+    reg minus, minus_d, minus_d2, minus_d3, minus_d4;
     
     
     // Function to saturation
@@ -341,6 +341,9 @@ module softmax_vec #(
             max_val         <= 32'sh8000_0000; // Very negative
             minus           <= 0;
             minus_d         <= 0;
+            minus_d2        <= 0;
+            minus_d3        <= 0;
+            minus_d4        <= 0;
             e_count_sum     <= {ADDRS{1'b0}};
             sum_exp         <= {SUM_WIDTH{1'b0}};
 
@@ -361,6 +364,9 @@ module softmax_vec #(
             state_reg   <= state_next;
             state_reg_d <= state_reg;
             minus_d     <= minus;
+            minus_d2    <= minus_d;
+            minus_d3    <= minus_d2;
+            minus_d4    <= minus_d3;
             valid_count <= 1;
             ram_write_addr_reg  <= ram_write_addr;
 
@@ -522,7 +528,7 @@ module softmax_vec #(
             case (state_reg_d)
                 S_PASS_1: begin
                     if (e_count_sum < COUNT_SUM) begin
-                       if (minus_d) begin
+                       if (minus_d4) begin
                             sum_exp <= sat_add(sum_exp, acc0 + acc1);
                             e_count_sum <= e_count_sum + 2;
                         end else begin
