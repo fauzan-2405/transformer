@@ -181,6 +181,7 @@ module softmax_vec #(
     // ----------------- RAM ----------------
     reg [ADDRW-1:0] ram_read_addr0, ram_read_addr1;
     reg [ADDRW-1:0] ram_write_addr;
+    reg [ADDRW-1:0] ram_write_addr_reg;
     wire [RAM_DATA_WIDTH-1:0] ram_dout0;
     wire [RAM_DATA_WIDTH-1:0] ram_dout1;
 
@@ -191,7 +192,7 @@ module softmax_vec #(
         .clk(clk),
         .rst_n(rst_n),
         .we(tile_in_valid && (state_reg == S_LOAD)),
-        .write_addr(ram_write_addr),
+        .write_addr(ram_write_addr_reg),
         .read_addr0(ram_read_addr0),
         .read_addr1(ram_read_addr1),
         .din(convert_tile_to_q16_16(X_tile_in)),
@@ -212,12 +213,14 @@ module softmax_vec #(
     exp_vec #(
         .WIDTH(INT_WIDTH), .FRAC(INT_FRAC), .TILE_SIZE(TILE_SIZE), .USE_AMULT(USE_AMULT)
     ) EXP_0 (
+        .clk(clk),  .rst_n(rst_n),
         .X_flat(exp_in_flat0), .Y_flat(exp_out_flat0)
     );
 
     exp_vec #(
         .WIDTH(INT_WIDTH), .FRAC(INT_FRAC), .TILE_SIZE(TILE_SIZE), .USE_AMULT(USE_AMULT)
     ) EXP_1 (
+        .clk(clk),  .rst_n(rst_n),
         .X_flat(exp_in_flat1), .Y_flat(exp_out_flat1)
     );
 
@@ -331,6 +334,7 @@ module softmax_vec #(
             e_read          <= {ADDRE{1'b0}};
 
             ram_write_addr  <= {ADDRW{1'b0}};
+            ram_write_addr_reg  <= {ADDRW{1'b0}};
             ram_read_addr0  <= {ADDRW{1'b0}}; // even
             ram_read_addr1  <= (RAM_DEPTH>1) ? 1 : 0; // odd 1
 
@@ -358,6 +362,7 @@ module softmax_vec #(
             state_reg_d <= state_reg;
             minus_d     <= minus;
             valid_count <= 1;
+            ram_write_addr_reg  <= ram_write_addr;
 
             // Case for state_next
             case (state_next)
