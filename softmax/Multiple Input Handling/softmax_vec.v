@@ -9,7 +9,13 @@ module softmax_vec #(
     parameter FRAC_WIDTH_OUT = 7,
     parameter TOTAL_ELEMENTS = 1024,   // set small for sim; can be 2754 in HW
     parameter TILE_SIZE      = 16,
-    parameter USE_AMULT      = 1     // passed to exp_vec
+    parameter TOTAL_TILE     = TOTAL_ELEMENTS/TILE_SIZE,
+    parameter USE_AMULT      = 1,     // passed to exp_vec
+    parameter EVEN_OR_ODD    = TOTAL_TILE % 2, // 0 for even 1 for odd
+    
+    parameter DATA_WIDTH_SOFTMAX_OUT  = WIDTH_OUT * TILE_SIZE,
+    parameter MEMORY_SIZE_SOFTMAX_OUT = TOTAL_ELEMENTS * WIDTH_OUT,
+    parameter ADDR_WIDTH_SOFTMAX_OUT  = $clog2(MEMORY_SIZE_SOFTMAX_OUT/DATA_WIDTH_SOFTMAX_OUT)
 )(
     input  wire                          clk,
     input  wire                          rst_n,
@@ -20,7 +26,7 @@ module softmax_vec #(
     input  wire                          tile_in_valid,
 
     // Output tile stream, MS chunk = element 0
-    output reg  [TILE_SIZE*WIDTH_OUT-1:0]    Y_tile_out,
+    output reg  [DATA_WIDTH_SOFTMAX_OUT-1:0]    Y_tile_out,
     output reg                           tile_out_valid,
 
     //output reg                           done
@@ -303,7 +309,79 @@ module softmax_vec #(
     reg valid_count;
     integer remain, take_even, take_odd;
     
+    // ----------------- OUT BRAM  ----------------
+    wire en_out_bram;
+    wire wea_out_bram, web_out_bram;
+    reg [ADDR_WIDTH_SOFTMAX_OUT-1:0] wr_addra_out_bram, wr_addrb_out_bram;
+    reg [DATA_WIDTH_SOFTMAX_OUT-1:0] dina_out_bram, dinb_out_bram;
+    reg [ADDR_WIDTH_SOFTMAX_OUT-1:0] rd_addr_out_bram;
+    wire [ADDR_WIDTH_SOFTMAX_OUT-1:0] addrb_out_bram;
+    wire write_finished;
+    wire [DATA_WIDTH_SOFTMAX_OUT-1:0] Y_tile_out_wire;
     
+    assign en_out_bram  = (state_reg == S_PASS_2); 
+    assign wea_out_bram = (state_reg == S_PASS_2) && valid_out0; 
+    assign web_out_bram = (state_reg == S_PASS_2) && valid_out1;
+    assign write_finished = (state_reg == S_PASS_2) ? // PLEASE LOOK AT THISS
+                            ((!EVEN_OR_ODD) ? (wr_addrb_out_bram == TOTAL_TILE - 1) : (wr_addra_out_bram == TOTAL_TILE - 1)) : 0;
+    assign addrb_out_bram = write_finished ? rd_addr_out_bram : wr_addrb_out_bram;
+    
+    xpm_memory_tdpram
+    #(
+        // Common module parameters
+        .MEMORY_SIZE(MEMORY_SIZE_SOFTMAX_OUT),           // DECIMAL, 
+        .MEMORY_PRIMITIVE("auto"),           // String
+        .CLOCKING_MODE("common_clock"),      // String, "common_clock"
+        .MEMORY_INIT_FILE("none"),           // String
+        .MEMORY_INIT_PARAM("0"),             // String      
+        .USE_MEM_INIT(1),                    // DECIMAL
+        .WAKEUP_TIME("disable_sleep"),       // String
+        .MESSAGE_CONTROL(0),                 // DECIMAL
+        .AUTO_SLEEP_TIME(0),                 // DECIMAL          
+        .ECC_MODE("no_ecc"),                 // String
+        .MEMORY_OPTIMIZATION("true"),        // String              
+        .USE_EMBEDDED_CONSTRAINT(0),         // DECIMAL
+        
+        // Port A module parameters
+        .WRITE_DATA_WIDTH_A(DATA_WIDTH_SOFTMAX_OUT), // DECIMAL, varying based on the matrix size
+        .READ_DATA_WIDTH_A(DATA_WIDTH_SOFTMAX_OUT),  // DECIMAL, varying based on the matrix size
+        .BYTE_WRITE_WIDTH_A(DATA_WIDTH_SOFTMAX_OUT), // DECIMAL, how many bytes in WRITE_DATA_WIDTH_A, use $clog2 maybe?
+        .ADDR_WIDTH_A(ADDR_WIDTH_SOFTMAX_OUT),         // DECIMAL, clog2(MEMORY_SIZE_A/WRITE_DATA_WIDTH_A)
+        .READ_RESET_VALUE_A("0"),            // String
+        .READ_LATENCY_A(1),                  // DECIMAL
+        .WRITE_MODE_A("write_first"),        // String
+        .RST_MODE_A("SYNC"),                 // String
+        
+        // Port B module parameters  
+        .WRITE_DATA_WIDTH_B(DATA_WIDTH_SOFTMAX_OUT), // DECIMAL, varying based on the matrix size
+        .READ_DATA_WIDTH_B(DATA_WIDTH_SOFTMAX_OUT),  // DECIMAL, varying based on the matrix size
+        .BYTE_WRITE_WIDTH_B(DATA_WIDTH_SOFTMAX_OUT), // DECIMAL, how many bytes in WRITE_DATA_WIDTH_A
+        .ADDR_WIDTH_B(ADDR_WIDTH_SOFTMAX_OUT),         // DECIMAL, clog2(MEMORY_SIZE/WRITE_DATA_WIDTH_A)
+        .READ_RESET_VALUE_B("0"),            // String
+        .READ_LATENCY_B(1),                  // DECIMAL
+        .WRITE_MODE_B("write_first"),        // String
+        .RST_MODE_B("SYNC")                  // String
+    )
+    buffer_out_softmax
+    (        
+        // Port A module ports
+        .clka(clk),
+        .rsta(~rst_n),
+        .ena(en_out_bram),
+        .wea(wea_out_bram),
+        .addra(wr_addra_out_bram), 
+        .dina(dina_out_bram),
+        .douta(),
+        
+        // Port B module ports
+        .clkb(clk),
+        .rstb(~rst_n),
+        .enb(en_out_bram),
+        .web(web_out_bram), 
+        .addrb(addrb_out_bram), 
+        .dinb(dinb_out_bram),
+        .doutb(Y_tile_out_wire) //Y_tile_out_wire
+    );
 
     // ----------------- FSM NEXT STATE ----------------
     always @(*) begin
@@ -317,7 +395,6 @@ module softmax_vec #(
             S_LOAD: // Pass 0: Store tiles and track max
             begin
                 state_next = (e_loaded == TOTAL_ELEMENTS) ? S_PASS_1 : S_LOAD;
-                //max_val <= tile_max_q16_16(X_tile_in, max_val, e_loaded);
             end
 
             S_PASS_1: // Pass 1: Read from the RAM, calculate the exp, and sum exp
@@ -332,8 +409,7 @@ module softmax_vec #(
 
             S_PASS_2:
             begin
-                //state_next = (done) ? S_IDLE : S_PASS_2;
-                state_next = (remain == 0) ? S_DONE : S_PASS_2;
+                state_next = (rd_addr_out_bram == TOTAL_TILE - 1) ? S_DONE : S_PASS_2;
             end
 
             S_DONE:
@@ -342,7 +418,16 @@ module softmax_vec #(
             end
         endcase
         exp_in_valid = (((state_next == S_PASS_1) || (state_next == S_PASS_2)) && valid_count);
-        exp_in_valid_d3 = exp_in_valid_d2 && exp_in_valid_d1;
+        exp_in_valid_d3 = (!EVEN_OR_ODD) ? (exp_in_valid_d2) : (exp_in_valid_d2 && exp_in_valid_d1);
+        
+        for (i = 0; i < TILE_SIZE; i = i+1) begin
+            dina_out_bram[(TILE_SIZE-1-i)*WIDTH_OUT +: WIDTH_OUT]
+                <= from_q16_16(exp_out_flat0[(TILE_SIZE-1-i)*INT_WIDTH +: INT_WIDTH]);
+            dinb_out_bram[(TILE_SIZE-1-i)*WIDTH_OUT +: WIDTH_OUT]
+                <= from_q16_16(exp_out_flat1[(TILE_SIZE-1-i)*INT_WIDTH +: INT_WIDTH]);
+        end
+        
+        Y_tile_out  <= (tile_out_valid) ? Y_tile_out_wire : 0;
     end
 
     // ----------------- FSM SEQUENTIAL ----------------
@@ -371,6 +456,9 @@ module softmax_vec #(
             ln_sum_out_reg  <= 0;
 
             tile_out_valid  <= 0;
+            wr_addra_out_bram   <= 0;
+            wr_addrb_out_bram   <= 1;
+            rd_addr_out_bram    <= 0;
             out_phase       <= 0;
             //done            <= 0;
 
@@ -397,6 +485,10 @@ module softmax_vec #(
             exp_in_valid_d2     <= exp_in_valid_d1;
             
             if (data_out_valid_sum_exp) ln_sum_out_reg  <= ln_sum_out;
+            
+            if ((rd_addr_out_bram < TOTAL_TILE) && (write_finished) && (state_reg == S_PASS_2 || S_DONE)) begin
+                tile_out_valid   <= 1;
+            end 
 
             // Case for state_next
             case (state_next)
@@ -460,31 +552,44 @@ module softmax_vec #(
                     end
 
                     // Emit per-tile stream:
-                    if (out_phase == 0) begin
-                        e_streamed      <= e_streamed + take_even;
-                        if (state_reg_d == S_PASS_2) begin
-                            for (i = 0; i < TILE_SIZE; i = i+1) begin
-                                Y_tile_out[(TILE_SIZE-1-i)*WIDTH_OUT +: WIDTH_OUT]
-                                    <= from_q16_16(exp_out_flat1[(TILE_SIZE-1-i)*INT_WIDTH +: INT_WIDTH]);
-                            end
-                            tile_out_valid  <= 1'b1;
+//                    if (out_phase == 0) begin
+//                        e_streamed      <= e_streamed + take_even;
+//                        if (state_reg_d == S_PASS_2) begin
+//                            for (i = 0; i < TILE_SIZE; i = i+1) begin
+//                                Y_tile_out[(TILE_SIZE-1-i)*WIDTH_OUT +: WIDTH_OUT]
+//                                    <= from_q16_16(exp_out_flat1[(TILE_SIZE-1-i)*INT_WIDTH +: INT_WIDTH]);
+//                            end
+//                            tile_out_valid  <= 1'b1;
+//                        end
+//                        out_phase       <= (take_even != 0) ? 1'b1 : 1'b0; // if odd valid then emit it next
+//                    end else begin
+//                        e_streamed      <= e_streamed + take_odd;
+//                        if (state_reg_d == S_PASS_2)begin
+//                            for (i = 0; i < TILE_SIZE; i = i+1) begin
+//                                Y_tile_out[(TILE_SIZE-1-i)*WIDTH_OUT +: WIDTH_OUT]
+//                                    <= from_q16_16(exp_out_flat0[(TILE_SIZE-1-i)*INT_WIDTH +: INT_WIDTH]);
+//                            end
+//                            tile_out_valid  <= 1'b1;
+//                        end
+//                        out_phase       <= 1'b0;
+//                    end
+                    
+                    if (wea_out_bram) begin
+                        if (wr_addra_out_bram < TOTAL_TILE - 1) begin
+                            wr_addra_out_bram   <= wr_addra_out_bram + 2;
                         end
-                        out_phase       <= (take_even != 0) ? 1'b1 : 1'b0; // if odd valid then emit it next
-                    end else begin
-                        e_streamed      <= e_streamed + take_odd;
-                        if (state_reg_d == S_PASS_2)begin
-                            for (i = 0; i < TILE_SIZE; i = i+1) begin
-                                Y_tile_out[(TILE_SIZE-1-i)*WIDTH_OUT +: WIDTH_OUT]
-                                    <= from_q16_16(exp_out_flat0[(TILE_SIZE-1-i)*INT_WIDTH +: INT_WIDTH]);
+                        if (web_out_bram) begin
+                            if (wr_addrb_out_bram < TOTAL_TILE - 2) begin
+                                wr_addrb_out_bram   <= wr_addrb_out_bram + 2;
                             end
-                            tile_out_valid  <= 1'b1;
                         end
-                        out_phase       <= 1'b0;
                     end
-                end
-                
-                S_DONE: begin
-                    Y_tile_out <= 0;
+                    
+                    if (wr_addra_out_bram == TOTAL_TILE - 1) begin
+                        if (rd_addr_out_bram < TOTAL_TILE - 1) begin
+                            rd_addr_out_bram   <= rd_addr_out_bram + 1;
+                        end
+                    end
                 end
             endcase
 
@@ -526,7 +631,7 @@ module softmax_vec #(
                 S_LN: begin         // LN: Calculate the natural logarithmic
                     //e_streamed   <= {ADDRE+1{1'b0}};
                     out_phase    <= 1'b0;
-                    tile_out_valid <= 1'b0;
+//                    tile_out_valid <= 1'b0;
                 end
 
                 S_PASS_2: begin     // Pass_2: Calculate each exp(Xi - max_value -ln(sum_exp))
@@ -536,7 +641,7 @@ module softmax_vec #(
                     end
                     if (state_next == S_DONE) begin
                     //if (state_next == S_IDLE) begin
-                        tile_out_valid  <= 0;
+//                        tile_out_valid  <= 0;
                         //done            <= 1;
                     end
                 end
@@ -545,6 +650,6 @@ module softmax_vec #(
     end
     
     assign data_in_sum_exp = (e_count_sum == TOTAL_ELEMENTS/TILE_SIZE) && (state_reg == S_PASS_1) && (state_next == S_LN);
-    assign done = (state_next == S_DONE) ? 1 : 0 ;
+    assign done = (state_reg == S_DONE) ? 1 : 0 ;
 endmodule
 
