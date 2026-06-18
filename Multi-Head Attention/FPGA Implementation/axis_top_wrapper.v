@@ -8,7 +8,9 @@ module axis_top_wrapper #(
     localparam S0_WIDTH =   `SYSTEM_TOP_WIDTH_INPUT *
                             `TOP_CHUNK_SIZE *
                             `SYSTEM_NUM_CORES_A,
-    localparam S1_WIDTH =   S0_WIDTH,
+    localparam S1_WIDTH =   `SYSTEM_TOP_WIDTH_INPUT *
+                            `TOP_CHUNK_SIZE *
+                            `SYSTEM_NUM_CORES_A,
     localparam M0_WIDTH =   `SYSTEM_TOP_WIDTH_FINAL *
                             `TOP_CHUNK_SIZE * 
                             `SYSTEM_NUM_CORES_A * 

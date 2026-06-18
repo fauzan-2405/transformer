@@ -121,7 +121,7 @@ module axis_top_sv #(
     // ========================================= OUTPUT FIFO =========================================
     // xpm_fifo_axis: AXI Stream FIFO
     // Xilinx Parameterized Macro, version 2018.3
-    localparam FIFO_0_DEPTH                     = 2;  // Must be power of two
+    localparam FIFO_0_DEPTH                     = 16;  // Must be power of two
                                                         /* 
                                                         Technically, it could be just 1, because 
                                                         the larger the matrix, the longer the cycle 
