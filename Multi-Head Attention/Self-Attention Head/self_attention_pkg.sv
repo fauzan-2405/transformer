@@ -47,6 +47,10 @@ package self_attention_pkg;
     parameter TOTAL_OUTPUTS_PER_TILE = TILE_SIZE_SOFTMAX/SA_BLOCK_SIZE;
     parameter TOTAL_SOFTMAX_ROW      = NUM_CORES_A_Qn_KnT * SA_BLOCK_SIZE;
     
+    parameter MEMORY_SIZE_SOFTMAX_OUT= TOTAL_ELEMENTS_SOFTMAX * SA_WIDTH_SOFT_OUT;
+    parameter DATA_WIDTH_SOFTMAX_OUT = TILE_SIZE_SOFTMAX * SA_WIDTH_SOFT_OUT;
+    parameter ADDR_WIDTH_SOFTMAX_OUT = $clog2(MEMORY_SIZE_SOFTMAX_OUT/DATA_WIDTH_SOFTMAX_OUT);
+    
     //parameter NUM_BANKS_FIFO         = (TOTAL_OUTPUTS_PER_TILE*2 + 1 > TOTAL_TILE_SOFTMAX)? TOTAL_TILE_SOFTMAX : (TOTAL_OUTPUTS_PER_TILE*2 + 1); // Old
     parameter NUM_BANKS_FIFO         = TOTAL_TILE_SOFTMAX; // New, because there will be mismatch between the self
                                         // attention control (it's using TOTAL_TILE_SOFTMAX as the dimension) and 
