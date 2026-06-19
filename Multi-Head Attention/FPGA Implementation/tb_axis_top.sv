@@ -59,44 +59,63 @@ module tb_axis_top;
         .m_axis_tlast(m_axis_tlast)
     );
 
-    task automatic send_inputs;
+    task automatic send_dma0;
     begin
-
         s_axis_0_tvalid = 0;
-        s_axis_1_tvalid = 0;
+        s_axis_0_tlast  = 0;
 
         @(posedge aclk);
 
-        for(int i=0;i<(NUM_A_ELEMENTS+1)/2;i++)
-        begin
+        for (int i = 0; i < (NUM_A_ELEMENTS+1)/2; i++) begin
 
             s_axis_0_tdata  <= mem_A[2*i];
-
-            if(2*i+1 < NUM_A_ELEMENTS)
-                s_axis_1_tdata <= mem_A[2*i+1];
-            else
-                s_axis_1_tdata <= mem_A[NUM_A_ELEMENTS-1];
-
             s_axis_0_tvalid <= 1;
-            s_axis_1_tvalid <= 1;
-
-            s_axis_0_tlast <= (i == ((NUM_A_ELEMENTS+1)/2-1));
-            s_axis_1_tlast <= (i == ((NUM_A_ELEMENTS+1)/2-1));
+            s_axis_0_tlast  <= (i == ((NUM_A_ELEMENTS+1)/2-1));
 
             do begin
                 @(posedge aclk);
-            end while(!(s_axis_0_tready && s_axis_1_tready));
+            end while (!s_axis_0_tready);
 
         end
 
         @(posedge aclk);
-
         s_axis_0_tvalid <= 0;
+        s_axis_0_tlast  <= 0;
+    end
+    endtask
+
+
+    task automatic send_dma1;
+    begin
+        s_axis_1_tvalid = 0;
+        s_axis_1_tlast  = 0;
+
+        // Artificial delay to emulate an unsynchronized DMA
+        repeat(3) @(posedge aclk);
+
+        for (int i = 0; i < (NUM_A_ELEMENTS+1)/2; i++) begin
+
+            if (2*i+1 < NUM_A_ELEMENTS)
+                s_axis_1_tdata <= mem_A[2*i+1];
+            else
+                s_axis_1_tdata <= mem_A[NUM_A_ELEMENTS-1];
+
+            s_axis_1_tvalid <= 1;
+            s_axis_1_tlast  <= (i == ((NUM_A_ELEMENTS+1)/2-1));
+
+            do begin
+                @(posedge aclk);
+            end while (!(s_axis_0_tvalid && s_axis_0_tready));
+
+            do begin
+                @(posedge aclk);
+            end while (!(s_axis_1_tvalid && s_axis_1_tready));
+
+        end
+
+        @(posedge aclk);
         s_axis_1_tvalid <= 0;
-
-        s_axis_0_tlast <= 0;
-        s_axis_1_tlast <= 0;
-
+        s_axis_1_tlast  <= 0;
     end
     endtask
 
@@ -117,7 +136,10 @@ module tb_axis_top;
 
         repeat(5) @(posedge aclk);
 
-        send_inputs();
+        fork
+            send_dma0();
+            send_dma1();
+        join
 
         $display("[%0t] DMA transfer complete", $time);
 
