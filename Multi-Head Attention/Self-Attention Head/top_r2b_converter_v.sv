@@ -6,11 +6,12 @@ module top_r2b_converter_v #(
     parameter FRAC_WIDTH  = 8,
     parameter BLOCK_SIZE  = 2,
     parameter CHUNK_SIZE  = 4,
-    parameter ROW         = 2754,
-    parameter COL         = 256,
+    parameter ROW         = 4,
+    parameter COL         = 2,
     parameter NUM_CORES_V = 2,
     parameter TOTAL_SOFTMAX_ROW  = 4,
-    parameter TOTAL_TILE_SOFTMAX = 2
+    parameter TOTAL_TILE_SOFTMAX = 2,
+    parameter TOTAL_INPUT_W_Qn_KnT = 2
 ) (
     input logic clk,
     input logic rst_n [TOTAL_TILE_SOFTMAX],
@@ -24,6 +25,19 @@ module top_r2b_converter_v #(
     output logic buffer_done [TOTAL_TILE_SOFTMAX],
     output logic [WIDTH*CHUNK_SIZE*NUM_CORES_V-1:0] out_data [TOTAL_INPUT_W_Qn_KnT][TOTAL_TILE_SOFTMAX]
 );
+    logic slice_done_sig [TOTAL_INPUT_W_Qn_KnT][TOTAL_TILE_SOFTMAX];
+    logic output_ready_sig [TOTAL_INPUT_W_Qn_KnT][TOTAL_TILE_SOFTMAX];
+    logic slice_last_sig [TOTAL_INPUT_W_Qn_KnT][TOTAL_TILE_SOFTMAX];
+    logic buffer_done_sig [TOTAL_INPUT_W_Qn_KnT][TOTAL_TILE_SOFTMAX];
+    
+    always_comb begin
+        for (int a = 0; a < TOTAL_TILE_SOFTMAX; a++) begin
+            slice_done[a]   = slice_done_sig[0][a];
+            output_ready[a] = output_ready_sig[0][a];
+            slice_last[a]   = slice_last_sig[0][a];
+            buffer_done[a]  = buffer_done_sig[0][a];
+        end
+    end
 
     // ************************** R2B CONVERTER **************************
     genvar l,m;
@@ -44,10 +58,10 @@ module top_r2b_converter_v #(
                     .en(en),
                     .in_valid(in_valid[m]),
                     .in_data(in_data[l][r2b_row_idx[m]]),
-                    .slice_done(slice_done[m]),
-                    .output_ready(output_ready[m]),
-                    .slice_last(slice_last[m]),
-                    .buffer_done(buffer_done[m]),
+                    .slice_done(slice_done_sig[l][m]),         // Updated
+                    .output_ready(output_ready_sig[l][m]),     // Updated
+                    .slice_last(slice_last_sig[l][m]),         // Updated
+                    .buffer_done(buffer_done_sig[l][m]),       // Updated
                     .out_data(out_data[l][m])
                 );
             end
