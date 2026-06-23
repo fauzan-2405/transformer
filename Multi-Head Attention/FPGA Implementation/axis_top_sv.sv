@@ -197,16 +197,19 @@ module axis_top_sv #(
 
 
     // ========================================= CONTROLLER =========================================
+    localparam EVEN_OR_ODD = (NUM_A_ELEMENTS % 2 == 0) ? 0 : 1;
     // The controller goes here
     logic idx_out;  // Because TOTAL_INPUT_W_Qn_KnT == 2
     logic idx_out_reg;  // Delayed version
-    logic [$clog2((NUM_A_ELEMENTS + 1)/2)-1:0] idx_elements;
+//    logic [$clog2((NUM_A_ELEMENTS + 1)/2)-1:0] idx_elements;
 
     // Combinational controller
     assign s_axis_0_tready  = in_mat_ena;
     assign s_axis_1_tready  = in_mat_enb;
     assign in_mat_wea       = s_axis_0_tvalid;
     assign in_mat_web       = s_axis_1_tvalid;
+    assign in_mat_dina      = s_axis_0_tdata;
+    assign in_mat_dinb      = s_axis_1_tdata;
     assign computation_done = QKT_Vn_done;
     assign s2mm_valid       = (idx_out_reg || idx_out);
     assign s2mm_last        = QKT_Vn_done && idx_out_reg;
@@ -219,31 +222,41 @@ module axis_top_sv #(
             in_mat_ena      <= 0;
             in_mat_enb      <= 0;
             in_mat_wr_addra <= '0;
-            in_mat_wr_addrb <= '0;
-            in_mat_dina     <= '0;
-            in_mat_dinb     <= '0;
-            idx_elements    <= '0;
+            in_mat_wr_addrb <= 1;
+//            in_mat_dina     <= '0;
+//            in_mat_dinb     <= '0;
+//            idx_elements    <= '0;
         end else begin
             // ================== Write input BRAM ==================
-            in_mat_dina     <= s_axis_0_tdata;
-            in_mat_dinb     <= s_axis_1_tdata;
+//            in_mat_dina     <= s_axis_0_tdata;
+//            in_mat_dinb     <= s_axis_1_tdata;
             
             if (~s_axis_0_tlast) in_mat_ena  <= 1;
             if (~s_axis_1_tlast) in_mat_enb  <= 1;
 
-            if (in_mat_wea) begin
-                idx_elements        <= idx_elements + 1;
-                // Port A: even
-                in_mat_wr_addra     <= 2*idx_elements;
+//            if (in_mat_wea) begin
+//                idx_elements        <= idx_elements + 1;
+//                // Port A: even
+//                in_mat_wr_addra     <= 2*idx_elements;
 
+//                // Port B: odd
+//                if (in_mat_web) begin
+//                    if (2*idx_elements + 1 < NUM_A_ELEMENTS) begin
+//                        in_mat_wr_addrb <= 2*idx_elements + 1;
+//                    end else begin
+//                        in_mat_wr_addrb <= NUM_A_ELEMENTS - 1;
+//                    end
+//                end
+//            end
+            
+            if (in_mat_wea) begin
+                // Port A: even
+                in_mat_wr_addra     <= in_mat_wr_addra + 2;
+            end
+            
+            if (in_mat_web) begin
                 // Port B: odd
-                if (in_mat_web) begin
-                    if (2*idx_elements + 1 < NUM_A_ELEMENTS) begin
-                        in_mat_wr_addrb <= 2*idx_elements + 1;
-                    end else begin
-                        in_mat_wr_addrb <= NUM_A_ELEMENTS - 1;
-                    end
-                end
+                in_mat_wr_addrb     <= in_mat_wr_addrb + 2;
             end
 
             // ================== Output FIFO takes the output fromt he multihead attention ==================   
