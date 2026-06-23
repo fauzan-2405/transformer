@@ -22,8 +22,7 @@ module linear_proj_ctrl
     
     output logic enable_linear_proj, internal_rst_n_ctrl, internal_reset_acc_ctrl,
     output logic out_valid, done
-);
-
+);  
     // Internal read address counters (controller-driven)
     logic [ADDR_WIDTH_A-1:0] in_mat_rd_addra; // used when reading port A
     logic [ADDR_WIDTH_A-1:0] in_mat_rd_addrb; // used when reading port B
@@ -96,8 +95,8 @@ module linear_proj_ctrl
             //in_a_enb_d <= in_a_enb;
             //in_b_enb_d <= in_b_enb;
             
-            // Port A & B Controller
-            if ((in_mat_wr_addra >= NUM_A_ELEMENTS-1-1)) begin // enable AFTER BOTH of BRAMs are filled is HIGH
+            // Port A & B Controller, enable AFTER BOTH of BRAMs are filled is HIGH
+            if ((in_mat_wr_addra >= NUM_A_ELEMENTS-1-1) && (in_mat_wr_addrb >= NUM_A_ELEMENTS - 1 - 1)) begin // enable AFTER BOTH of BRAMs are filled is HIGH
                 en_module <= 1'b1;// Control write enable of each BRAMs for both ports
             end
 
