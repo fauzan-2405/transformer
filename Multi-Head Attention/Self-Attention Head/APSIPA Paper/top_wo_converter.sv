@@ -56,7 +56,7 @@ module top_wo_converter #(
     localparam DATA_WIDTH_A  = WIDTH_A*CHUNK_SIZE*NUM_CORES_A;
     localparam int ADDR_WIDTH_A = $clog2(MEMORY_SIZE_A/DATA_WIDTH_A);
 
-    logic in_mat_ena, in_mat_enb;
+    logic in_mat_en;
     logic in_mat_wea;
     logic [ADDR_WIDTH_A-1:0] in_mat_addra, in_mat_addrb;
     logic [DATA_WIDTH_A-1:0] in_mat_doutb;
@@ -102,16 +102,16 @@ module top_wo_converter #(
         // Port A module ports
         .clka(aclk),
         .rsta(~aresetn),
-        .ena(in_mat_ena),
+        .ena(in_mat_en),
         .wea(in_mat_wea),
         .addra(in_mat_addra), 
         .dina(s_axis_0_tdata),
-        .douta(1'b0),
+        .douta(),
         
         // Port B module ports
         .clkb(aclk),
         .rstb(~aresetn),
-        .enb(in_mat_enb),
+        .enb(in_mat_en),
         .web(1'b0), 
         .addrb(in_mat_addrb), 
         .dinb(1'b0),
@@ -124,7 +124,7 @@ module top_wo_converter #(
     localparam DATA_WIDTH_B  = WIDTH_B*CHUNK_SIZE*NUM_CORES_B;
     localparam int ADDR_WIDTH_B = $clog2(MEMORY_SIZE_B/DATA_WIDTH_B);
 
-    logic we_mat_ena, we_mat_enb;
+    logic we_mat_en;
     logic we_mat_wea;
     logic [ADDR_WIDTH_A-1:0] we_mat_addra, we_mat_addrb;
     logic [DATA_WIDTH_A-1:0] we_mat_doutb;
@@ -170,16 +170,16 @@ module top_wo_converter #(
         // Port A module ports
         .clka(aclk),
         .rsta(~aresetn),
-        .ena(we_mat_ena),
+        .ena(we_mat_en),
         .wea(we_mat_wea),
         .addra(we_mat_addra), 
         .dina(s_axis_1_tdata),
-        .douta(1'b0),
+        .douta(),
         
         // Port B module ports
         .clkb(aclk),
         .rstb(~aresetn),
-        .enb(we_mat_enb),
+        .enb(we_mat_en),
         .web(1'b0), 
         .addrb(we_mat_addrb), 
         .dinb(1'b0),
@@ -284,12 +284,12 @@ module top_wo_converter #(
         .m_axis_tready(m_axis_tready), // ready  
         .m_axis_tdata(m_axis_tdata), // data
         .m_axis_tvalid(m_axis_tvalid), // valid
-        .m_axis_tdest(1'b0), 
-        .m_axis_tid(1'b0), 
-        .m_axis_tkeep({FIFO_0_TKEEP_WIDTH{1'b1}}), 
+        .m_axis_tdest(), 
+        .m_axis_tid(), 
+        .m_axis_tkeep(), 
         .m_axis_tlast(m_axis_tlast), 
-        .m_axis_tstrb({FIFO_0_TKEEP_WIDTH{1'b1}}), 
-        .m_axis_tuser(1'b0),  
+        .m_axis_tstrb(), 
+        .m_axis_tuser(),  
         
         .wr_data_count_axis() // data count
     );
@@ -303,8 +303,8 @@ module top_wo_converter #(
     logic counter_acc_done, matmul_done;
 
     // Combinational controller
-    assign s_axis_0_tready  = in_mat_ena;
-    assign s_axis_1_tready  = in_mat_enb;
+    assign s_axis_0_tready  = in_mat_en;
+    assign s_axis_1_tready  = we_mat_en;
     assign in_mat_wea       = s_axis_0_tvalid;
     assign we_mat_wea       = s_axis_1_tvalid;
     assign s2mm_data        = out_matmul;
@@ -314,8 +314,8 @@ module top_wo_converter #(
     // Sequential controller
     always_ff @(posedge aclk) begin
         if (~aresetn) begin
-            in_mat_ena      <= 0;
-            in_mat_enb      <= 0;
+            in_mat_en       <= 0;
+            we_mat_en       <= 0;
             in_mat_addra    <= 0;
             in_mat_addrb    <= 0;
             we_mat_addra    <= 0;
@@ -334,11 +334,11 @@ module top_wo_converter #(
         end else begin
             // ================== Write Input & Weight BRAM ==================
             if (m_axis_tlast) begin
-                in_mat_ena  <= 0;
-                in_mat_enb  <= 0;
+                in_mat_en   <= 0;
+                we_mat_en   <= 0;
             end else begin
-                in_mat_ena  <= 1;
-                in_mat_enb  <= 1;
+                in_mat_en   <= 1;
+                we_mat_en   <= 1;
             end
 
             if (in_mat_wea) begin
