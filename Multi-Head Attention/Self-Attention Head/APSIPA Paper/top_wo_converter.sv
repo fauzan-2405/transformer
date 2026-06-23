@@ -20,7 +20,7 @@ module top_wo_converter #(
     parameter NUM_CORES_B   = 2,
     parameter WIDTH_IN_A    = WIDTH_A * CHUNK_SIZE * NUM_CORES_A,
     parameter WIDTH_IN_B    = WIDTH_B * CHUNK_SIZE * NUM_CORES_B,
-    parameter WIDTH_OUT_C   = WIDTH_OUT * CHUNK_SIZE * NUM_CORES_A * NUM_CORES_B,
+    parameter WIDTH_OUT_C   = WIDTH_OUT * CHUNK_SIZE * NUM_CORES_A * NUM_CORES_B
 ) (
     input wire              aclk,
     input wire              aresetn,
@@ -52,9 +52,9 @@ module top_wo_converter #(
     localparam int MAX_FLAG = (ROW_SIZE_MAT_C * COL_SIZE_MAT_C);
 
     // ========================================= INPUT BRAM =========================================
-    parameter MEMORY_SIZE_A = INNER_DIMENSION*A_OUTER_DIMENSION*WIDTH_A;
-    parameter DATA_WIDTH_A  = WIDTH_A*CHUNK_SIZE*NUM_CORES_A;
-    parameter int ADDR_WIDTH_A = $clog2(MEMORY_SIZE_A/DATA_WIDTH_A);
+    localparam MEMORY_SIZE_A = INNER_DIMENSION*A_OUTER_DIMENSION*WIDTH_A;
+    localparam DATA_WIDTH_A  = WIDTH_A*CHUNK_SIZE*NUM_CORES_A;
+    localparam int ADDR_WIDTH_A = $clog2(MEMORY_SIZE_A/DATA_WIDTH_A);
 
     logic in_mat_ena, in_mat_enb;
     logic in_mat_wea;
@@ -120,9 +120,9 @@ module top_wo_converter #(
 
 
     // ========================================= WEIGHT BRAM =========================================
-    parameter MEMORY_SIZE_B = INNER_DIMENSION*B_OUTER_DIMENSION*WIDTH_B;
-    parameter DATA_WIDTH_B  = WIDTH_B*CHUNK_SIZE*NUM_CORES_B;
-    parameter int ADDR_WIDTH_B = $clog2(MEMORY_SIZE_B/DATA_WIDTH_B);
+    localparam MEMORY_SIZE_B = INNER_DIMENSION*B_OUTER_DIMENSION*WIDTH_B;
+    localparam DATA_WIDTH_B  = WIDTH_B*CHUNK_SIZE*NUM_CORES_B;
+    localparam int ADDR_WIDTH_B = $clog2(MEMORY_SIZE_B/DATA_WIDTH_B);
 
     logic we_mat_ena, we_mat_enb;
     logic we_mat_wea;
@@ -190,6 +190,8 @@ module top_wo_converter #(
     logic acc_done;
     logic sys_finish;
     logic [WIDTH_OUT_C-1:0] out_matmul;
+    logic en_module; // Toggle to ALWAYS HIGH after both BRAMs are filled
+    logic internal_reset_acc, internal_rst_n;
 
     matmul_module #(
         .INNER_DIMENSION(INNER_DIMENSION),
@@ -204,7 +206,7 @@ module top_wo_converter #(
         .NUM_CORES_B(NUM_CORES_B)
     ) matmul_module_inst (
         .clk(aclk), 
-        .en(en), 
+        .en(en_module), 
         .rst_n(internal_rst_n), 
         .reset_acc(internal_reset_acc),
         .input_w(in_mat_doutb), 
@@ -229,7 +231,7 @@ module top_wo_converter #(
     localparam FIFO_0_TKEEP_WIDTH               = FIFO_0_TDATA_WIDTH / 8;
 
     logic s2mm_ready;
-    logic [WIDTH_OUT_C-1:0] s2mm_data
+    logic [WIDTH_OUT_C-1:0] s2mm_data;
     logic s2mm_valid;
     logic s2mm_last;
 
@@ -294,11 +296,9 @@ module top_wo_converter #(
 
     // ========================================= CONTROLLER =========================================
     // The controller goes here
-    logic internal_reset_acc, internal_rst_n;
     logic acc_done_rising;
     logic acc_done_d;
     assign acc_done_rising = ~acc_done_d & acc_done;
-    logic en_module; // Toggle to ALWAYS HIGH after both BRAMs are filled
     logic [WIDTH_OUT-1:0] counter, counter_row, counter_col, flag;
     logic counter_acc_done, matmul_done;
 
@@ -320,7 +320,8 @@ module top_wo_converter #(
             in_mat_addrb    <= 0;
             we_mat_addra    <= 0;
             we_mat_addrb    <= 0;
-
+            
+            en_module       <= 0;
             acc_done_d      <= 0;
             internal_rst_n      <= 0;
             internal_reset_acc  <= 0;
