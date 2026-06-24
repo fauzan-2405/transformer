@@ -10,11 +10,11 @@ module tb_axis_top_wo_converter;
     localparam B_OUTER_DIMENSION = 12;
 
     localparam WIDTH_A = 16;
-    localparam FRAC_WIDTH_A = 8,
+    localparam FRAC_WIDTH_A = 8;
     localparam WIDTH_B = 16;
-    localparam FRAC_WIDTH_B = 8,
+    localparam FRAC_WIDTH_B = 8;
     localparam WIDTH_OUT = 16;
-    localparam FRAC_WIDTH_OUT = 8,
+    localparam FRAC_WIDTH_OUT = 8;
 
     localparam BLOCK_SIZE = 2;
     localparam CHUNK_SIZE = BLOCK_SIZE*BLOCK_SIZE;
@@ -73,15 +73,14 @@ module tb_axis_top_wo_converter;
     logic [WIDTH_IN_B-1:0] mem_B [0:NUM_B_WORDS-1];
 
     initial begin
-        $readmemh("mat_A.mem", mem_A);
-        $readmemh("mat_B.mem", mem_B);
+        $readmemh("mat_A_lp_bridge.mem", mem_A);
+        $readmemh("mat_B_lp_bridge.mem", mem_B);
     end
-
-    axis_top_sv #(
+    
+    axis_top_wo_converter #(
         .A_OUTER_DIMENSION(A_OUTER_DIMENSION),
         .INNER_DIMENSION(INNER_DIMENSION),
         .B_OUTER_DIMENSION(B_OUTER_DIMENSION),
-        
         .WIDTH_A(WIDTH_A),
         .FRAC_WIDTH_A(FRAC_WIDTH_A),
         .WIDTH_B(WIDTH_B),
@@ -103,8 +102,6 @@ module tb_axis_top_wo_converter;
         .s_axis_1_tdata(s_axis_1_tdata),
         .s_axis_1_tvalid(s_axis_1_tvalid),
         .s_axis_1_tlast(s_axis_1_tlast),
-        
-        .computation_done(computation_done_wire),
 
         .m_axis_tready(m_axis_tready),
         .m_axis_tdata(m_axis_tdata),
