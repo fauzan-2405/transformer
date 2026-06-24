@@ -45,7 +45,7 @@ module axis_top_w_converter #(
     output wire                 m_axis_tlast
 );
 
-    top_wo_converter #(
+    top_w_converter #(
         .A_OUTER_DIMENSION(A_OUTER_DIMENSION),
         .INNER_DIMENSION(INNER_DIMENSION),
         .B_OUTER_DIMENSION(B_OUTER_DIMENSION),
@@ -58,7 +58,7 @@ module axis_top_w_converter #(
         .FRAC_WIDTH_OUT(FRAC_WIDTH_OUT),
         .NUM_CORES_A(NUM_CORES_A),
         .NUM_CORES_B(NUM_CORES_B)
-    ) wo_converter_dut (
+    ) w_converter_dut (
         .aclk       (aclk),
         .aresetn    (aresetn),
         // *** AXIS Slave 0 port ***
