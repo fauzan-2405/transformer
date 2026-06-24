@@ -131,6 +131,7 @@ module r2b_converter_h #(
             col_idx <= 0; 
             row <= 0; 
             out_idx <= 0;
+            out_data <= 0;
         end
         else if (state_reg == STATE_PROCESS) begin
             // base_col = block_col_index * CHUNK_WIDTH
@@ -175,6 +176,7 @@ module r2b_converter_h #(
         .DEPTH(RAM_DEPTH)
     ) weight_buffer_ram (
         .clk(clk),
+        .rst_n(rst_n),
         .we(ram_we),
         .write_addr(ram_write_addr),
         .read_addr0(ram_read_addr0),
