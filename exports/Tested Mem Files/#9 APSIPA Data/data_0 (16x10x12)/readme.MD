@@ -1,5 +1,8 @@
  python -u "d:\DATA\Documents\Xirka Internship\PME\Transformer\transformer\Python Model + Scripts\matrix_multiplier.py" --task matmul --rows_a 16 --cols_a 10 --proj_dim 12 --display float --integers --min_val 0 --max_val 1 --cores_a 2 --cores_b 2
 
+For row:
+python -u "d:\DATA\Documents\Xirka Internship\PME\Transformer\transformer\Python Model + Scripts\mem_processor.py" "d:\DATA\Documents\Xirka Internship\PME\Transformer\transformer\exports\Tested Mem Files\#9 APSIPA Data\data_0 (16x10x12)\matrix_A_row.mem" --total_bits 4 --frac_bits 2 --display float
+
 Matrix A (16x10):
   1.0000   1.0000   0.0000   1.0000   1.0000   1.0000   1.0000   1.0000   1.0000   0.0000
   1.0000   0.0000   1.0000   1.0000   1.0000   1.0000   0.0000   1.0000   1.0000   0.0000
