@@ -1,0 +1,1 @@
+python -u "d:\DATA\Documents\Xirka Internship\PME\Transformer\transformer\Python Model + Scripts\matrix_multiplier.py" --task matmul --rows_a 16 --cols_a 10 --proj_dim 12 --display float --integers --min_val 0 --max_val 1 --cores_a 2 --cores_b 2
