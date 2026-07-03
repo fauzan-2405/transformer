@@ -6,6 +6,6 @@ python -u "d:\DATA\Documents\Xirka Internship\PME\Transformer\transformer\Python
 python -u "D:\DATA\Documents\Xirka Internship\PME\Transformer\transformer\Python Model + Scripts\bin2hex.py" "D:\DATA\Documents\Xirka Internship\PME\Transformer\transformer\exports\Tested Mem Files\#9 APSIPA Data\data_1 (32x32)\matrix_A_core.mem" --element-bits 4  
 
 > Row
-python -u "D:\DATA\Documents\Xirka Internship\PME\Transformer\transformer\Python Model + Scripts\bin2hex.py" "D:\DATA\Documents\Xirka Internship\PME\Transformer\transformer\exports\Tested Mem Files\#9 APSIPA Data\data_1 (32x32)\matrix_A_core.mem" --element-bits 1
+python -u "D:\DATA\Documents\Xirka Internship\PME\Transformer\transformer\Python Model + Scripts\bin2hex.py" "D:\DATA\Documents\Xirka Internship\PME\Transformer\transformer\exports\Tested Mem Files\#9 APSIPA Data\data_1 (32x32)\matrix_A_row.mem" --element-bits 1
 
 Notice the element bits used in Row mode is /4 with the one used in Core
