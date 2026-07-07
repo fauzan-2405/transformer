@@ -1,5 +1,5 @@
 **For producing the matrix** 
-python -u "d:\DATA\Documents\Xirka Internship\PME\Transformer\transformer\Python Model + Scripts\matrix_multiplier.py" --task matmul --rows_a 128 --cols_a 128 --proj_dim 128 --display float --integers --min_val 0 --max_val 1 --cores_a 4 --cores_b 4 --A_total_bits 8 --A_frac_bits 0 --B_total_bits 8 --B_frac_bits 0 --C_total_bits 8 --C_frac_bits 0
+python -u "d:\DATA\Documents\Xirka Internship\PME\Transformer\transformer\Python Model + Scripts\matrix_multiplier.py" --task matmul --rows_a 64 --cols_a 128 --proj_dim 128 --display float --integers --min_val 0 --max_val 1 --cores_a 4 --cores_b 4 --A_total_bits 8 --A_frac_bits 0 --B_total_bits 8 --B_frac_bits 0 --C_total_bits 8 --C_frac_bits 0
 
 **For converting the binary to hex for row files**
 > Core A
