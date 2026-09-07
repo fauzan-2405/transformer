@@ -1,4 +1,3 @@
-// NOT USED
 // top_b2r_converter.sv
 // This is used to wrap b2r_converter after sending the output data
 // This module will buffer the row data, then send it per TILE_SIZE to softmax module
@@ -70,7 +69,6 @@ module top_b2r_converter #(
     logic [ADDR_WIDTH_A-1:0] addra;
     logic enb;
     logic [ADDR_WIDTH_B-1:0] addrb;
-    logic [TILE_SIZE*WIDTH-1:0] out_bram;
 
     xpm_memory_tdpram #(
         .MEMORY_SIZE            (MEMORY_SIZE),
@@ -120,7 +118,7 @@ module top_b2r_converter #(
         .web    (1'b0),
         .addrb  (addrb),
         .dinb   ('0),
-        .doutb  (out_bram)
+        .doutb  (out_b2r_top)
     );
 
 

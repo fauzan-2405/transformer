@@ -1,5 +1,3 @@
-// NOT USED
-
 `timescale 1ns / 1ps
 
 module tb_top_b2r_converter;
@@ -136,3 +134,4 @@ module tb_top_b2r_converter;
     end
 
 endmodule
+
