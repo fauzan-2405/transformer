@@ -5,7 +5,7 @@
 module buffer_ctrl_special #(
     parameter N_NUM_CORES_A       = 2,
     parameter TOTAL_MODULES_W     = 4,
-
+    
     parameter ADDR_WIDTH_W      = 2,
     parameter ADDR_WIDTH_N      = 4,
     parameter W_TOTAL_IN        = 4,
@@ -49,10 +49,12 @@ module buffer_ctrl_special #(
     output logic [$clog2(N_NUM_CORES_A):0]   n_slicing_idx,
     output logic                             internal_rst_n_ctrl, internal_reset_acc_ctrl,
     output logic                             out_valid,
+    output logic                             done,
     output logic                             enable_matmul,
     output logic                             state_now
 );
     // ************************************ Wires & Parameters ************************************
+    localparam integer COUNTER_WIDTH    = $clog2(INNER_DIMENSION/BLOCK_SIZE) + 4;
     typedef enum logic [1:0] {
         S_IDLE,
         S_LOAD_N,
@@ -70,7 +72,7 @@ module buffer_ctrl_special #(
     logic acc_done_wrap_d;
     assign acc_done_wrap_rising = ~acc_done_wrap_d & acc_done_wrap;
 
-    logic [7:0] counter, counter_row, counter_col, flag;
+    logic [COUNTER_WIDTH:0] counter, counter_row, counter_col, flag;
     logic counter_acc_done;
 
     logic [$clog2(W_TOTAL_DEPTH):0] w_ready, w_uploaded;// Revise the size later!
@@ -100,7 +102,7 @@ module buffer_ctrl_special #(
             end
 
             S_LOAD_N: begin // Load North Matrix + compute for the first time (if w matrix available)
-                state_next = (n_bank0_addra_wr == N_TOTAL_DEPTH - 1) ? S_LOAD_N_FINISHED : S_LOAD_N;                                // PLEASE REVUSE THIS
+                state_next = (n_bank0_addrb_wr == N_TOTAL_DEPTH - 1) ? S_LOAD_N_FINISHED : S_LOAD_N;                                // PLEASE REVUSE THIS
             end
 
             S_LOAD_N_FINISHED: begin // The entire north matrix is loaded, begin computing like usual
@@ -213,21 +215,23 @@ module buffer_ctrl_special #(
                     end else begin
                         col_idx     <= col_idx + 1;
                     end
-
+                    
                 end
             end
 
             //  --------------- Slicing Index ---------------
             if (write_now_w) begin
+                if (w_uploaded == W_TOTAL_IN) begin // All west matrix had been uploaded
+                    all_w               <= 1'b1;
+                end
+                
                 if (w_slicing_idx < TOTAL_MODULES_W - 1) begin
                     w_slicing_idx       <= w_slicing_idx + 1;
                 end
+                
                 if (w_bank0_addra_wr == W_TOTAL_DEPTH -1) begin
                     w_bank0_addra_wr    <= '0; // Move to first address again after traversing until the end of the W address
                 end else begin
-                    if (w_uploaded == W_TOTAL_IN) begin // All west matrix had been uploaded
-                        all_w               <= 1'b1;
-                    end
                     w_bank0_addra_wr    <= w_bank0_addra_wr + 1; // West Address Generation, when slicing idx change
                 end
                 // Checking the availability for the west bank
@@ -243,8 +247,8 @@ module buffer_ctrl_special #(
             if (write_now_n) begin
                 n_slicing_idx       <= n_slicing_idx + 1;
 
-                n_bank0_addra_wr    <= (row_idx*N_NUM_CORES_A*BLOCK_SIZE) + (col_idx*(N_ROW_X)*N_NUM_CORES_A*BLOCK_SIZE) + n_slicing_idx;
-                n_bank0_addrb_wr    <= (row_idx*N_NUM_CORES_A*BLOCK_SIZE) + (col_idx*(N_ROW_X)*N_NUM_CORES_A*BLOCK_SIZE) + n_slicing_idx + N_NUM_CORES_A;
+                n_bank0_addra_wr    <= (row_idx*N_NUM_CORES_A*BLOCK_SIZE) + (col_idx*N_ROW_X) + n_slicing_idx; 
+                n_bank0_addrb_wr    <= (row_idx*N_NUM_CORES_A*BLOCK_SIZE) + (col_idx*N_ROW_X) + n_slicing_idx + N_NUM_CORES_A;
             end else begin
                 n_slicing_idx       <= '0;
             end
@@ -320,6 +324,7 @@ module buffer_ctrl_special #(
     end
 
     assign out_valid = counter_acc_done;
+    assign done = (flag == MAX_FLAG);
     assign enable_matmul = (state_reg != S_DONE);
     assign internal_reset_acc_ctrl  = internal_reset_acc;
     assign internal_rst_n_ctrl      = internal_rst_n;
@@ -327,3 +332,4 @@ module buffer_ctrl_special #(
                                       (state_reg == S_LOAD_N_FINISHED) ? 1 : 0;
 
 endmodule
+

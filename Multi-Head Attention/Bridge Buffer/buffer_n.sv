@@ -9,7 +9,7 @@ module buffer_n #(
     parameter TOTAL_MODULES     = 3, // buffer because this is used to transpose the matrix
     parameter NUM_CORES_B       = 1,
     parameter COL_X             = 10,
-    parameter ROW_X             = 16,
+    parameter ROW_X             = 16, 
     parameter TOTAL_INPUT_W     = 2,
 
     localparam CHUNK_SIZE       = top_pkg::TOP_CHUNK_SIZE,
@@ -17,7 +17,7 @@ module buffer_n #(
     parameter SLICE_WIDTH      = WIDTH*CHUNK_SIZE*NUM_CORES_B,
     parameter MODULE_WIDTH     = SLICE_WIDTH*TOTAL_INPUT_W,
     parameter IN_WIDTH         = SLICE_WIDTH * NUM_CORES_A * TOTAL_MODULES,
-    parameter TOTAL_DEPTH      = ROW_X * COL_X,
+    parameter TOTAL_DEPTH      = ROW_X * COL_X,    
     parameter MEMORY_SIZE      = TOTAL_DEPTH * MODULE_WIDTH,
     parameter int ADDR_WIDTH   = $clog2(TOTAL_DEPTH)
 ) (
@@ -55,7 +55,7 @@ module buffer_n #(
     // ************************************ BANK 0 ************************************
     xpm_memory_tdpram #(
         .MEMORY_SIZE            (MEMORY_SIZE),
-        .MEMORY_PRIMITIVE       ("auto"),
+        .MEMORY_PRIMITIVE       ("ultra"),
         .MEMORY_INIT_FILE       (),
         .MEMORY_INIT_PARAM      ("0"),
         .USE_MEM_INIT           (1),
@@ -75,8 +75,8 @@ module buffer_n #(
         .READ_LATENCY_A         (1),
         .READ_LATENCY_B         (1),
 
-        .WRITE_MODE_A           ("write_first"),
-        .WRITE_MODE_B           ("read_first"),
+        .WRITE_MODE_A           ("no_change"),
+        .WRITE_MODE_B           ("no_change"),
 
         .READ_RESET_VALUE_A     ("0"),
         .READ_RESET_VALUE_B     ("0"),

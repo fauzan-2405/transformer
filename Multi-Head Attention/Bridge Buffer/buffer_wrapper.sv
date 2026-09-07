@@ -4,7 +4,8 @@
 
 module buffer_wrapper #(
     parameter SPECIAL_CASE      = 0,
-    parameter WIDTH             = 16,
+    parameter W_WIDTH           = 16,
+    parameter N_WIDTH           = 3,
 
     // West Buffer
     parameter W_NUM_CORES_A     = 2,
@@ -41,8 +42,9 @@ module buffer_wrapper #(
     input  logic rst_n,
 
     // ---------------- Controller interface ----------------
-    input  logic [$clog2(W_TOTAL_MODULES)-1:0] w_slicing_idx,
-    input  logic [$clog2(N_TOTAL_MODULES)-1:0] n_slicing_idx,
+    input  logic [$clog2(W_TOTAL_MODULES):0] w_slicing_idx,
+    input  logic [$clog2(N_TOTAL_MODULES):0] n_slicing_idx,
+    input  logic [$clog2(N_NUM_CORES_A):0] n_slicing_idx_special,
 
     // West buffer control
     input  logic                  w_bank0_ena,
@@ -55,6 +57,7 @@ module buffer_wrapper #(
     input  logic                  n_bank0_ena,
     input  logic                  n_bank0_enb,
     input  logic                  n_bank0_wea,
+    input  logic                  n_bank0_web,
     input  logic [ADDR_WIDTH_N-1:0] n_bank0_addra,
     input  logic [ADDR_WIDTH_N-1:0] n_bank0_addrb,
 
@@ -75,7 +78,7 @@ module buffer_wrapper #(
     // WEST PING-PONG BUFFER
     // =====================================================================
     buffer_w #(
-        .WIDTH         (WIDTH),
+        .WIDTH         (W_WIDTH),
         .NUM_CORES_A   (W_NUM_CORES_A),
         .NUM_CORES_B   (W_NUM_CORES_B),
         .TOTAL_MODULES (W_TOTAL_MODULES),
@@ -106,34 +109,88 @@ module buffer_wrapper #(
     // =====================================================================
     // NORTH PING-PONG BUFFER
     // =====================================================================
-    buffer_n #(
-        .WIDTH         (WIDTH),
-        .NUM_CORES_A   (N_NUM_CORES_A),
-        .NUM_CORES_B   (N_NUM_CORES_B),
-        .TOTAL_MODULES (N_TOTAL_MODULES),
-        .ROW_X         (N_ROW_X),
-        .COL_X         (N_COL_X),
-        .TOTAL_INPUT_W (TOTAL_INPUT_W_N),
-        .SLICE_WIDTH   (N_SLICE_WIDTH),
-        .MODULE_WIDTH  (N_MODULE_WIDTH),
-        .IN_WIDTH      (N_IN_WIDTH),
-        .TOTAL_DEPTH   (N_TOTAL_DEPTH),
-        .MEMORY_SIZE   (N_MEMORY_SIZE),
-        .ADDR_WIDTH    (ADDR_WIDTH_N)
-    ) u_buffer_n (
-        .clk        (clk),
-        .rst_n      (rst_n),
-        .slicing_idx(n_slicing_idx),
-
-        // Bank 0
-        .bank0_ena  (n_bank0_ena),
-        .bank0_enb  (n_bank0_enb),
-        .bank0_wea  (n_bank0_wea),
-        .bank0_addra(n_bank0_addra),
-        .bank0_addrb(n_bank0_addrb),
-        .bank0_din  (n_bank0_din),
-        .bank0_dout (n_bank0_dout)
-    );
+    logic n_bank0_wea_reg;
+    logic n_bank0_web_reg;
+    logic [$clog2(N_NUM_CORES_A):0] n_slicing_idx_special_reg;
+    
+    generate
+        if (SPECIAL_CASE) begin : GEN_SPECIAL_BUFFER_N
+            buffer_n_special #(
+                .WIDTH         (N_WIDTH),
+                .NUM_CORES_A   (N_NUM_CORES_A),
+                .NUM_CORES_B   (N_NUM_CORES_B),
+                .ROW_X         (N_ROW_X),
+                .COL_X         (N_COL_X),
+                .TOTAL_INPUT_W (TOTAL_INPUT_W_N),
+                .SLICE_WIDTH   (N_SLICE_WIDTH),
+                .MODULE_WIDTH  (N_MODULE_WIDTH),
+                .IN_WIDTH      (N_IN_WIDTH),
+                .TOTAL_DEPTH   (N_TOTAL_DEPTH),
+                .MEMORY_SIZE   (N_MEMORY_SIZE),
+                .ADDR_WIDTH    (ADDR_WIDTH_N)
+            ) u_buffer_n (
+                .clk        (clk),
+                .rst_n      (rst_n),
+                .slicing_idx(n_slicing_idx_special_reg),
+        
+                // Bank 0
+                .bank0_ena  (n_bank0_ena),
+                .bank0_enb  (n_bank0_enb),
+                .bank0_wea  (n_bank0_wea_reg),
+                .bank0_web  (n_bank0_web_reg),
+                //.bank0_wea  (n_bank0_wea),
+                //.bank0_web  (n_bank0_web),
+                .bank0_addra(n_bank0_addra),
+                .bank0_addrb(n_bank0_addrb),
+                .bank0_din  (n_bank0_din),
+                .bank0_dout (n_bank0_dout)
+            );
+        end else begin : GEN_NORMAL_BUFFER_N
+            buffer_n #(
+                .WIDTH         (N_WIDTH),
+                .NUM_CORES_A   (N_NUM_CORES_A),
+                .NUM_CORES_B   (N_NUM_CORES_B),
+                .TOTAL_MODULES (N_TOTAL_MODULES),
+                .ROW_X         (N_ROW_X),
+                .COL_X         (N_COL_X),
+                .TOTAL_INPUT_W (TOTAL_INPUT_W_N),
+                .SLICE_WIDTH   (N_SLICE_WIDTH),
+                .MODULE_WIDTH  (N_MODULE_WIDTH),
+                .IN_WIDTH      (N_IN_WIDTH),
+                .TOTAL_DEPTH   (N_TOTAL_DEPTH),
+                .MEMORY_SIZE   (N_MEMORY_SIZE),
+                .ADDR_WIDTH    (ADDR_WIDTH_N)
+            ) u_buffer_n (
+                .clk        (clk),
+                .rst_n      (rst_n),
+                .slicing_idx(n_slicing_idx),
+        
+                // Bank 0
+                .bank0_ena  (n_bank0_ena),
+                .bank0_enb  (n_bank0_enb),
+                .bank0_wea  (n_bank0_wea),
+                .bank0_addra(n_bank0_addra),
+                .bank0_addrb(n_bank0_addrb),
+                .bank0_din  (n_bank0_din),
+                .bank0_dout (n_bank0_dout)
+            );
+        end
+    endgenerate
+    
+    // Delayer for the special case
+    always @(posedge clk) begin
+        if (!rst_n) begin
+            n_bank0_wea_reg <= 0;
+            n_bank0_web_reg <= 0;
+            n_slicing_idx_special_reg   <= '0;
+        end else begin
+            if (SPECIAL_CASE) begin
+                n_bank0_wea_reg <= n_bank0_wea;
+                n_bank0_web_reg <= n_bank0_web;
+                n_slicing_idx_special_reg   <= n_slicing_idx_special;
+            end
+        end
+    end
 
 endmodule
 

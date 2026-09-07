@@ -52,10 +52,13 @@ module buffer_n_special #(
         int out_offset;
         out_offset = 0;
 
-        for (int b = 0; b < NUM_CORES_B; b++) begin
+        for (int b = NUM_CORES_B - 1; b >= 0 ; b--) begin
 
             int base_idx;
-            base_idx = (b * NUM_CORES_A + core_a_idx) * CHUNK_SIZE * WIDTH;
+            int linear_idx;
+            
+            linear_idx  = b * NUM_CORES_A + core_a_idx;
+            base_idx    = IN_WIDTH - (linear_idx + 1) * CHUNK_SIZE * WIDTH;
 
             e0 = bus[base_idx + 0*WIDTH +: WIDTH];
             e1 = bus[base_idx + 1*WIDTH +: WIDTH];
@@ -100,9 +103,9 @@ module buffer_n_special #(
 
         .READ_LATENCY_A         (1),
         .READ_LATENCY_B         (1),
-
-        .WRITE_MODE_A           ("write_first"),
-        .WRITE_MODE_B           ("read_first"),
+        
+        .WRITE_MODE_A           ("no_change"),
+        .WRITE_MODE_B           ("no_change"),
 
         .READ_RESET_VALUE_A     ("0"),
         .READ_RESET_VALUE_B     ("0"),
