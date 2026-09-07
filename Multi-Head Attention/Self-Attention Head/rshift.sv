@@ -32,12 +32,12 @@ module rshift #(
 
     logic [(WIDTH_OUT*CHUNK_SIZE*NUM_CORES_A*NUM_CORES_B*TOTAL_MODULES)-1:0]
           next_shifted [TOTAL_INPUT_W];
-
-    always_comb begin
+   
+    always @* begin
         for (integer w_i = 0; w_i < TOTAL_INPUT_W; w_i++) begin
             // Arithmetic shift behavior
             for (integer e_i = 0; e_i < ELEMENTS_PER_VEC; e_i++) begin
-                int high = VECTOR_BITS - e_i*WIDTH_OUT - 1;
+                automatic int high = VECTOR_BITS - e_i*WIDTH_OUT - 1;
 
                 logic signed [WIDTH_OUT-1:0] tmp_elem;
                 logic signed [WIDTH_OUT-1:0] shifted;
@@ -49,7 +49,7 @@ module rshift #(
             end
         end
     end
-
+   
     always_ff @(posedge clk) begin
         if (!rst_n) begin
             // active-low reset
@@ -65,8 +65,9 @@ module rshift #(
                 out_shifted[w_k] <= next_shifted[w_k];
             end
 
-            out_valid   <= in_valid;        
+            out_valid   <= in_valid; 
         end
     end
 
 endmodule
+

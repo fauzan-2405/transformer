@@ -24,7 +24,18 @@ module b2r_converter #(
     output wire                    buffer_done,
     output reg [WIDTH*COL-1:0]     out_data
 );
-    // Local parameters
+    // Local parameters & function
+    function automatic integer clog2_safe;
+        input integer value;
+        begin
+            if (value <= 1) begin
+                clog2_safe = 1;
+            end else begin
+                clog2_safe = $clog2(value);
+            end
+        end
+    endfunction
+
     localparam TOTAL_INPUT_ROW_REAL  = ROW/(BLOCK_SIZE*NUM_CORES_V) * COL/(BLOCK_SIZE*NUM_CORES_H); // Total rows in core mode
     localparam TOTAL_INPUT_COL_REAL  = CHUNK_SIZE * NUM_CORES_H * NUM_CORES_V;                      // Total cols in core mode
 
@@ -47,20 +58,20 @@ module b2r_converter #(
     reg [2:0] state_reg, state_next;
 
     // Counters & Flag
-    reg [$clog2(TOTAL_INPUT_ROW_REAL)-1:0] counter;      // Write index
-    reg [$clog2(TOTAL_INPUT_ROW_REAL)-1:0] counter_row;  // Current slice row base
-    reg [$clog2(TOTAL_INPUT_ROW_REAL)-1:0] counter_row_index; // Current row based on the ROW / NUM_CORES
-    reg [$clog2(CHUNKS_PER_ROW)-1:0] counter_out;
-    reg [$clog2(CHUNKS_PER_ROW)-1:0] counter_out_d;
-    reg [$clog2(TOTAL_INPUT_ROW_REAL)-1:0] slice_load_counter;
-    reg [$clog2(TOTAL_INPUT_ROW_REAL)-1:0] slice_load_counter_d;
+    reg [clog2_safe(TOTAL_INPUT_ROW_REAL)-1:0] counter;      // Write index
+    reg [clog2_safe(TOTAL_INPUT_ROW_REAL)-1:0] counter_row;  // Current slice row base
+    reg [clog2_safe(TOTAL_INPUT_ROW_REAL)-1:0] counter_row_index; // Current row based on the ROW / NUM_CORES
+    reg [clog2_safe(CHUNKS_PER_ROW)-1:0] counter_out;
+    reg [clog2_safe(CHUNKS_PER_ROW)-1:0] counter_out_d;
+    reg [clog2_safe(TOTAL_INPUT_ROW_REAL)-1:0] slice_load_counter;
+    reg [clog2_safe(TOTAL_INPUT_ROW_REAL)-1:0] slice_load_counter_d;
     wire all_slice_done;
 
     // RAM Interface
     reg ram_we;
-    reg [$clog2(TOTAL_INPUT_ROW_REAL)-1:0] ram_write_addr;
-    //reg [$clog2(TOTAL_INPUT_ROW_REAL)-1:0] ram_read_addr;
-    wire [$clog2(TOTAL_INPUT_ROW_REAL)-1:0] ram_read_addr;
+    reg [clog2_safe(TOTAL_INPUT_ROW_REAL)-1:0] ram_write_addr;
+    //reg [clog2_safe(TOTAL_INPUT_ROW_REAL)-1:0] ram_read_addr;
+    wire [clog2_safe(TOTAL_INPUT_ROW_REAL)-1:0] ram_read_addr;
     reg [RAM_DATA_WIDTH-1:0] ram_din;
     reg [RAM_DATA_WIDTH-1:0] ram_din_d;
     wire [RAM_DATA_WIDTH-1:0] ram_dout;
@@ -102,7 +113,7 @@ module b2r_converter #(
 
             STATE_FILL:
             begin
-                state_next = ((counter >= TOTAL_INPUT_ROW_REAL - 1) && (ram_write_addr >= TOTAL_INPUT_ROW_REAL - 1)) ? STATE_SLICE_RD : STATE_FILL;
+                state_next = ((counter >= TOTAL_INPUT_ROW_REAL) && (ram_write_addr >= TOTAL_INPUT_ROW_REAL - 1)) ? STATE_SLICE_RD : STATE_FILL;
             end
 
             STATE_SLICE_RD:
@@ -143,6 +154,7 @@ module b2r_converter #(
     end
 
     // RAM write logic during STATE_FILL
+    /*
     always @(posedge clk) begin
         ram_we <= 0;
         if (en) begin
@@ -155,9 +167,11 @@ module b2r_converter #(
             end
         end
     end
+    */
 
     // Slice read logic
     always @(posedge clk) begin
+        ram_we <= 0;
         if (!rst_n) begin
             counter         <= 0;
             counter_row     <= 0;
@@ -166,17 +180,26 @@ module b2r_converter #(
             slice_ready     <= 0;
             counter_row_index <= 0;
             out_data        <= 0;
+            ram_write_addr  <= 0;
         end else begin
             if (en) begin
                 counter_out_d <= counter_out;
                 slice_load_counter_d <= slice_load_counter;
                 slice_ready_d <= slice_ready;
-
+                
+                ram_din         <= in_data;
+                if (state_reg == STATE_FILL && in_valid) begin
+                    ram_we          <= 1;
+                    ram_write_addr  <= counter;
+                    //ram_din         <= in_data;
+                    ram_din_d       <= ram_din;
+                end
+            
                 case (state_reg)
                     STATE_FILL: 
                     begin
                         if (en && in_valid && counter < TOTAL_INPUT_ROW_REAL) begin
-                            if (counter == TOTAL_INPUT_ROW_REAL - 1) begin
+                            if (counter == TOTAL_INPUT_ROW_REAL) begin
                                 counter <= counter;
                             end else begin
                                 counter <= counter + 1;
@@ -209,10 +232,16 @@ module b2r_converter #(
 
                     STATE_OUTPUT:
                     begin
-                        if (slice_ready) begin
+                        if (slice_ready) begin: SLICE
                             // Calculate indices
+                            integer reversed_out;
+                            reversed_out = OUTPUTS_PER_SLICE - 1 - counter_out;
+                            /*
                             nv_idx = counter_out / BLOCKS_PER_V_CORE;
-                            block_id = counter_out % BLOCKS_PER_V_CORE;
+                            block_id = counter_out % BLOCKS_PER_V_CORE;*/
+                            nv_idx = reversed_out / BLOCKS_PER_V_CORE;
+                            block_id = reversed_out % BLOCKS_PER_V_CORE;
+                            
                             for (row_idx = 0; row_idx < SLICE_ROWS; row_idx = row_idx + 1) begin
                                 for (nh_idx = 0; nh_idx < NUM_CORES_H; nh_idx = nh_idx + 1) begin
                                     // Calculate memory addresses
@@ -226,7 +255,8 @@ module b2r_converter #(
                                         mem_pos = (base_col_idx + elem_offset) * WIDTH;
                                         out_pos = out_base + elem_offset * WIDTH;
                                         
-                                        out_data[out_pos +: WIDTH] <= slice_row[row_idx][mem_pos +: WIDTH];
+                                        out_data[out_pos +: WIDTH] <= slice_row[row_idx][mem_pos +: WIDTH]; 
+                                        //out_data[out_pos +: WIDTH] <= slice_row[OUTPUTS_PER_SLICE -1 -row_idx][mem_pos +: WIDTH];
                                     end
                                     
                                     
@@ -252,6 +282,7 @@ module b2r_converter #(
         end
     end
 
+    //assign ram_read_addr = (state_reg == STATE_SLICE_RD) ? (counter_row + (SLICE_ROWS -1 -slice_load_counter)) : 0;
     assign ram_read_addr = (state_reg == STATE_SLICE_RD) ? (counter_row + slice_load_counter) : 0;
     assign all_slice_done = (counter_row_index == ROW_DIV);
     assign slice_done = (state_reg == STATE_OUTPUT) && (counter_out_d == CHUNKS_PER_ROW - 1);
@@ -265,6 +296,7 @@ module b2r_converter #(
         .DEPTH(RAM_DEPTH)
     ) temp_buffer_ram (
         .clk(clk),
+        .rst_n(rst_n),
         .we(ram_we),
         .write_addr(ram_write_addr),
         .read_addr(ram_read_addr),

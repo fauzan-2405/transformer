@@ -4,17 +4,17 @@ module tb_r2b_converter_v;
 
     parameter WIDTH       = 16;
     parameter COL         = 6;
-    parameter ROW         = 8;
+    parameter ROW         = 12;
     parameter BLOCK_SIZE  = 2;
     parameter CHUNK_SIZE  = 4;
-    parameter NUM_CORES   = 2;
+    parameter NUM_CORES   = 3;
     parameter DATA_WIDTH  = WIDTH * COL; // 96
     parameter OUT_WIDTH   = WIDTH * CHUNK_SIZE * NUM_CORES; // 64
 
     reg clk = 0;
     reg rst_n = 0;
     reg en = 0;
-    reg in_valid = 0;;
+    reg in_valid = 0;
     reg [DATA_WIDTH-1:0] in_data;
     wire [OUT_WIDTH-1:0] out_data;
     wire slice_done, output_ready, slice_last;
@@ -27,7 +27,7 @@ module tb_r2b_converter_v;
         .CHUNK_SIZE(CHUNK_SIZE),
         .ROW(ROW),
         .COL(COL),
-        .NUM_CORES(NUM_CORES)
+        .NUM_CORES_V(NUM_CORES)
     ) dut (
         .clk(clk),
         .rst_n(rst_n),
@@ -74,6 +74,8 @@ module tb_r2b_converter_v;
 
             in_data = temp_row;
             #10;
+            /*@(posedge clk);
+            in_data <= temp_row;*/
         end
         in_valid = 0;
 
@@ -83,3 +85,4 @@ module tb_r2b_converter_v;
     end
 
 endmodule
+

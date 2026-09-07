@@ -31,7 +31,7 @@ module multwrap_wbram #(
         .MEMORY_PRIMITIVE("auto"),           // String
         .CLOCKING_MODE("common_clock"),      // String, "common_clock"
         .MEMORY_INIT_FILE(MEM_INIT_FILE),     // String
-        .MEMORY_INIT_PARAM("0"),             // String      
+        .MEMORY_INIT_PARAM(""),             // String      
         .USE_MEM_INIT(1),                    // DECIMAL
         
         // Port A module parameters
@@ -71,7 +71,7 @@ module multwrap_wbram #(
         .enb(w_mat_enb),
         .web('0), 
         .addrb(w_mat_addrb),
-        .dinb(),
+        .dinb('0),
         .doutb(w_mat_doutb) // For now, we only use port B to read
     );
 

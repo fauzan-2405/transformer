@@ -10,7 +10,7 @@ module top_multwrap_bram #(
     localparam DATA_WIDTH_B  = WIDTH_B*CHUNK_SIZE*NUM_CORES_B*TOTAL_MODULES,
     localparam int ADDR_WIDTH_A = $clog2(MEMORY_SIZE_A/DATA_WIDTH_A),
     localparam int ADDR_WIDTH_B = $clog2(MEMORY_SIZE_B/DATA_WIDTH_B) 
-) (
+)(
     input logic clk, rst_n,
     input logic start,
 
@@ -50,7 +50,7 @@ module top_multwrap_bram #(
     logic [ADDR_WIDTH_A-1:0] in_mat_rd_addra; // used when reading port A
     logic [ADDR_WIDTH_A-1:0] in_mat_rd_addrb; // used when reading port B
     logic [ADDR_WIDTH_B-1:0] w_mat_rd_addra;    // reading weights (we'll use only one BRAM port for read later)
-    logic [ADDR_WIDTH_B-1:0] w_mat_rd_addrb;    // reading weights (we'll use only one BRAM port for read later)
+    logic [ADDR_WIDTH_B-1:0] w_mat_rd_addrb;
 
     logic multi_en; // enable to multi_matmul_wrapper
 
@@ -300,7 +300,7 @@ module top_multwrap_bram #(
             write_phase     <= 1'b1;
             en_module       <= 1'b0;
             internal_rst_n  <= 1'b0;
-            internal_reset_acc <= 1'b0;           
+            internal_reset_acc <= 1'b0;
         end
         else begin
             acc_done_wrap_d  <= acc_done_wrap; // Assigninig the delayed version 

@@ -4,7 +4,10 @@ import linear_proj_pkg::*;
 
 module linear_projection #(
     parameter OUT_KEYS = WIDTH_OUT*CHUNK_SIZE*NUM_CORES_A*NUM_CORES_B*TOTAL_MODULES,
-    localparam int LP_TOTAL_WEIGHT_PER_KEY = LP_TOTAL_WEIGHT_PER_KEY
+    parameter MEM_INIT_FILE_Q = "mat_B_lp_bridge.mem",
+    parameter MEM_INIT_FILE_K = "mat_B_lp_bridge.mem",
+    parameter MEM_INIT_FILE_V = "mat_B_lp_bridge.mem",
+    localparam int LP_TOTAL_WEIGHT_PER_KEY = TOTAL_WEIGHT_PER_KEY
 ) (
     input logic clk, rst_n, en_module,
     input logic internal_rst_n, internal_reset_acc,
@@ -38,9 +41,12 @@ module linear_projection #(
     logic [LP_TOTAL_WEIGHT_PER_KEY-1:0] acc_done_q, systolic_finish_q;
     genvar i;
     generate
+        //mat_B_lp_bridge
+        //mem_wq_1st
+        //MEM_INIT_FILE_Q
         for (i = 0; i < LP_TOTAL_WEIGHT_PER_KEY; i++) begin : GEN_MULTWRAP_Q
             if (i == 0) begin : Q1
-                multwrap_wbram #(.MEM_INIT_FILE("mem_q1.mem")) q1 (
+                multwrap_wbram #(.MEM_INIT_FILE(MEM_INIT_FILE_Q)) q1 (
                     .clk(clk),
                     .en_module(en_module),
                     .internal_rst_n(internal_rst_n),
@@ -53,9 +59,9 @@ module linear_projection #(
                     .systolic_finish_wrap(systolic_finish_q[i]),
                     .out_multwrap_wbram(out_q1)
                 );
-            end
-            else if (i == 1) begin : Q2
-                multwrap_wbram #(.MEM_INIT_FILE("mem_q2.mem")) q2 (
+            end /*
+            if (i == 1) begin : Q2 
+                multwrap_wbram #(.MEM_INIT_FILE("mat_B_lp_bridge.mem")) q2 (
                     .clk(clk),
                     .en_module(en_module),
                     .internal_rst_n(internal_rst_n),
@@ -69,8 +75,8 @@ module linear_projection #(
                     .out_multwrap_wbram(out_q2)
                 );
             end
-            else if (i == 2) begin : Q3
-                multwrap_wbram #(.MEM_INIT_FILE("mem_q3.mem")) q3 (
+            if (i == 2) begin : Q3
+                multwrap_wbram #(.MEM_INIT_FILE("mat_B_lp_bridge.mem")) q3 (
                     .clk(clk),
                     .en_module(en_module),
                     .internal_rst_n(internal_rst_n),
@@ -84,8 +90,8 @@ module linear_projection #(
                     .out_multwrap_wbram(out_q3)
                 );
             end
-            else if (i == 3) begin : Q4
-                multwrap_wbram #(.MEM_INIT_FILE("mem_q4.mem")) q4 (
+            if (i == 3) begin : Q4
+                multwrap_wbram #(.MEM_INIT_FILE("mat_B_lp_bridge.mem")) q4 (
                     .clk(clk),
                     .en_module(en_module),
                     .internal_rst_n(internal_rst_n),
@@ -98,7 +104,7 @@ module linear_projection #(
                     .systolic_finish_wrap(systolic_finish_q[i]),
                     .out_multwrap_wbram(out_q4)
                 );
-            end
+            end*/
         end
     endgenerate
 
@@ -106,9 +112,12 @@ module linear_projection #(
     logic [LP_TOTAL_WEIGHT_PER_KEY-1:0] acc_done_k, systolic_finish_k;
     genvar j;
     generate
+        //mat_B_lp_bridge
+        //mem_wk_1st
+        //MEM_INIT_FILE_K
         for (j = 0; j < LP_TOTAL_WEIGHT_PER_KEY; j++) begin : GEN_MULTWRAP_K
             if (j == 0) begin : K1
-                multwrap_wbram #(.MEM_INIT_FILE("mem_k1.mem")) k1 (
+                multwrap_wbram #(.MEM_INIT_FILE(MEM_INIT_FILE_K)) k1 (
                     .clk(clk),
                     .en_module(en_module),
                     .internal_rst_n(internal_rst_n),
@@ -121,9 +130,9 @@ module linear_projection #(
                     .systolic_finish_wrap(systolic_finish_k[j]),
                     .out_multwrap_wbram(out_k1)
                 );
-            end
-            else if (j == 1) begin : K2
-                multwrap_wbram #(.MEM_INIT_FILE("mem_k2.mem")) k2 (
+            end /*
+            if (j == 1) begin : K2 
+                multwrap_wbram #(.MEM_INIT_FILE("mat_B_lp_bridge.mem")) k2 (
                     .clk(clk),
                     .en_module(en_module),
                     .internal_rst_n(internal_rst_n),
@@ -137,8 +146,8 @@ module linear_projection #(
                     .out_multwrap_wbram(out_k2)
                 );
             end
-            else if (j == 2) begin : K3
-                multwrap_wbram #(.MEM_INIT_FILE("mem_k3.mem")) k3 (
+            if (j == 2) begin : K3
+                multwrap_wbram #(.MEM_INIT_FILE("mat_B_lp_bridge.mem")) k3 (
                     .clk(clk),
                     .en_module(en_module),
                     .internal_rst_n(internal_rst_n),
@@ -152,8 +161,8 @@ module linear_projection #(
                     .out_multwrap_wbram(out_k3)
                 );
             end
-            else if (j == 3) begin : K4
-                multwrap_wbram #(.MEM_INIT_FILE("mem_k4.mem")) k4 (
+            if (j == 3) begin : K4
+                multwrap_wbram #(.MEM_INIT_FILE("mat_B_lp_bridge.mem")) k4 (
                     .clk(clk),
                     .en_module(en_module),
                     .internal_rst_n(internal_rst_n),
@@ -166,7 +175,7 @@ module linear_projection #(
                     .systolic_finish_wrap(systolic_finish_k[j]),
                     .out_multwrap_wbram(out_k4)
                 );
-            end
+            end */
         end
     endgenerate
 
@@ -174,9 +183,12 @@ module linear_projection #(
     logic [LP_TOTAL_WEIGHT_PER_KEY-1:0] acc_done_v, systolic_finish_v;
     genvar k;
     generate
+        //mat_B_lp_bridge
+        //mem_wv_1st
+        //MEM_INIT_FILE_V
         for (k = 0; k < LP_TOTAL_WEIGHT_PER_KEY; k++) begin : GEN_MULTWRAP_V
             if (k == 0) begin : V1
-                multwrap_wbram #(.MEM_INIT_FILE("mem_v1.mem")) v1 (
+                multwrap_wbram #(.MEM_INIT_FILE(MEM_INIT_FILE_V)) v1 (
                     .clk(clk),
                     .en_module(en_module),
                     .internal_rst_n(internal_rst_n),
@@ -189,9 +201,9 @@ module linear_projection #(
                     .systolic_finish_wrap(systolic_finish_v[k]),
                     .out_multwrap_wbram(out_v1)
                 );
-            end
-            else if (k == 1) begin : V2
-                multwrap_wbram #(.MEM_INIT_FILE("mem_v2.mem")) v2 (
+            end /*
+            if (k == 1) begin : V2 //mem_wv_1st
+                multwrap_wbram #(.MEM_INIT_FILE("mat_B_lp_bridge.mem")) v2 (
                     .clk(clk),
                     .en_module(en_module),
                     .internal_rst_n(internal_rst_n),
@@ -205,8 +217,8 @@ module linear_projection #(
                     .out_multwrap_wbram(out_v2)
                 );
             end
-            else if (k == 2) begin : V3
-                multwrap_wbram #(.MEM_INIT_FILE("mem_v3.mem")) v3 (
+            if (k == 2) begin : V3
+                multwrap_wbram #(.MEM_INIT_FILE("mat_B_lp_bridge.mem")) v3 (
                     .clk(clk),
                     .en_module(en_module),
                     .internal_rst_n(internal_rst_n),
@@ -220,8 +232,8 @@ module linear_projection #(
                     .out_multwrap_wbram(out_v3)
                 );
             end
-            else if (k == 3) begin : V4
-                multwrap_wbram #(.MEM_INIT_FILE("mem_v4.mem")) v4 (
+            if (k == 3) begin : V4
+                multwrap_wbram #(.MEM_INIT_FILE("mat_B_lp_bridge.mem")) v4 (
                     .clk(clk),
                     .en_module(en_module),
                     .internal_rst_n(internal_rst_n),
@@ -234,7 +246,7 @@ module linear_projection #(
                     .systolic_finish_wrap(systolic_finish_v[k]),
                     .out_multwrap_wbram(out_v4)
                 );
-            end
+            end */
         end
     endgenerate
 

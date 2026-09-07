@@ -32,9 +32,8 @@ module tb_bram_fill_test;
     logic write_phase_done;
     logic [DATA_WIDTH_A-1:0] in_read_a, in_read_b;
     logic [DATA_WIDTH_B-1:0] w_read_b;
-
+    
     reg [DATA_WIDTH_A-1:0] in_mat_dinb_d;
-    reg [DATA_WIDTH_B-1:0] w_mat_dinb_d;
 
     // Instantiate DUT
     bram_fill_test dut (
@@ -46,7 +45,7 @@ module tb_bram_fill_test;
         .w_mat_ena(w_mat_ena), .w_mat_wea(w_mat_wea),
         .w_mat_wr_addra(w_mat_wr_addra), .w_mat_dina(w_mat_dina),
         .w_mat_enb(w_mat_enb), .w_mat_web(w_mat_web),
-        .w_mat_wr_addrb(w_mat_wr_addrb), .w_mat_dinb(w_mat_dinb_d),
+        .w_mat_wr_addrb(w_mat_wr_addrb), .w_mat_dinb(w_mat_dinb),
         .write_phase_done(write_phase_done),
         .in_read_a(in_read_a), .in_read_b(in_read_b), .w_read_b(w_read_b)
     );
@@ -54,14 +53,11 @@ module tb_bram_fill_test;
     // Local memories for test data
     logic [DATA_WIDTH_A-1:0] mem_A [0:NUM_A_ELEMENTS-1];
     logic [DATA_WIDTH_B-1:0] mem_B [0:NUM_B_ELEMENTS-1];
-
-    // Di delay karena  data ganjilnya engga bener
-    // Kaga bener karaena data untuk address 1 kaga ke write
-    // Address 1 malah keisi data di address 3
-    // Address 3 malah ngisi data di address 5, dst..
+    
+    // NGE DELAYIN DATA GANJIL KARENA KAGA BENER
+    // kaga bener karena data utk address 1 kaga ke write, address 1 malah ngisi data address 3 dst
     always @(posedge clk) begin
-        in_mat_dinb_d = in_mat_dinb;
-        w_mat_dinb_d = w_mat_dinb;
+        in_mat_dinb_d = in_mat_dinb; 
     end
 
     initial begin
@@ -85,6 +81,7 @@ module tb_bram_fill_test;
             in_mat_wr_addrb = 2*i+1;
             in_mat_dina = mem_A[2*i];
             in_mat_dinb = mem_A[2*i+1];
+
         end
         @(posedge clk);
         in_mat_wea = 0; in_mat_web = 0;
@@ -117,3 +114,4 @@ module tb_bram_fill_test;
         //#20; $finish;
     end
 endmodule
+

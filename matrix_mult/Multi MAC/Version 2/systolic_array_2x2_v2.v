@@ -1,7 +1,7 @@
 // systolic_array_2x2_v2.v
 // Used as a multiplier
 
-//`include "pe_v2.v"
+//`include "pe.v"
 
 module systolic_array_2x2_v2 #(
     parameter CHUNK_SIZE = 4,
@@ -62,3 +62,5 @@ module systolic_array_2x2_v2 #(
         end
     end
 endmodule
+
+		      

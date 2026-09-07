@@ -146,7 +146,7 @@ module tb_top_linear_projection;
         $display("[%0t] Computation Done!", $time);
 
         // Print outputs (Q/K/V) per TOTAL_INPUT_W
-        $display("=== Outputs ===");
+        /*$display("=== Outputs ===");
         // Q
         for (int t = 0; t < TOTAL_INPUT_W; t++) begin
             $display("out_q1[%0d] = %b", t, out_q1[t]);
@@ -167,7 +167,7 @@ module tb_top_linear_projection;
             $display("out_v2[%0d] = %b", t, out_v2[t]);
             $display("out_v3[%0d] = %b", t, out_v3[t]);
             $display("out_v4[%0d] = %b", t, out_v4[t]);
-        end
+        end*/
 
         $display("[%0t] Testbench finished.", $time);
         #100 
@@ -175,3 +175,4 @@ module tb_top_linear_projection;
     end
 
 endmodule
+

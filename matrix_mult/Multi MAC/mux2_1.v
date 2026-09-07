@@ -13,7 +13,7 @@ module mux2_1 #(
 	
     always @(posedge clk) begin
         if (!rst_n) begin
-            out <= 16'd0;
+            out <= {WIDTH{1'b0}};
             select <= 1'd0;
         end
         else begin

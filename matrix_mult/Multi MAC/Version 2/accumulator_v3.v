@@ -21,7 +21,7 @@ module accumulator_v2 #(
 
     reg [ACC_WIDTH-1:0] update_value[CHUNK_SIZE-1:0]; // The number of element we want to update the value
         // Dont initialize these parameters if you want to do accumulator or mac simulation on testbench
-    reg [6:0] counter = 7'b1111_111; // To count the iteration to produce one block of output based on the dimension of systolic output
+    reg [ACC_WIDTH-1:0] counter = 7'b1111_111; // To count the iteration to produce one block of output based on the dimension of systolic output
     //reg [6:0] counter;
 
     //always @(posedge systolic_done) begin
@@ -62,9 +62,13 @@ module accumulator_v2 #(
     end
 
     // Local function wrapper for saturation
+    
+    
     function automatic signed [WIDTH_OUT-1:0] sat;
         input signed [ACC_WIDTH-1:0] val;
-        signed [ACC_WIDTH-1:0] max_v, min_v;
+        reg signed [ACC_WIDTH-1:0] max_v;
+        reg signed [ACC_WIDTH-1:0] min_v;
+        //signed [ACC_WIDTH-1:0] max_v;
     begin
         max_v = $signed({{(ACC_WIDTH-WIDTH_OUT){1'b0}},
                         {1'b0,{(WIDTH_OUT-1){1'b1}}}});
@@ -82,3 +86,4 @@ module accumulator_v2 #(
     endfunction
 
 endmodule
+

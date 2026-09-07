@@ -4,7 +4,7 @@ module tb_b2r_converter;
 
     parameter WIDTH         = 16;
     parameter FRAC_WIDTH    = 8;
-    parameter ROW           = 12;
+    parameter ROW           = 4;
     parameter COL           = 8;
     parameter BLOCK_SIZE    = 2;
     parameter CHUNK_SIZE    = 4;
@@ -67,8 +67,8 @@ module tb_b2r_converter;
         // Fill matrix with incrementing Q(WIDTH-FRAC_WIDTH).(FRAC_WIDTH) values
         for (i = 0; i < TOTAL_ELEM; i = i + 1)
             test_input[i] = i << FRAC_WIDTH;
-
-        #30;
+            
+        #30; 
         in_valid <= 1;
 
         // Stream input 1 per clock
@@ -85,7 +85,7 @@ module tb_b2r_converter;
         end
         #10;
         in_valid <= 0;
-
+        
         #1000;
 
         // Wait for completion
@@ -108,3 +108,5 @@ module tb_b2r_converter;
     end
 
 endmodule
+
+

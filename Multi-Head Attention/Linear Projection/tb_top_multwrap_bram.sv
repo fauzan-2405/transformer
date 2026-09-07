@@ -3,13 +3,13 @@
 import linear_proj_pkg::*;
 
 module tb_top_multwrap_bram;
+
     localparam MEMORY_SIZE_A = INNER_DIMENSION*A_OUTER_DIMENSION*WIDTH_A;
     localparam MEMORY_SIZE_B = INNER_DIMENSION*B_OUTER_DIMENSION*WIDTH_B;
     localparam DATA_WIDTH_A  = WIDTH_A*CHUNK_SIZE*NUM_CORES_A;
     localparam DATA_WIDTH_B  = WIDTH_B*CHUNK_SIZE*NUM_CORES_B*TOTAL_MODULES;
     localparam int ADDR_WIDTH_A = $clog2(MEMORY_SIZE_A/DATA_WIDTH_A);
     localparam int ADDR_WIDTH_B = $clog2(MEMORY_SIZE_B/DATA_WIDTH_B);
-
     // ************** Clock and Reset **************
     logic clk = 0;
     logic rst_n = 0;
@@ -37,7 +37,7 @@ module tb_top_multwrap_bram;
 
     logic done, out_valid;
     logic [(WIDTH_OUT*CHUNK_SIZE*NUM_CORES_A*NUM_CORES_B*TOTAL_MODULES)-1:0] out_multi_matmul [TOTAL_INPUT_W];
-
+    
     reg [DATA_WIDTH_A-1:0] in_mat_dinb_d;
     reg [DATA_WIDTH_B-1:0] w_mat_dinb_d;
 
@@ -81,13 +81,13 @@ module tb_top_multwrap_bram;
         in_mat_dinb_d = in_mat_dinb;
         w_mat_dinb_d = w_mat_dinb;
     end
-
+        
     initial begin
         $display("[%0t] Starting Simulation...", $time);
 
         // Load memory data
-        $readmemb("mem_A.mem", mem_A);
-        $readmemb("mem_B.mem", mem_B);
+        $readmemb("mem_A_2.mem", mem_A);
+        $readmemb("mem_B_2.mem", mem_B);
 
         // Initialize control signals
         in_mat_ena = 0; in_mat_wea = 0;
@@ -101,21 +101,26 @@ module tb_top_multwrap_bram;
         rst_n = 0;
         #50;
         rst_n = 1;
-        #20;
+        #15;
 
         // ************** Fill Input BRAMs (even/odd split) **************
         $display("[%0t] Writing Input BRAM (mem_A.mem)...", $time);
         in_mat_ena = 1; in_mat_enb = 1;
         in_mat_wea = 1; in_mat_web = 1;
-
+        
         for (int i = 0; i < (NUM_A_ELEMENTS+1)/2; i++) begin
             @(posedge clk);
             // Port A writes even addresses
             in_mat_wr_addra = 2*i;
             in_mat_dina = mem_A[2*i];
             // Port B writes odd addresses
-            in_mat_wr_addrb = 2*i + 1;
-            in_mat_dinb = mem_A[2*i + 1];
+            if (2*1 + 1 >= NUM_A_ELEMENTS) begin
+                in_mat_wr_addrb = NUM_A_ELEMENTS - 1 - 1;
+                in_mat_dinb = mem_A[NUM_B_ELEMENTS-1 - 1];
+            end else begin
+                in_mat_wr_addrb = 2*i + 1;
+                in_mat_dinb = mem_A[2*i + 1];
+            end
         end
         @(posedge clk);
         in_mat_wea = 0; in_mat_web = 0;
@@ -165,7 +170,8 @@ module tb_top_multwrap_bram;
 
         #50;
         $display("[%0t] Simulation Complete.", $time);
-        $finish;
+        //$finish;
     end
 
 endmodule
+

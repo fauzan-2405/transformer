@@ -3,6 +3,9 @@
 import linear_proj_pkg::*;
 
 module top_linear_projection #(
+    parameter MEM_INIT_FILE_Q = "mat_B_lp_bridge.mem",
+    parameter MEM_INIT_FILE_K = "mat_B_lp_bridge.mem",
+    parameter MEM_INIT_FILE_V = "mat_B_lp_bridge.mem",
     parameter OUT_KEYS = WIDTH_OUT*CHUNK_SIZE*NUM_CORES_A*NUM_CORES_B*TOTAL_MODULES
 ) (
     input logic clk, rst_n,
@@ -150,6 +153,9 @@ module top_linear_projection #(
     endgenerate
 
     linear_projection #(
+        .MEM_INIT_FILE_Q(MEM_INIT_FILE_Q),
+        .MEM_INIT_FILE_K(MEM_INIT_FILE_K),
+        .MEM_INIT_FILE_V(MEM_INIT_FILE_V),
         .OUT_KEYS(OUT_KEYS)
     ) linear_projection_inst (
         .clk(clk), .rst_n(rst_n),

@@ -83,40 +83,40 @@ module top_lp_bridge #(
 
     // ************************************ TOP PING PONG  ************************************
     // For West Bank
-    logic [W_IN_WIDTH-1:0] w_bank0_din_bridge [NUMBER_OF_BUFFER_INSTANCES][TOTAL_INPUT_W]; // [1] because the NUMBER_OF_BUFFER_INSTANCES for this test is just 1
+    logic [W_IN_WIDTH-1:0] w_bank0_din_bridge [NUMBER_OF_BUFFER_INSTANCES][TOTAL_INPUT_W];
     logic [W_IN_WIDTH-1:0] w_bank1_din_bridge [NUMBER_OF_BUFFER_INSTANCES][TOTAL_INPUT_W];
 
     // For North Bank
     logic [N_IN_WIDTH-1:0] n_bank0_din_bridge [NUMBER_OF_BUFFER_INSTANCES][TOTAL_INPUT_W];
 
     genvar t, u;
-    generate
+    generate 
         for (u = 0; u < NUMBER_OF_BUFFER_INSTANCES; u++) begin
             for (t = 0; t < TOTAL_INPUT_W; t++) begin
                 if (u == 0) begin
                     assign w_bank0_din_bridge[0][t] = out_q1_wire[t];
                     assign w_bank1_din_bridge[0][t] = out_q1_wire[t];
-
+        
                     assign n_bank0_din_bridge[0][t] = out_k1_wire[t];
                 end /*
                 else if (u == 1) begin
                     assign w_bank0_din_bridge[1][t] = out_q2_wire[t];
                     assign w_bank1_din_bridge[1][t] = out_q2_wire[t];
-
+        
                     assign n_bank0_din_bridge[1][t] = out_k2_wire[t];
                     assign n_bank1_din_bridge[1][t] = out_k2_wire[t];
                 end
                 else if (u == 2) begin
                     assign w_bank0_din_bridge[2][t] = out_q3_wire[t];
                     assign w_bank1_din_bridge[2][t] = out_q3_wire[t];
-
+        
                     assign n_bank0_din_bridge[2][t] = out_k3_wire[t];
                     assign n_bank1_din_bridge[2][t] = out_k3_wire[t];
                 end
                 else if (u == 3) begin
                     assign w_bank0_din_bridge[3][t] = out_q4_wire[t];
                     assign w_bank1_din_bridge[3][t] = out_q4_wire[t];
-
+        
                     assign n_bank0_din_bridge[3][t] = out_k4_wire[t];
                     assign n_bank1_din_bridge[3][t] = out_k4_wire[t]; 
                 end */
@@ -131,7 +131,7 @@ module top_lp_bridge #(
     logic sig_internal_reset_acc_ctrl;
     logic sig_out_valid;
     logic sig_enable_matmul;
-
+    
     logic sig_acc_done_wrap;
     logic sig_systolic_finish_wrap;
 
