@@ -1,12 +1,17 @@
+
 // multihead_attention.sv
 // top module that contains top_linear_projection + top_self_attention_head
 
+import top_pkg::*;
 import linear_proj_pkg::*;
 import self_attention_pkg::*;
 import buffer0_pkg::*;
 
 module multihead_attention #(
     localparam TOTAL_SOFTMAX_ROW = NUM_CORES_A_Qn_KnT * BLOCK_SIZE,
+    parameter MEM_INIT_FILE_Q = "mat_B_lp_bridge.mem",
+    parameter MEM_INIT_FILE_K = "mat_B_lp_bridge.mem",
+    parameter MEM_INIT_FILE_V = "mat_B_lp_bridge.mem",
     parameter OUT_KEYS = WIDTH_OUT*CHUNK_SIZE*NUM_CORES_A*NUM_CORES_B*TOTAL_MODULES,
     parameter NUMBER_OF_BUFFER_INSTANCES = 1
 ) (
@@ -26,33 +31,47 @@ module multihead_attention #(
     //output logic out_softmax_valid [NUMBER_OF_BUFFER_INSTANCES][TOTAL_INPUT_W_Qn_KnT][TOTAL_SOFTMAX_ROW]
     //output logic [WIDTH_OUT*CHUNK_SIZE*NUM_CORES_A_QKT_Vn-1:0] out_data_r2b [NUMBER_OF_BUFFER_INSTANCES][TOTAL_INPUT_W_Qn_KnT][TOTAL_TILE_SOFTMAX]
     //output logic [(WIDTH_OUT*CHUNK_SIZE*NUM_CORES_A_QKT_Vn)-1:0] out_data_fifo [TOTAL_INPUT_W_Qn_KnT][NUM_BANKS_FIFO]
-    output logic [(WIDTH_OUT*CHUNK_SIZE*NUM_CORES_A_QKT_Vn*NUM_CORES_B_QKT_Vn*TOTAL_MODULES_LP_V)-1:0]
-        out_matmul_QKT_Vn [TOTAL_INPUT_W_Qn_KnT]
+    output logic [OUT_KEYS-1:0] out_Q_matrix [TOTAL_INPUT_W], 
+    output logic [OUT_KEYS-1:0] out_K_matrix [TOTAL_INPUT_W], 
+    output logic [OUT_KEYS-1:0] out_V_matrix [TOTAL_INPUT_W],
+    output logic linproj_valid, linproj_done,
+    
+    output logic [(TOP_WIDTH_QKT*CHUNK_SIZE*NUM_CORES_A_Qn_KnT*NUM_CORES_B_Qn_KnT*TOTAL_MODULES_LP_Q)-1:0]
+        out_matmul_Qn_KnT [NUMBER_OF_BUFFER_INSTANCES][TOTAL_INPUT_W_Qn_KnT],
+    output logic out_Qn_KnT_valid,
+    output logic Qn_KnT_done,
+    
+    output logic [(TOP_WIDTH_OUT*CHUNK_SIZE*NUM_CORES_A_QKT_Vn*NUM_CORES_B_QKT_Vn*TOTAL_MODULES_LP_V)-1:0]
+        out_matmul_QKT_Vn [NUMBER_OF_BUFFER_INSTANCES][TOTAL_INPUT_W_Qn_KnT],
+    output logic out_QKT_Vn_valid,
+    output logic QKT_Vn_done
 );
-
+    
     // ********************************************* TOP LINEAR PROJECTION *********************************************
     logic internal_rst_n_lp;
-    logic [(OUT_KEYS)-1:0] out_q1_wire [TOTAL_INPUT_W];
-    /*
+    logic [(OUT_KEYS)-1:0] out_q1_wire [TOTAL_INPUT_W]; /*
     logic [(OUT_KEYS)-1:0] out_q2_wire [TOTAL_INPUT_W];
     logic [(OUT_KEYS)-1:0] out_q3_wire [TOTAL_INPUT_W];
     logic [(OUT_KEYS)-1:0] out_q4_wire [TOTAL_INPUT_W]; */
 
-    logic [(OUT_KEYS)-1:0] out_k1_wire [TOTAL_INPUT_W];
-    /*
+    logic [(OUT_KEYS)-1:0] out_k1_wire [TOTAL_INPUT_W]; /*
     logic [(OUT_KEYS)-1:0] out_k2_wire [TOTAL_INPUT_W];
     logic [(OUT_KEYS)-1:0] out_k3_wire [TOTAL_INPUT_W];
     logic [(OUT_KEYS)-1:0] out_k4_wire [TOTAL_INPUT_W]; */
 
-    logic [(OUT_KEYS)-1:0] out_v1_wire [TOTAL_INPUT_W];
-    /*
-    logic [(OUT_KEYS)-1:0] out_v2_wire [TOTAL_INPUT_W];
+    logic [(OUT_KEYS)-1:0] out_v1_wire [TOTAL_INPUT_W]; /*
+    logic [(OUT_KEYS)-1:0] out_v2_wire [TOTAL_INPUT_W]; 
     logic [(OUT_KEYS)-1:0] out_v3_wire [TOTAL_INPUT_W];
     logic [(OUT_KEYS)-1:0] out_v4_wire [TOTAL_INPUT_W]; */
 
     logic lp_valid, lp_done;
+    assign linproj_valid    = lp_valid;
+    assign linproj_done     = lp_done;
 
     top_linear_projection #(
+        .MEM_INIT_FILE_Q(MEM_INIT_FILE_Q),
+        .MEM_INIT_FILE_K(MEM_INIT_FILE_K),
+        .MEM_INIT_FILE_V(MEM_INIT_FILE_V),
         .OUT_KEYS(OUT_KEYS)
     ) linear_projection_inst (
         .clk(clk), .rst_n(internal_rst_n_lp),
@@ -68,33 +87,35 @@ module multihead_attention #(
         .in_mat_dinb(in_mat_dinb),
 
         .out_q1(out_q1_wire), // We're just using one output to see the behavior
-        /* 
+        /*
         .out_q2(out_q2_wire),
         .out_q3(out_q3_wire),
-        .out_q4(out_q4_wire), */
+        .out_q4(out_q4_wire),*/
 
-        .out_k1(out_k1_wire),
-        /*
+        .out_k1(out_k1_wire), /*
         .out_k2(out_k2_wire),
         .out_k3(out_k3_wire),
-        .out_k4(out_k4_wire), */
+        .out_k4(out_k4_wire),*/
 
-        .out_v1(out_v1_wire),
-        /*
+        .out_v1(out_v1_wire), /*
         .out_v2(out_v2_wire),
         .out_v3(out_v3_wire),
-        .out_v4(out_v4_wire), */
+        .out_v4(out_v4_wire),*/
 
         .out_valid(lp_valid),
         .done(lp_done)
     );
-
+    
+    assign out_Q_matrix = out_q1_wire;
+    assign out_K_matrix = out_k1_wire;
+    assign out_V_matrix = out_v1_wire;
 
     // ********************************************* TOP BUFFER  *********************************************
     logic [W0_IN_WIDTH-1:0] w_bank0_din_bridge [NUMBER_OF_BUFFER_INSTANCES][TOTAL_INPUT_W_W0]; // For West Bank0 (Qn)
     logic [N0_IN_WIDTH-1:0] n_bank0_din_bridge [NUMBER_OF_BUFFER_INSTANCES][TOTAL_INPUT_W_N0]; // For North Bank0 (Kn)
     logic [N0_IN_WIDTH-1:0] n_bank1_din_bridge [NUMBER_OF_BUFFER_INSTANCES][TOTAL_INPUT_W_N0]; // For North Bank1 (Vn)
 
+    /*
     genvar t, u;
     generate
         for (u = 0; u < NUMBER_OF_BUFFER_INSTANCES; u++) begin
@@ -103,25 +124,10 @@ module multihead_attention #(
                     assign w_bank0_din_bridge[0][t] = out_q1_wire[t];
                     assign n_bank0_din_bridge[0][t] = out_k1_wire[t];
                     assign n_bank1_din_bridge[0][t] = out_v1_wire[t];
-                end /*
-                else if (u == 1) begin
-                    assign w_bank0_din_bridge[1][t] = out_q2_wire[t];
-                    assign n_bank0_din_bridge[1][t] = out_k2_wire[t];
-                    assign n_bank1_din_bridge[1][t] = out_v2_wire[t];
                 end
-                else if (u == 2) begin
-                    assign w_bank0_din_bridge[2][t] = out_q3_wire[t];
-                    assign n_bank0_din_bridge[2][t] = out_k3_wire[t];
-                    assign n_bank1_din_bridge[2][t] = out_v3_wire[t];
-                end
-                else if (u == 3) begin
-                    assign w_bank0_din_bridge[3][t] = out_q4_wire[t];
-                    assign n_bank0_din_bridge[3][t] = out_k4_wire[t];
-                    assign n_bank1_din_bridge[3][t] = out_v4_wire[t];
-                end */
             end
         end
-    endgenerate
+    endgenerate*/
 
     logic [W0_SLICE_WIDTH-1:0] w_dout_b0 [NUMBER_OF_BUFFER_INSTANCES][TOTAL_INPUT_W_W0];
     logic [N0_MODULE_WIDTH-1:0] n_dout_b0 [NUMBER_OF_BUFFER_INSTANCES];
@@ -129,15 +135,19 @@ module multihead_attention #(
     logic sig_internal_rst_n_ctrl;
     logic sig_internal_reset_acc_ctrl;
     logic sig_out_valid;
+    logic sig_Qn_KnT_done;
     logic sig_enable_matmul;
 
     logic sig_acc_done_wrap;
     logic sig_systolic_finish_wrap;
+    
+    assign out_Qn_KnT_valid = sig_out_valid;
+    assign Qn_KnT_done      = sig_Qn_KnT_done;
 
     top_buffer #(
         .NUMBER_OF_BUFFER_INSTANCES(NUMBER_OF_BUFFER_INSTANCES),
         // West
-        .WIDTH              (B0_WIDTH),
+        .W_WIDTH            (B0_WIDTH),
         .W_NUM_CORES_A      (W0_NUM_CORES_A),
         .W_NUM_CORES_B      (W0_NUM_CORES_B),
         .W_TOTAL_MODULES    (W0_TOTAL_MODULES),
@@ -151,8 +161,10 @@ module multihead_attention #(
         .W_MODULE_WIDTH     (W0_MODULE_WIDTH),
         .W_MEMORY_SIZE      (W0_MEMORY_SIZE),
         .W_TOTAL_DEPTH      (W0_TOTAL_DEPTH),
+        .W_TOTAL_IN         (W0_TOTAL_IN),
         
         // North
+        .N_WIDTH            (B0_WIDTH),
         .N_NUM_CORES_A      (N0_NUM_CORES_A),
         .N_NUM_CORES_B      (N0_NUM_CORES_B),
         .N_TOTAL_MODULES    (N0_TOTAL_MODULES),
@@ -191,6 +203,7 @@ module multihead_attention #(
         .internal_rst_n_ctrl     (sig_internal_rst_n_ctrl),
         .internal_reset_acc_ctrl (sig_internal_reset_acc_ctrl),
         .out_valid               (sig_out_valid),
+        .out_done                (sig_Qn_KnT_done),
         .enable_matmul           (sig_enable_matmul)
     );
 
@@ -215,9 +228,12 @@ module multihead_attention #(
         .input_n_Qn_KnT         (n_dout_b0),
         
         .in_valid_n_QKT_Vn      (lp_valid),
-        .input_n_QKT_Vn         (n_bank1_din_bridge)
+        .input_n_QKT_Vn         (n_bank1_din_bridge),
         
-        //.out_matmul_QKT_Vn      (out_matmul_QKT_Vn)
+        .out_matmul_Qn_KnT      (out_matmul_Qn_KnT),
+        .QKT_Vn_valid           (out_QKT_Vn_valid),
+        .out_QKT_Vn_done        (QKT_Vn_done),
+        .out_matmul_QKT_Vn      (out_matmul_QKT_Vn)
         
         // Temporary output
         //.out_softmax_data(out_softmax_data),
@@ -230,9 +246,30 @@ module multihead_attention #(
     always @(posedge clk) begin
         if (~rst_n) begin
             internal_rst_n_lp   <= rst_n;
+            
+            for (int u = 0; u < NUMBER_OF_BUFFER_INSTANCES; u++) begin
+                for (int t = 0; t < TOTAL_INPUT_W_W0; t++) begin
+                    w_bank0_din_bridge[u][t]  <= '0;
+                    n_bank0_din_bridge[u][t]  <= '0;
+                    n_bank1_din_bridge[u][t]  <= '0;
+                end
+            end
         end else begin
             // Internal reset for Linear Projection
             internal_rst_n_lp   <= ~lp_done;
+            
+            // Asserting the w_bank and the n_bank
+            if (lp_valid) begin
+                for (int u = 0; u < NUMBER_OF_BUFFER_INSTANCES; u++) begin
+                    for (int t = 0; t < TOTAL_INPUT_W_W0; t++) begin
+                        if (u == 0) begin
+                            w_bank0_din_bridge[0][t] <= out_q1_wire[t];
+                            n_bank0_din_bridge[0][t] <= out_k1_wire[t];
+                            n_bank1_din_bridge[0][t] <= out_v1_wire[t];
+                        end
+                    end
+                end
+            end
         end
     end
 
