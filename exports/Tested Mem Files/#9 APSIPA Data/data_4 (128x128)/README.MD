@@ -9,9 +9,11 @@ python -u "D:\DATA\Documents\Xirka Internship\PME\Transformer\transformer\Python
 python -u "D:\DATA\Documents\Xirka Internship\PME\Transformer\transformer\Python Model + Scripts\bin2hex.py" "D:\DATA\Documents\Xirka Internship\PME\Transformer\transformer\exports\Tested Mem Files\#9 APSIPA Data\data_4 (128x128)\matrix_B_core.mem" --element-bits 8
 
 > Row A
-python -u "D:\DATA\Documents\Xirka Internship\PME\Transformer\transformer\Python Model + Scripts\bin2hex.py" "D:\DATA\Documents\Xirka Internship\PME\Transformer\transformer\exports\Tested Mem Files\#9 APSIPA Data\data_4 (128x128)\matrix_A_row.mem" --element-bits 2
+python -u "d:\DATA\Documents\Xirka Internship\PME\Transformer\transformer\Python Model + Scripts\mem_processor.py" "d:\DATA\Documents\Xirka Internship\PME\Transformer\transformer\exports\Tested Mem Files\#9 APSIPA Data\data_4 (128x128)\matrix_A_row.mem" --total_bits 2 --frac_bits 0 --display float
 
 > Row B
 python -u "D:\DATA\Documents\Xirka Internship\PME\Transformer\transformer\Python Model + Scripts\bin2hex.py" "D:\DATA\Documents\Xirka Internship\PME\Transformer\transformer\exports\Tested Mem Files\#9 APSIPA Data\data_4 (128x128)\matrix_B_row.mem" --element-bits 2
+
+python -u "d:\DATA\Documents\Xirka Internship\PME\Transformer\transformer\Python Model + Scripts\mem_processor.py" "d:\DATA\Documents\Xirka Internship\PME\Transformer\transformer\exports\Tested Mem Files\#9 APSIPA Data\data_4 (128x128)\matrix_B_row.mem" --total_bits 2 --frac_bits 0 --display float
 
 Notice the element bits used in Row mode is /4 with the one used in Core
