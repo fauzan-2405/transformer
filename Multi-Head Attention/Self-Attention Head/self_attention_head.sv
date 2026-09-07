@@ -38,7 +38,7 @@ module self_attention_head #(
     input logic fifo_rd_en [TOTAL_TILE_SOFTMAX],
     input logic internal_rst_n_fifo [NUM_BANKS_FIFO],
     input logic fifo_out_valid,
-
+    
     input logic [N1_IN_WIDTH-1:0] input_n_QKT_Vn [TOTAL_INPUT_W_N1],
     input logic in_valid_n_QKT_Vn,
 
@@ -57,7 +57,7 @@ module self_attention_head #(
     output logic slice_last_r2b [TOTAL_TILE_SOFTMAX],
 
     output logic fifo_underflow [NUM_BANKS_FIFO],
-    output logic [WR_DATA_COUNT_WIDTH-1:0] wr_data_count_fifo [NUM_BANKS_FIFO],
+    output logic [WR_DATA_COUNT_WIDTH-1:0] wr_data_count_fifo [NUM_BANKS_FIFO], 
     output logic [RD_DATA_COUNT_WIDTH-1:0] rd_data_count_fifo [NUM_BANKS_FIFO],
     //output logic fifo_full [NUM_BANKS_FIFO],
 
@@ -65,21 +65,28 @@ module self_attention_head #(
     //output logic [TILE_SIZE_SOFTMAX*WIDTH_OUT-1:0] out_softmax_data [TOTAL_INPUT_W_Qn_KnT][TOTAL_SOFTMAX_ROW]
     //output logic [WIDTH_OUT*CHUNK_SIZE*NUM_CORES_A_QKT_Vn-1:0] out_data_r2b [TOTAL_INPUT_W_Qn_KnT][TOTAL_TILE_SOFTMAX]
     //output logic [(WIDTH_OUT*CHUNK_SIZE*NUM_CORES_A_QKT_Vn)-1:0] out_data_fifo [TOTAL_INPUT_W_Qn_KnT][NUM_BANKS_FIFO]
-    output logic [(WIDTH_OUT*CHUNK_SIZE*NUM_CORES_A_QKT_Vn*NUM_CORES_B_QKT_Vn*TOTAL_MODULES_LP_V)-1:0]
+    output logic [(SA_WIDTH_OUT*CHUNK_SIZE*NUM_CORES_A_Qn_KnT*NUM_CORES_B_Qn_KnT*TOTAL_MODULES_LP_Q)-1:0]
+        out_Qn_KnT [TOTAL_INPUT_W_Qn_KnT],
+        
+    output logic out_QKT_Vn_valid,
+    output logic QKT_Vn_done,
+    output logic [(SA_WIDTH_FINAL*CHUNK_SIZE*NUM_CORES_A_QKT_Vn*NUM_CORES_B_QKT_Vn*TOTAL_MODULES_LP_V)-1:0]
         out_matmul_QKT_Vn [TOTAL_INPUT_W_Qn_KnT]
-);
-
+);    
+    
     // ************************** Matmul Module Qn x Kn^T **************************
-    logic [(WIDTH_OUT*CHUNK_SIZE*NUM_CORES_A_Qn_KnT*NUM_CORES_B_Qn_KnT*TOTAL_MODULES_LP_Q)-1:0]
+    logic [(SA_WIDTH_OUT*CHUNK_SIZE*NUM_CORES_A_Qn_KnT*NUM_CORES_B_Qn_KnT*TOTAL_MODULES_LP_Q)-1:0]
         out_matmul_Qn_KnT [TOTAL_INPUT_W_Qn_KnT];
-
+    
+    assign out_Qn_KnT = out_matmul_Qn_KnT;
+    
     multi_matmul_wrapper #(
-        .WIDTH_A(WIDTH_A),
-        .FRAC_WIDTH_A(FRAC_WIDTH_A),
-        .WIDTH_B(WIDTH_B),
-        .FRAC_WIDTH_B(FRAC_WIDTH_B),
-        .WIDTH_OUT(WIDTH_OUT),
-        .FRAC_WIDTH_OUT(FRAC_WIDTH_OUT),
+        .WIDTH_A(SA_WIDTH_A),
+        .FRAC_WIDTH_A(SA_FRAC_WIDTH_A),
+        .WIDTH_B(SA_WIDTH_B),
+        .FRAC_WIDTH_B(SA_FRAC_WIDTH_B),
+        .WIDTH_OUT(SA_WIDTH_OUT),
+        .FRAC_WIDTH_OUT(SA_FRAC_WIDTH_OUT),
         .BLOCK_SIZE(BLOCK_SIZE),
         .CHUNK_SIZE(CHUNK_SIZE),
         .INNER_DIMENSION(INNER_DIMENSION_Qn_KnT),
@@ -100,16 +107,16 @@ module self_attention_head #(
     );
 
     // ************************** 4-BIT SHIFTER **************************
-    logic [(WIDTH_OUT*CHUNK_SIZE*NUM_CORES_A_Qn_KnT*NUM_CORES_B_Qn_KnT*TOTAL_MODULES_LP_Q)-1:0]
+    logic [(SA_WIDTH_OUT*CHUNK_SIZE*NUM_CORES_A_Qn_KnT*NUM_CORES_B_Qn_KnT*TOTAL_MODULES_LP_Q)-1:0]
         out_shifted [TOTAL_INPUT_W_Qn_KnT];
 
     rshift #(
-        .WIDTH_A(WIDTH_A),
-        .FRAC_WIDTH_A(FRAC_WIDTH_A),
-        .WIDTH_B(WIDTH_B),
-        .FRAC_WIDTH_B(FRAC_WIDTH_B),
-        .WIDTH_OUT(WIDTH_OUT),
-        .FRAC_WIDTH_OUT(FRAC_WIDTH_OUT),
+        .WIDTH_A(SA_WIDTH_A),
+        .FRAC_WIDTH_A(SA_FRAC_WIDTH_A),
+        .WIDTH_B(SA_WIDTH_B),
+        .FRAC_WIDTH_B(SA_FRAC_WIDTH_B),
+        .WIDTH_OUT(SA_WIDTH_OUT),
+        .FRAC_WIDTH_OUT(SA_FRAC_WIDTH_OUT),
         .BLOCK_SIZE(BLOCK_SIZE),
         .CHUNK_SIZE(CHUNK_SIZE),
         .TOTAL_MODULES(TOTAL_MODULES_LP_Q),
@@ -128,7 +135,7 @@ module self_attention_head #(
     // ************************** B2R CONVERTER **************************
     logic slice_done_b2r [TOTAL_INPUT_W_Qn_KnT];
     logic out_ready_b2r [TOTAL_INPUT_W_Qn_KnT];
-    logic [(TILE_SIZE_SOFTMAX*WIDTH_OUT)-1:0] out_b2r_data [TOTAL_INPUT_W_Qn_KnT];
+    logic [(TILE_SIZE_SOFTMAX*SA_WIDTH_OUT)-1:0] out_b2r_data [TOTAL_INPUT_W_Qn_KnT];
     assign slice_done_b2r_wrap  = slice_done_b2r[0] && slice_done_b2r[1];
     assign out_ready_b2r_wrap   = out_ready_b2r[0] && out_ready_b2r[1];
 
@@ -136,7 +143,7 @@ module self_attention_head #(
     generate
         for (i = 0; i < TOTAL_INPUT_W_Qn_KnT; i++) begin: GEN_B2R_CONVERTER
             b2r_converter #(
-                .WIDTH(WIDTH_OUT),
+                .WIDTH(SA_WIDTH_OUT),
                 .FRAC_WIDTH(FRAC_WIDTH_OUT),
                 .ROW(ROW_B2R_CONVERTER),             // Resulting row
                 .COL(COL_B2R_CONVERTER),             // Resulting col
@@ -161,19 +168,25 @@ module self_attention_head #(
 
 
     // ************************** SOFTMAX **************************
-    logic [TILE_SIZE_SOFTMAX*WIDTH_OUT-1:0] out_softmax_data [TOTAL_INPUT_W_Qn_KnT][TOTAL_SOFTMAX_ROW];
-    (* keep = "true" *) logic [(TILE_SIZE_SOFTMAX*WIDTH_OUT)-1:0] out_b2r_data_reg [TOTAL_INPUT_W_Qn_KnT]; // To delay the b2r_data
+    logic [TILE_SIZE_SOFTMAX*SA_WIDTH_SOFT_OUT-1:0] out_softmax_data [TOTAL_INPUT_W_Qn_KnT][TOTAL_SOFTMAX_ROW];
+    (* keep = "true" *) logic [(TILE_SIZE_SOFTMAX*SA_WIDTH_OUT)-1:0] out_b2r_data_reg [TOTAL_INPUT_W_Qn_KnT]; // To delay the b2r_data
 
     genvar j,k;
     generate
         for (j = 0; j < TOTAL_INPUT_W_Qn_KnT; j++) begin
             for (k = 0; k < TOTAL_SOFTMAX_ROW; k++) begin
                 softmax_vec #(
-                    .WIDTH(WIDTH_OUT),
-                    .FRAC_WIDTH(FRAC_WIDTH_OUT),
+                    .WIDTH(SA_WIDTH_OUT),
+                    .FRAC_WIDTH(SA_FRAC_WIDTH_OUT),
+                    .WIDTH_OUT(SA_WIDTH_SOFT_OUT),
+                    .FRAC_WIDTH_OUT(SA_FRAC_WIDTH_SOFT_OUT),
                     .TOTAL_ELEMENTS(TOTAL_ELEMENTS_SOFTMAX),
                     .TILE_SIZE(TILE_SIZE_SOFTMAX),
-                    .USE_AMULT(0)
+                    .TOTAL_TILE(TOTAL_TILE_SOFTMAX),
+                    .USE_AMULT(0),
+                    .DATA_WIDTH_SOFTMAX_OUT(DATA_WIDTH_SOFTMAX_OUT),
+                    .MEMORY_SIZE_SOFTMAX_OUT(MEMORY_SIZE_SOFTMAX_OUT),
+                    .ADDR_WIDTH_SOFTMAX_OUT(ADDR_WIDTH_SOFTMAX_OUT)
                 ) softmax_unit (
                     .clk(clk),
                     .rst_n(internal_rst_n_softmax[j][k]),
@@ -192,12 +205,12 @@ module self_attention_head #(
 
 
     // ************************** R2B CONVERTER **************************
-    logic [WIDTH_OUT*CHUNK_SIZE*NUM_CORES_A_QKT_Vn-1:0] out_data_r2b [TOTAL_INPUT_W_Qn_KnT][TOTAL_TILE_SOFTMAX];
+    logic [SA_WIDTH_SOFT_OUT*CHUNK_SIZE*NUM_CORES_A_QKT_Vn-1:0] out_data_r2b [TOTAL_INPUT_W_Qn_KnT][TOTAL_TILE_SOFTMAX];
     logic output_valid_r2b [TOTAL_TILE_SOFTMAX];
-
+    
     top_r2b_converter_v #(
-        .WIDTH(WIDTH_OUT),
-        .FRAC_WIDTH(FRAC_WIDTH_OUT),
+        .WIDTH(SA_WIDTH_SOFT_OUT),
+        .FRAC_WIDTH(SA_FRAC_WIDTH_SOFT_OUT),
         .BLOCK_SIZE(BLOCK_SIZE),
         .CHUNK_SIZE(CHUNK_SIZE),
         .ROW(TOTAL_SOFTMAX_ROW), // Real row representation
@@ -220,10 +233,10 @@ module self_attention_head #(
     );
 
     // ************************** FIFO BUFFER **************************
-    logic [(WIDTH_OUT*CHUNK_SIZE*NUM_CORES_A_QKT_Vn)-1:0] out_data_fifo [TOTAL_INPUT_W_Qn_KnT][NUM_BANKS_FIFO];
+    logic [(SA_WIDTH_SOFT_OUT*CHUNK_SIZE*NUM_CORES_A_QKT_Vn)-1:0] out_data_fifo [TOTAL_INPUT_W_Qn_KnT][NUM_BANKS_FIFO];
 
     top_r2b_circular_fifo #(
-        .WIDTH(WIDTH_OUT),
+        .WIDTH(SA_WIDTH_SOFT_OUT),
         .CHUNK_SIZE(CHUNK_SIZE),
         .NUM_CORES_V(NUM_CORES_A_QKT_Vn),
         .TOTAL_TILE_SOFTMAX(TOTAL_TILE_SOFTMAX),
@@ -232,6 +245,7 @@ module self_attention_head #(
         .NUM_BANKS_FIFO(NUM_BANKS_FIFO),
         .RD_DATA_COUNT_WIDTH(RD_DATA_COUNT_WIDTH),
         .WR_DATA_COUNT_WIDTH(WR_DATA_COUNT_WIDTH),
+        .TOTAL_INPUT_W_Qn_KnT(TOTAL_INPUT_W_Qn_KnT),
         .FIFO_WRITE_DEPTH(FIFO_WRITE_DEPTH)
     ) top_r2b_circular_fifo_inst (
         .clk(clk),
@@ -252,44 +266,48 @@ module self_attention_head #(
     logic sig_internal_rst_n_ctrl;
     logic sig_internal_reset_acc_ctrl;
     logic sig_out_valid;
+    logic sig_out_done;
     logic sig_enable_matmul;
+    
+    assign out_QKT_Vn_valid = sig_out_valid;
+    assign QKT_Vn_done      = sig_out_done;
 
     logic sig_acc_done_wrap;
     logic sig_systolic_finish_wrap;
-
+    
     logic [W1_IN_WIDTH-1:0] w_bank1_din_bridge [NUMBER_OF_BUFFER_INSTANCES_LOCAL][TOTAL_INPUT_W_W1];
     logic [N1_IN_WIDTH-1:0] n_bank1_din_bridge [NUMBER_OF_BUFFER_INSTANCES_LOCAL][TOTAL_INPUT_W_N1];
     //logic [N1_IN_WIDTH-1:0] input_n_QKT_Vn [TOTAL_INPUT_W_N1];
-
+                
     /*genvar t, w,v;
     generate
-
+        
         for (u = 0; u < TOTAL_INPUT_W_W1; u++) begin
             assign w_bank1_din_bridge[0][u] = out_data_fifo[u][fifo_rd_idx];
         end
-
+        
         for (w = 0; w < NUMBER_OF_BUFFER_INSTANCES_LOCAL; w++) begin
             for (v = 0; v < TOTAL_INPUT_W_N1; v++) begin
                 assign n_bank1_din_bridge[w][v] = input_n_QKT_Vn[v];
             end
         end
     endgenerate*/
-
+    
     logic [W1_SLICE_WIDTH-1:0] w_dout_b1 [NUMBER_OF_BUFFER_INSTANCES_LOCAL][TOTAL_INPUT_W_W1];
     logic [N1_MODULE_WIDTH-1:0] n_dout_b1 [NUMBER_OF_BUFFER_INSTANCES_LOCAL];
-
+    
     top_buffer #(
         .NUMBER_OF_BUFFER_INSTANCES(NUMBER_OF_BUFFER_INSTANCES_LOCAL),
         .SPECIAL_CASE       (1),
         // West
-        .WIDTH              (B1_WIDTH),
+        .W_WIDTH            (B1_WIDTH),
         .W_NUM_CORES_A      (W1_NUM_CORES_A),
         .W_NUM_CORES_B      (W1_NUM_CORES_B),
         .W_TOTAL_MODULES    (W1_TOTAL_MODULES),
         .W_COL_X            (W1_COL_X),
         .W_ROW_X            (W1_ROW_X),
         .TOTAL_INPUT_W_W    (TOTAL_INPUT_W_W1),
-
+        
         .ADDR_WIDTH_W       (ADDR_WIDTH_W1),
         .W_IN_WIDTH         (W1_IN_WIDTH),
         .W_SLICE_WIDTH      (W1_SLICE_WIDTH),
@@ -297,22 +315,23 @@ module self_attention_head #(
         .W_MEMORY_SIZE      (W1_MEMORY_SIZE),
         .W_TOTAL_DEPTH      (W1_TOTAL_DEPTH),
         .W_TOTAL_IN         (W1_TOTAL_IN),
-
+        
         // North
+        .N_WIDTH            (B0_WIDTH),
         .N_NUM_CORES_A      (N1_NUM_CORES_A),
         .N_NUM_CORES_B      (N1_NUM_CORES_B),
         .N_TOTAL_MODULES    (1),
         .N_ROW_X            (N1_ROW_X),
         .N_COL_X            (N1_COL_X),
         .TOTAL_INPUT_W_N    (TOTAL_INPUT_W_N1),
-
+        
         .ADDR_WIDTH_N       (ADDR_WIDTH_N1),
         .N_IN_WIDTH         (N1_IN_WIDTH),
         .N_MEMORY_SIZE      (N1_MEMORY_SIZE),
         .N_TOTAL_DEPTH      (N1_TOTAL_DEPTH),
         .N_SLICE_WIDTH      (N1_SLICE_WIDTH),
         .N_MODULE_WIDTH     (N1_MODULE_WIDTH),
-
+    
         // ================= GLOBAL PARAMETERS =================
         .MAX_FLAG           (MAX_FLAG_B1),
         .COL_Y              (COL_SIZE_MAT_C_B1),
@@ -337,19 +356,20 @@ module self_attention_head #(
         .internal_rst_n_ctrl     (sig_internal_rst_n_ctrl),
         .internal_reset_acc_ctrl (sig_internal_reset_acc_ctrl),
         .out_valid               (sig_out_valid),
+        .out_done                (sig_out_done),
         .enable_matmul           (sig_enable_matmul)
     );
-
+    
     genvar a;
     generate
         for (a = 0; a < NUMBER_OF_BUFFER_INSTANCES_LOCAL; a++) begin
             multi_matmul_wrapper #(
-                .WIDTH_A                    (WIDTH_A),      // Still from linear_proj_pkg
-                .FRAC_WIDTH_A               (FRAC_WIDTH_A), // Still from linear_proj_pkg
-                .WIDTH_B                    (WIDTH_B),      // Still from linear_proj_pkg
-                .FRAC_WIDTH_B               (FRAC_WIDTH_B), // Still from linear_proj_pkg
-                .WIDTH_OUT                  (WIDTH_OUT),    // Still from linear_proj_pkg
-                .FRAC_WIDTH_OUT             (FRAC_WIDTH_OUT), // Still from linear_proj_pkg
+                .WIDTH_A                    (SA_WIDTH_SOFT_OUT),      // From the softmax
+                .FRAC_WIDTH_A               (SA_FRAC_WIDTH_SOFT_OUT), 
+                .WIDTH_B                    (SA_WIDTH_A),           // From KEYS in linear projection
+                .FRAC_WIDTH_B               (SA_FRAC_WIDTH_A), 
+                .WIDTH_OUT                  (SA_WIDTH_FINAL),       // From final width
+                .FRAC_WIDTH_OUT             (SA_FRAC_WIDTH_FINAL),  
                 .BLOCK_SIZE                 (BLOCK_SIZE),
                 .CHUNK_SIZE                 (CHUNK_SIZE),
                 .INNER_DIMENSION            (INNER_DIMENSION_QKT_Vn),
@@ -383,7 +403,7 @@ module self_attention_head #(
             for (int u = 0; u < TOTAL_INPUT_W_W1; u++) begin
                 w_bank1_din_bridge[0][u] <= '0;
             end*/
-
+            
             for (int w = 0; w < NUMBER_OF_BUFFER_INSTANCES_LOCAL; w++) begin
                 for (int v = 0; v < TOTAL_INPUT_W_N1; v++) begin
                     n_bank1_din_bridge[w][v] <= '0;
@@ -394,11 +414,11 @@ module self_attention_head #(
             for (int a = 0; a < TOTAL_INPUT_W_Qn_KnT; a++) begin
                 out_b2r_data_reg[a] <= out_b2r_data[a];
             end
-
+            
             for (int u = 0; u < TOTAL_INPUT_W_W1; u++) begin
                 w_bank1_din_bridge[0][u] <= out_data_fifo[u][fifo_rd_idx];
             end
-
+            
             for (int w = 0; w < NUMBER_OF_BUFFER_INSTANCES_LOCAL; w++) begin
                 for (int v = 0; v < TOTAL_INPUT_W_N1; v++) begin
                     n_bank1_din_bridge[w][v] <= input_n_QKT_Vn[v];
@@ -410,3 +430,4 @@ module self_attention_head #(
 
 
 endmodule
+

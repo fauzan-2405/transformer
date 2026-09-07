@@ -47,9 +47,9 @@ module self_attention_ctrl #(
     output logic internal_rst_n_fifo [NUM_BANKS_FIFO],
     output logic fifo_rd_en [TOTAL_TILE_SOFTMAX],
     input logic fifo_underflow [TOTAL_TILE_SOFTMAX],
-    //output logic fifo_out_valid [NUM_BANKS_FIFO],
     output logic fifo_out_valid,
-    output logic [$clog2(TOTAL_TILE_SOFTMAX)-1:0] fifo_idx [NUM_BANKS_FIFO] // Determines the fifo unit that used in circular fashion
+    output logic [$clog2(TOTAL_TILE_SOFTMAX)-1:0] fifo_rd_idx,              // Determines the fifo unit that used to read as the input for the next module (buffer1)
+    output logic [$clog2(TOTAL_TILE_SOFTMAX)-1:0] fifo_idx [NUM_BANKS_FIFO] // Determines the fifo unit that used in circular fashion when writing
 );
     // ************************** LOCALPARAMETERS & REGISTERS **************************
     localparam NUM_TILES    = COL / TILE_SIZE;
@@ -62,11 +62,14 @@ module self_attention_ctrl #(
     logic [$clog2(TOTAL_SOFTMAX_ROW):0] global_row_ptr;
     logic [$clog2(TOTAL_SOFTMAX_ROW):0] r2b_row_idx [TOTAL_TILE_SOFTMAX];    // Which softmax row output we are currently consuming
     logic any_softmax_valid;
+    logic [$clog2(TOTAL_SOFTMAX_ROW):0] computed_row;       // NEWWW
 
     logic first_time_fifo;  // Indicates the first time FIFO is filled
     logic last_fifo_done;   // Indicates the last FIFO is already finished
     logic fifo_rd_en_reg[TOTAL_TILE_SOFTMAX];   // Delayed version of fifo_rd_en
     logic fifo_out_valid_sig [NUM_BANKS_FIFO];
+    logic fifo_out_valid_reg;   // Delayed version of fifo_out_valid
+    logic fifo_out_valid_falling;// Indicate when fifo_out_valid falling
     integer i, j, k;
 
 
@@ -74,17 +77,28 @@ module self_attention_ctrl #(
     always @* begin
         // ************************************** SOFTMAX & R2B CONTROLLER **************************************
         // Progressive diagonal mapping
+        in_valid_r2b[0] = 0;    // NEWW    
         for (int m = 0; m < TOTAL_TILE_SOFTMAX; m++) begin
-            in_valid_r2b[m] = 0;
-            if (global_row_ptr >= m) begin
+            //in_valid_r2b[m] = 0;    // OLDD
+            computed_row = 0;   // NEWW
+            if (global_row_ptr >= m) begin // OLDD
 
-                logic [$clog2(TOTAL_SOFTMAX_ROW):0] computed_row;
+                //logic [$clog2(TOTAL_SOFTMAX_ROW):0] computed_row; // OLDD
                 computed_row = global_row_ptr - m;
 
                 r2b_row_idx[m] = computed_row;
-
-                if (softmax_out_valid[computed_row]) begin
-                    in_valid_r2b[m] = 1;
+                
+                // OLDD
+//                if (softmax_out_valid[computed_row]) begin
+//                    in_valid_r2b[m] = 1;
+//                end
+                
+                // NEWW
+                // So, we just set only the in_val_r2b with index 0, the others will be delayed automatically
+                if (m == 0) begin
+                    if (softmax_out_valid[computed_row]) begin
+                        in_valid_r2b[m] = 1;
+                    end
                 end
             end
             else begin
@@ -104,6 +118,11 @@ module self_attention_ctrl #(
         for (int m = 0; m < NUM_BANKS_FIFO; m++) begin
             fifo_out_valid_sig[m] = fifo_rd_en[fifo_idx[m]] & fifo_rd_en_reg[fifo_idx[m]];
             fifo_out_valid |= fifo_out_valid_sig[m];
+        end
+        
+        fifo_out_valid_falling = 1'b0;
+        if (!fifo_out_valid & fifo_out_valid_reg) begin
+            fifo_out_valid_falling = 1'b1;
         end
     end
 
@@ -133,6 +152,10 @@ module self_attention_ctrl #(
                 internal_rst_n_r2b[m]   <= rst_n;
                 //r2b_row_idx[m]     <= '0;
             end
+            // NEWW
+            for (int m = 1; m < TOTAL_TILE_SOFTMAX; m++) begin
+                in_valid_r2b[m] <= '0;
+            end
 
             // FIFO controller
             for (int a = 0; a < NUM_BANKS_FIFO; a++) begin
@@ -145,6 +168,8 @@ module self_attention_ctrl #(
             end
             first_time_fifo <= 0;
             last_fifo_done  <= 0;
+            fifo_rd_idx     <= 0; 
+            fifo_out_valid_reg  <= 0;
         end else begin
             // ************************************** B2R & SOFTMAX CONTROLLER **************************************
             internal_rst_n_b2r  <= ~slice_done_b2r_wrap;
@@ -162,7 +187,9 @@ module self_attention_ctrl #(
             if (!softmax_en && in_valid_b2r) begin
                 softmax_en  <= 1'b1;
             end
-
+//            if (softmax_in_valid == TOTAL_SOFTMAX_ROW -1) begin
+//                dummy_softmax   <= 1;
+//            end
             // tile_in valid for softmax
             if (streaming) begin
                 // Toggling the correct softmax_valid_sig for the corresponding softmax
@@ -170,9 +197,9 @@ module self_attention_ctrl #(
                     //softmax_valid_sig[i] <= (i == TOTAL_SOFTMAX_ROW - 1 - softmax_in_valid); // In reverse
                     softmax_valid_sig[i] <= (i == softmax_in_valid); // In forward
                 end
-
+                
                 // Advancing the softmax_valid_sig through the entire TOTAL_SOFTMAX_ROW
-                if (softmax_in_valid != TOTAL_SOFTMAX_ROW) begin
+                if (softmax_in_valid != TOTAL_SOFTMAX_ROW - 1) begin
                     softmax_in_valid <= softmax_in_valid + 1;
                 end else begin
                     // If we already reached the TOTAL_SOFTMAX_ROW:
@@ -200,6 +227,11 @@ module self_attention_ctrl #(
                 if (global_row_ptr < TOTAL_SOFTMAX_ROW) begin
                     global_row_ptr  <= global_row_ptr + 1;
                 end
+            end
+            
+            // NEWW
+            for (int m = 1; m < TOTAL_TILE_SOFTMAX; m++) begin
+                in_valid_r2b[m] <= in_valid_r2b[m-1];
             end
 
             // ************************************** FIFO BUFFER **************************************
@@ -254,6 +286,24 @@ module self_attention_ctrl #(
                 
                 // After resetting the fifo, release the reset so it can advance for the next index ASAP
                 internal_rst_n_fifo[a]  <= ~fifo_underflow[a];
+            end
+            
+            // Controller for fifo_rd_idx
+            fifo_out_valid_reg  <= fifo_out_valid;
+            if (fifo_out_valid_falling) begin
+//                 OLDD
+//                if (fifo_rd_idx < NUM_BANKS_FIFO) begin
+//                    fifo_rd_idx <= fifo_rd_idx + 1;
+//                end else begin
+//                    fifo_rd_idx <= 0;
+//                end
+                
+                // NEWW
+                if (fifo_rd_idx == NUM_BANKS_FIFO -1) begin
+                    fifo_rd_idx <= 0;
+                end else begin
+                    fifo_rd_idx <= fifo_rd_idx + 1;
+                end
             end
         end
     end

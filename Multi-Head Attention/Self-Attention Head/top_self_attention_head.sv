@@ -4,7 +4,7 @@
 import self_attention_pkg::*;
 
 module top_self_attention_head #(
-    parameter TOTAL_SOFTMAX_ROW = NUM_CORES_A_Qn_KnT * BLOCK_SIZE,
+    //parameter TOTAL_SOFTMAX_ROW = NUM_CORES_A_Qn_KnT * BLOCK_SIZE,
     parameter NUMBER_OF_BUFFER_INSTANCES = 1
 ) (
     input clk, rst_n,
@@ -20,23 +20,57 @@ module top_self_attention_head #(
 
     // Output to bridge buffer
     output logic sys_finish_wrap_Qn_KnT,
-    output logic acc_done_wrap_Qn_KnT
+    output logic acc_done_wrap_Qn_KnT,
+    
+    output logic [(SA_WIDTH_OUT*CHUNK_SIZE*NUM_CORES_A_Qn_KnT*NUM_CORES_B_Qn_KnT*TOTAL_MODULES_LP_Q)-1:0]
+        out_matmul_Qn_KnT [NUMBER_OF_BUFFER_INSTANCES][TOTAL_INPUT_W_Qn_KnT],
+    
+    output logic QKT_Vn_valid,
+    output logic out_QKT_Vn_done,
+    output logic [(SA_WIDTH_FINAL*CHUNK_SIZE*NUM_CORES_A_QKT_Vn*NUM_CORES_B_QKT_Vn*TOTAL_MODULES_LP_V)-1:0]
+        out_matmul_QKT_Vn [NUMBER_OF_BUFFER_INSTANCES][TOTAL_INPUT_W_Qn_KnT]
 
     // Temporary output to see the intermediate results
     //output logic [(TILE_SIZE_SOFTMAX*SA_WIDTH_OUT)-1:0] out_softmax_data [NUMBER_OF_BUFFER_INSTANCES][TOTAL_INPUT_W_Qn_KnT][TOTAL_SOFTMAX_ROW],
     //output logic out_softmax_valid [NUMBER_OF_BUFFER_INSTANCES][TOTAL_INPUT_W_Qn_KnT][TOTAL_SOFTMAX_ROW]
     //output logic [WIDTH_OUT*CHUNK_SIZE*NUM_CORES_A_QKT_Vn-1:0] out_data_r2b [NUMBER_OF_BUFFER_INSTANCES][TOTAL_INPUT_W_Qn_KnT][TOTAL_TILE_SOFTMAX]
-    //output logic [(WIDTH_OUT*CHUNK_SIZE*NUM_CORES_A_QKT_Vn)-1:0] out_data_fifo [TOTAL_INPUT_W_Qn_KnT][NUM_BANKS_FIFO]
-    //output logic [(WIDTH_OUT*CHUNK_SIZE*NUM_CORES_A_QKT_Vn*NUM_CORES_B_QKT_Vn*TOTAL_MODULES_LP_V)-1:0]
-    //    out_matmul_QKT_Vn [TOTAL_INPUT_W_Qn_KnT]
+    //output logic [(WIDTH_OUT*CHUNK_SIZE*NUM_CORES_A_QKT_Vn)-1:0] out_data_fifo [TOTAL_INPUT_W_Qn_KnT][NUM_BANKS_FIFO
 
 );
+
     // ************************************ SELF ATTENTION HEAD ************************************
     // To controller
-    logic in_valid_b2r;
+    logic in_valid_b2r [NUMBER_OF_BUFFER_INSTANCES];
+    logic slice_done_b2r_wrap [NUMBER_OF_BUFFER_INSTANCES];
+    logic out_ready_b2r_wrap [NUMBER_OF_BUFFER_INSTANCES];
+    logic slice_last_r2b [NUMBER_OF_BUFFER_INSTANCES] [TOTAL_TILE_SOFTMAX];
+    
+    logic sys_finish_wrap_Qn_KnT_sig [NUMBER_OF_BUFFER_INSTANCES];
+    logic acc_done_wrap_Qn_KnT_sig [NUMBER_OF_BUFFER_INSTANCES];
+    assign sys_finish_wrap_Qn_KnT   = sys_finish_wrap_Qn_KnT_sig[0];    // One representation
+    assign acc_done_wrap_Qn_KnT     = acc_done_wrap_Qn_KnT_sig[0];      // One representation
+        
+    /*
+    logic in_valid_b2r_sig;
     logic slice_done_b2r_wrap_sig;
     logic out_ready_b2r_wrap_sig;
     logic slice_last_r2b_sig [TOTAL_TILE_SOFTMAX];
+
+    always @* begin
+        for (int j = 0; j < NUMBER_OF_BUFFER_INSTANCES; j++) begin
+            sys_finish_wrap_Qn_KnT  = &sys_finish_wrap_Qn_KnT_sig[i];
+            acc_done_wrap_Qn_KnT    = &acc_done_wrap_Qn_KnT_sig[i];
+            
+            in_valid_b2r_sig        = &in_valid_b2r[i];
+            slice_done_b2r_wrap_sig = &slice_done_b2r_wrap[i];
+            out_ready_b2r_wrap_sig  = &out_ready_b2r_wrap[i];
+            
+            for (int k = 0; k < TOTAL_TILE_SOFTMAX; k++) begin
+                slice_last_r2b_sig[k]   = &slice_last_r2b[i][k];
+            end
+            
+        end
+    end */
 
     // From controller
     logic internal_rst_n_b2r_sig;
@@ -51,14 +85,15 @@ module top_self_attention_head #(
     logic internal_rst_n_r2b_conv [TOTAL_TILE_SOFTMAX];
     logic in_valid_r2b_sig [TOTAL_TILE_SOFTMAX];
 
-    logic [$clog2(TOTAL_TILE_SOFTMAX)-1:0] fifo_idx_sig [NUM_BANKS_FIFO]; // Determines the fifo unit that used in circular fashion
+    logic [$clog2(TOTAL_TILE_SOFTMAX)-1:0] fifo_idx_sig [NUM_BANKS_FIFO]; // Determines the fifo unit that used in circular fashion when writing
+    logic [$clog2(TOTAL_TILE_SOFTMAX)-1:0] fifo_rd_idx_sig; // For reading
     logic fifo_rd_en_sig [TOTAL_TILE_SOFTMAX];
     logic internal_rst_n_fifo_sig [NUM_BANKS_FIFO];
-    logic [RD_DATA_COUNT_WIDTH-1:0] rd_data_count_fifo_sig [NUM_BANKS_FIFO]; 
-    logic [WR_DATA_COUNT_WIDTH-1:0] wr_data_count_fifo_sig [NUM_BANKS_FIFO]; 
-    //logic fifo_full_sig [NUM_BANKS_FIFO];
-    logic fifo_underflow_sig [TOTAL_TILE_SOFTMAX];
     logic fifo_out_valid_sig;
+    
+    logic [RD_DATA_COUNT_WIDTH-1:0] rd_data_count_fifo_sig [NUMBER_OF_BUFFER_INSTANCES][NUM_BANKS_FIFO]; 
+    logic [WR_DATA_COUNT_WIDTH-1:0] wr_data_count_fifo_sig [NUMBER_OF_BUFFER_INSTANCES][NUM_BANKS_FIFO]; 
+    logic fifo_underflow_sig [NUMBER_OF_BUFFER_INSTANCES][TOTAL_TILE_SOFTMAX];
 
     genvar i;
     generate
@@ -77,11 +112,11 @@ module top_self_attention_head #(
                 .input_n_Qn_KnT(input_n_Qn_KnT[i]),
 
                 // To/From bridge buffer
-                .sys_finish_wrap_Qn_KnT(sys_finish_wrap_Qn_KnT),
-                .acc_done_wrap_Qn_KnT(acc_done_wrap_Qn_KnT),
+                .sys_finish_wrap_Qn_KnT(sys_finish_wrap_Qn_KnT_sig[i]),         // Represented just with the first instance
+                .acc_done_wrap_Qn_KnT(acc_done_wrap_Qn_KnT_sig[i]),             // Represented just with the first instance
 
                 // To/From controller
-                .out_valid_shifted(in_valid_b2r),
+                .out_valid_shifted(in_valid_b2r[i]),                        // Represented just with the first instance
 
                 .internal_rst_n_b2r(internal_rst_n_b2r_sig),
 
@@ -91,31 +126,35 @@ module top_self_attention_head #(
                 .done_softmax(softmax_done_sig[i]),
                 .out_softmax_valid(out_softmax_valid[i]),
 
-                .slice_done_b2r_wrap(slice_done_b2r_wrap_sig),
-                .out_ready_b2r_wrap(out_ready_b2r_wrap_sig),
+                .slice_done_b2r_wrap(slice_done_b2r_wrap[i]),           // Represented just with the first instance
+                .out_ready_b2r_wrap(out_ready_b2r_wrap[i]),             // Represented just with the first instance
 
                 .internal_rst_n_r2b_conv(internal_rst_n_r2b_conv),
                 .r2b_row_idx(r2b_row_idx_sig),
-                .slice_last_r2b(slice_last_r2b_sig),
-                .in_valid_r2b(in_valid_r2b_sig),
+                .slice_last_r2b(slice_last_r2b[i]),                     // Represented just with the first instance
+                .in_valid_r2b(in_valid_r2b_sig),                         
 
                 .fifo_idx(fifo_idx_sig),
-                .fifo_underflow(fifo_underflow_sig),
+                .fifo_rd_idx(fifo_rd_idx_sig),
+                .fifo_underflow(fifo_underflow_sig[i]),                     // Represented just with the first instance 
                 .fifo_rd_en(fifo_rd_en_sig),
                 .internal_rst_n_fifo(internal_rst_n_fifo_sig),
-                .rd_data_count_fifo(rd_data_count_fifo_sig),
-                .wr_data_count_fifo(wr_data_count_fifo_sig),
+                .rd_data_count_fifo(rd_data_count_fifo_sig[i]),             // Represented just with the first instance
+                .wr_data_count_fifo(wr_data_count_fifo_sig[i]),             // Represented just with the first instance
                 .fifo_out_valid(fifo_out_valid_sig),
                 //.fifo_full(fifo_full_sig),
                 
                 .input_n_QKT_Vn(input_n_QKT_Vn[i]),
-                .in_valid_n_QKT_Vn(in_valid_n_QKT_Vn)
+                .in_valid_n_QKT_Vn(in_valid_n_QKT_Vn),
+                .out_Qn_KnT(out_matmul_Qn_KnT[i]),
+                .out_QKT_Vn_valid(QKT_Vn_valid),
+                .QKT_Vn_done(out_QKT_Vn_done),
+                .out_matmul_QKT_Vn(out_matmul_QKT_Vn[i])
 
                 // Temporary output to see the intermediate results
                 //.out_softmax_data(out_softmax_data[i]),
                 //.out_data_r2b(out_data_r2b[i]),
-                //.out_data_fifo(out_data_fifo)
-                //.out_matmul_QKT_Vn(out_matmul_QKT_Vn)
+                //.out_data_fifo(out_data_fifo
             );
         end
     endgenerate
@@ -141,9 +180,9 @@ module top_self_attention_head #(
         .clk(clk),
         .rst_n(rst_n),
 
-        .in_valid_b2r(in_valid_b2r),
-        .slice_done_b2r_wrap(slice_done_b2r_wrap_sig),
-        .out_ready_b2r_wrap(out_ready_b2r_wrap_sig),
+        .in_valid_b2r(in_valid_b2r[0]),                     // One representation 
+        .slice_done_b2r_wrap(slice_done_b2r_wrap[0]),       // One representation
+        .out_ready_b2r_wrap(out_ready_b2r_wrap[0]),         // One representation
         .internal_rst_n_b2r(internal_rst_n_b2r_sig),
 
         .softmax_done(softmax_done_sig),
@@ -155,15 +194,16 @@ module top_self_attention_head #(
         .r2b_row_idx_sig(r2b_row_idx_sig),
         .internal_rst_n_r2b(internal_rst_n_r2b_conv),
         .in_valid_r2b(in_valid_r2b_sig),
-        .slice_last_r2b(slice_last_r2b_sig),
+        .slice_last_r2b(slice_last_r2b[0]),                 // One representation
 
         //.fifo_full(fifo_full_sig),
-        .wr_data_count_fifo(wr_data_count_fifo_sig),
-        .rd_data_count_fifo(rd_data_count_fifo_sig),
+        .wr_data_count_fifo(wr_data_count_fifo_sig[0]),     // One representation
+        .rd_data_count_fifo(rd_data_count_fifo_sig[0]),     // One representation
         .internal_rst_n_fifo(internal_rst_n_fifo_sig),
         .fifo_rd_en(fifo_rd_en_sig),
-        .fifo_underflow(fifo_underflow_sig),
+        .fifo_underflow(fifo_underflow_sig[0]),             // One representation
         .fifo_out_valid(fifo_out_valid_sig),
+        .fifo_rd_idx(fifo_rd_idx_sig),
         .fifo_idx(fifo_idx_sig)
     );
 
