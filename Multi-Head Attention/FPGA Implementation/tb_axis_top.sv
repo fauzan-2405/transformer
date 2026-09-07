@@ -74,11 +74,11 @@ module tb_axis_top;
 
             do begin
                 @(posedge aclk);
-            end while (!s_axis_0_tready);
+            end while (!(s_axis_0_tvalid && s_axis_0_tready));
 
         end
 
-        @(posedge aclk);
+//        @(posedge aclk);
         s_axis_0_tvalid <= 0;
         s_axis_0_tlast  <= 0;
     end
@@ -91,7 +91,7 @@ module tb_axis_top;
         s_axis_1_tlast  = 0;
 
         // Artificial delay to emulate an unsynchronized DMA
-        repeat(3) @(posedge aclk);
+        repeat(20) @(posedge aclk);
 
         for (int i = 0; i < (NUM_A_ELEMENTS+1)/2; i++) begin
 
@@ -105,15 +105,11 @@ module tb_axis_top;
 
             do begin
                 @(posedge aclk);
-            end while (!(s_axis_0_tvalid && s_axis_0_tready));
-
-            do begin
-                @(posedge aclk);
             end while (!(s_axis_1_tvalid && s_axis_1_tready));
 
         end
 
-        @(posedge aclk);
+//        @(posedge aclk);
         s_axis_1_tvalid <= 0;
         s_axis_1_tlast  <= 0;
     end
