@@ -19,19 +19,17 @@ module exp_vec #(
     parameter integer FRAC        = 16,
     parameter integer TILE_SIZE   = 4,
     parameter integer USE_AMULT   = 0,   // 0: exact multiply, 1: approximate shift-add
-    parameter integer AMULT_SHIFT = 16   // how many bits from A frac to use for amult SHIFT_VAL
+    parameter integer AMULT_SHIFT = 16,   // how many bits from A frac to use for amult SHIFT_VAL
+    parameter DELAY               = 3
 )(
     input  wire clk,
     input  wire rst_n,
+    input  wire valid_in,
     input  wire signed [TILE_SIZE*WIDTH-1:0] X_flat,
     output wire valid_out,
     output reg signed [TILE_SIZE*WIDTH-1:0] Y_flat
 );
-    // Parameters
-    parameter DELAY_CYCLES = 3; // To match the timing
-    reg [DELAY_CYCLES-1:0] delay_pipe;
-    reg data_in;
-
+        
     // Unpack flattened vector into arrays for readability
     wire signed [WIDTH-1:0] X [0:TILE_SIZE-1];
     reg signed [WIDTH-1:0] X_d [0:TILE_SIZE-1];
@@ -282,6 +280,16 @@ module exp_vec #(
         end
     endgenerate
     
+    // Delay for valid_in
+    delay_register #(
+        .WIDTH(1), .DELAY(DELAY)
+    ) delay_valid_in (
+        .clk(clk),
+        .rst_n(rst_n),
+        .data_in(valid_in),
+        .data_out(valid_out)
+    );
+    
     always @(*) begin
         for (i = 0; i < TILE_SIZE; i = i + 1) begin
             sel_i[i] = index_sel_soft(X[i]);
@@ -323,8 +331,6 @@ module exp_vec #(
                 C_i_d_2[j]  <= 0;
                 P_full_d[j] <= 0;
             end
-            data_in     <= 0;
-            delay_pipe  <= 0;
             Y_flat      <= 0;
         end
         else begin
@@ -338,12 +344,7 @@ module exp_vec #(
                 Y_flat[(TILE_SIZE-1-j)*WIDTH +: WIDTH]   <= Y_i[j];
             end
 
-            // Detect if one of the first pipeline register's value is changed
-            if (X_d[0] != 0) data_in <= 1;
-            delay_pipe  <= {delay_pipe[DELAY_CYCLES-2:0], data_in};
         end
     end
-
-    assign valid_out = delay_pipe[DELAY_CYCLES-1];
 
 endmodule

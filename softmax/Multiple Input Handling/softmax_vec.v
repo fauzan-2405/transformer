@@ -317,14 +317,17 @@ module softmax_vec #(
     reg [ADDR_WIDTH_SOFTMAX_OUT-1:0] rd_addr_out_bram;
     wire [ADDR_WIDTH_SOFTMAX_OUT-1:0] addrb_out_bram;
     wire write_finished;
+    reg write_finished_d1;
+    reg write_finished_reg;
     wire [DATA_WIDTH_SOFTMAX_OUT-1:0] Y_tile_out_wire;
     
     assign en_out_bram  = (state_reg == S_PASS_2); 
     assign wea_out_bram = (state_reg == S_PASS_2) && valid_out0; 
     assign web_out_bram = (state_reg == S_PASS_2) && valid_out1;
-    assign write_finished = (state_reg == S_PASS_2) ? // PLEASE LOOK AT THISS
-                            ((!EVEN_OR_ODD) ? (wr_addrb_out_bram == TOTAL_TILE - 1) : (wr_addra_out_bram == TOTAL_TILE - 1)) : 0;
-    assign addrb_out_bram = write_finished ? rd_addr_out_bram : wr_addrb_out_bram;
+    assign write_finished = (state_reg == S_PASS_2) ? 
+                            ((!EVEN_OR_ODD) ? ((web_out_bram) && (wr_addrb_out_bram == TOTAL_TILE - 1)) : 
+                            (((wea_out_bram)) && (wr_addra_out_bram == TOTAL_TILE - 1))) : 0; // PLEASE LOOK AT THISS
+    assign addrb_out_bram = (write_finished_d1 || write_finished_reg) ? rd_addr_out_bram : wr_addrb_out_bram;
     
     xpm_memory_tdpram
     #(
@@ -459,6 +462,8 @@ module softmax_vec #(
             wr_addra_out_bram   <= 0;
             wr_addrb_out_bram   <= 1;
             rd_addr_out_bram    <= 0;
+            write_finished_d1   <= 0;
+            write_finished_reg  <= 0;
             out_phase       <= 0;
             //done            <= 0;
 
@@ -467,7 +472,7 @@ module softmax_vec #(
             take_odd        <= 0;
             valid_count     <= 0;
 
-            Y_tile_out      <= {TILE_SIZE*WIDTH{1'b0}};
+//            Y_tile_out      <= {TILE_SIZE*WIDTH{1'b0}};
 
             exp_in_flat0    <= {RAM_DATA_WIDTH{1'b0}};
             exp_in_flat1    <= {RAM_DATA_WIDTH{1'b0}};
@@ -486,16 +491,14 @@ module softmax_vec #(
             
             if (data_out_valid_sum_exp) ln_sum_out_reg  <= ln_sum_out;
             
-            if ((rd_addr_out_bram < TOTAL_TILE) && (write_finished) && (state_reg == S_PASS_2 || S_DONE)) begin
+            write_finished_d1   <= write_finished;
+            if ((rd_addr_out_bram < TOTAL_TILE) && (write_finished_d1) && (state_reg == S_PASS_2 || S_DONE)) begin
                 tile_out_valid   <= 1;
             end 
 
             // Case for state_next
             case (state_next)
                 S_PASS_1: begin
-                    // RAM read addresses before moving on to S_PASS_1
-//                    ram_read_addr0     <= {ADDRW{1'b0}}; // 0
-//                    ram_read_addr1     <= (RAM_DEPTH>1) ? 1 : 0;
 
                     if ((ram_read_addr0 + 2 <= (TOTAL_ELEMENTS / TILE_SIZE) - 1) && valid_count) begin
                         // Bump even/odd tile addresses if we actually consumed a full tile from each
@@ -519,25 +522,6 @@ module softmax_vec #(
                 end
 
                 S_PASS_2: begin
-                    remain = (TOTAL_ELEMENTS > e_streamed) ? (TOTAL_ELEMENTS - e_streamed) : 0;
-
-                    // Decide how many to take from each side this "fetch"
-                    if (remain >= 2*TILE_SIZE) begin
-                        take_even <= TILE_SIZE;
-                        take_odd  <= TILE_SIZE;
-                    end else if (remain > TILE_SIZE) begin
-                        take_even <= TILE_SIZE;
-                        take_odd  <= remain - TILE_SIZE;
-                    end else begin
-                        take_even <= remain;
-                        take_odd  <= remain;
-                    end
-
-//                    if (take_even == TILE_SIZE)
-//                        if (ram_read_addr0 + 2 <= (TOTAL_ELEMENTS / TILE_SIZE)) ram_read_addr0 <= ram_read_addr0 + 2; // next even
-//                    if (take_odd == TILE_SIZE)
-//                        if (ram_read_addr1 + 2 < (TOTAL_ELEMENTS / TILE_SIZE)) ram_read_addr1  <= ram_read_addr1  + 2; // next odd\
-                    
                     if ((ram_read_addr0 + 2 <= (TOTAL_ELEMENTS / TILE_SIZE) - 1) && valid_count) begin
                         // Bump even/odd tile addresses if we actually consumed a full tile from each
                         ram_read_addr0 <= ram_read_addr0 + 2; // next even
@@ -550,46 +534,61 @@ module softmax_vec #(
 //                        ram_read_addr1 <= 1;
                         valid_count    <= 0;
                     end
-
-                    // Emit per-tile stream:
-//                    if (out_phase == 0) begin
-//                        e_streamed      <= e_streamed + take_even;
-//                        if (state_reg_d == S_PASS_2) begin
-//                            for (i = 0; i < TILE_SIZE; i = i+1) begin
-//                                Y_tile_out[(TILE_SIZE-1-i)*WIDTH_OUT +: WIDTH_OUT]
-//                                    <= from_q16_16(exp_out_flat1[(TILE_SIZE-1-i)*INT_WIDTH +: INT_WIDTH]);
-//                            end
-//                            tile_out_valid  <= 1'b1;
-//                        end
-//                        out_phase       <= (take_even != 0) ? 1'b1 : 1'b0; // if odd valid then emit it next
-//                    end else begin
-//                        e_streamed      <= e_streamed + take_odd;
-//                        if (state_reg_d == S_PASS_2)begin
-//                            for (i = 0; i < TILE_SIZE; i = i+1) begin
-//                                Y_tile_out[(TILE_SIZE-1-i)*WIDTH_OUT +: WIDTH_OUT]
-//                                    <= from_q16_16(exp_out_flat0[(TILE_SIZE-1-i)*INT_WIDTH +: INT_WIDTH]);
-//                            end
-//                            tile_out_valid  <= 1'b1;
-//                        end
-//                        out_phase       <= 1'b0;
-//                    end
                     
-                    if (wea_out_bram) begin
-                        if (wr_addra_out_bram < TOTAL_TILE - 1) begin
-                            wr_addra_out_bram   <= wr_addra_out_bram + 2;
-                        end
+                    if (!EVEN_OR_ODD) begin
+                        // Even
                         if (web_out_bram) begin
-                            if (wr_addrb_out_bram < TOTAL_TILE - 2) begin
+                            if (wr_addrb_out_bram < TOTAL_TILE - 1) begin
+                                if (wea_out_bram) begin
+                                    if (wr_addra_out_bram < TOTAL_TILE - 2) wr_addra_out_bram   <= wr_addra_out_bram + 2;
+                                end
                                 wr_addrb_out_bram   <= wr_addrb_out_bram + 2;
+                            end
+                        end
+                        if (write_finished_d1 || write_finished_reg) begin
+                            if (wr_addrb_out_bram == TOTAL_TILE - 1) begin
+                                if (rd_addr_out_bram < TOTAL_TILE - 1) begin
+                                    rd_addr_out_bram   <= rd_addr_out_bram + 1;
+                                end
+                            end
+                        end
+                    end else begin
+                        // Odd
+                        if (wea_out_bram) begin
+                            if (wr_addra_out_bram < TOTAL_TILE - 1) begin
+                                wr_addra_out_bram   <= wr_addra_out_bram + 2;
+                                if (web_out_bram) begin
+                                    if (wr_addrb_out_bram < TOTAL_TILE - 2) wr_addrb_out_bram   <= wr_addrb_out_bram + 2;
+                                end
+                            end
+                        end
+                        if (write_finished_d1 || write_finished_reg) begin
+                            if (wr_addra_out_bram == TOTAL_TILE - 1) begin
+                                if (rd_addr_out_bram < TOTAL_TILE - 1) begin
+                                    rd_addr_out_bram   <= rd_addr_out_bram + 1;
+                                end
                             end
                         end
                     end
                     
-                    if (wr_addra_out_bram == TOTAL_TILE - 1) begin
-                        if (rd_addr_out_bram < TOTAL_TILE - 1) begin
-                            rd_addr_out_bram   <= rd_addr_out_bram + 1;
-                        end
-                    end
+//                    if (wea_out_bram) begin
+//                        if (wr_addra_out_bram < TOTAL_TILE - 1) begin
+//                            wr_addra_out_bram   <= wr_addra_out_bram + 2;
+//                        end
+//                        if (web_out_bram) begin
+//                            if (wr_addrb_out_bram < TOTAL_TILE - 2) begin
+//                                wr_addrb_out_bram   <= wr_addrb_out_bram + 2;
+//                            end
+//                        end
+//                    end
+                    
+//                    if (wr_addra_out_bram == TOTAL_TILE - 1) begin
+//                        if (rd_addr_out_bram < TOTAL_TILE - 1) begin
+//                            rd_addr_out_bram   <= rd_addr_out_bram + 1;
+//                        end
+//                    end
+                    
+                    if (write_finished_d1) write_finished_reg  <= 1;
                 end
             endcase
 

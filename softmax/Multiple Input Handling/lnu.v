@@ -2,15 +2,23 @@
 // ln(x) approximated by piecewise linear (Q16.16), 28 segments, interval 0.25
 
 module lnu (
+    input  wire clk,
+    input  wire rst_n,
     input  wire signed [31:0] x_in,      // Q16.16 input
     output reg  signed [31:0] ln_out     // Q16.16 output
 );
+    reg signed [31:0] x_in_d;
     reg [4:0] index;
     reg signed [31:0] a, b;
+    
+//    reg [4:0] index_d;
+    reg signed [31:0] a_d, b_d, b_d2;
+    
     reg signed [31:0] a_lut [0:27];
     reg signed [31:0] b_lut [0:27];
 
     wire signed [63:0]  mult_result;
+    reg signed [63:0]  mult_result_d;
     reg [31:0] Ytemp; 
     
     initial begin
@@ -88,10 +96,26 @@ module lnu (
         b = b_lut[index];
     end
 
-    assign mult_result = a * x_in;
+    assign mult_result = a_d * x_in_d;
 
     always @(*) begin
-        ln_out = (mult_result >> 16) + b;
+        ln_out = (mult_result_d >> 16) + b_d2;
+    end
+    
+    // =========== Pipeline ===========     
+    always @(posedge clk) begin
+        if (!rst_n) begin
+            x_in_d  <= 0;
+            a_d     <= 0;
+            b_d     <= 0;
+            mult_result_d   <= 0;
+        end else begin
+            x_in_d  <= x_in;
+            a_d     <= a;
+            b_d     <= b;
+            b_d2    <= b_d;
+            mult_result_d   <= mult_result;
+        end
     end
 
 endmodule
